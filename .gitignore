@@ -145,3 +145,4 @@ env.bak/
 venv.bak/
 
 apps/common/keys/projetofoodmanager-firebase.json
+apps/static

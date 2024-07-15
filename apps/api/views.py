@@ -271,12 +271,12 @@ class UserView(APIView):
             try:
                 user = User.objects.get(id=id)
             except User.DoesNotExist:
-                return Response(ErrorResponseSerializer.from_dict({"missing":"User couldn't be found by this id."}).data,status=status.HTTP_400_BAD_REQUEST)
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         elif username:
             try:
                 user = User.objects.get(username=username)
             except User.DoesNotExist:
-                return Response(ErrorResponseSerializer.from_dict({"missing":"User couldn't be found by this username."}).data,status=status.HTTP_400_BAD_REQUEST)
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this username.").data,status=status.HTTP_400_BAD_REQUEST)
         else:
 
             return Response(ErrorResponseSerializer.from_dict({"args":"Missing arguments."}).data,status=status.HTTP_400_BAD_REQUEST)

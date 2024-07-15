@@ -1,0 +1,37 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Dashboard - Analytics{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/apex-charts/apex-charts.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/apex-charts/apexcharts.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/dashboards-analytics.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h1 class="py-2 mb-4">
+  <span class="text-muted fw-light">README.md
+  </span>
+</h1>
+  
+<div class="card mb-4">
+  <div class="card-body">
+    <p class="card-text">
+      {{ html_content|safe }}
+    </p>
+  </div>
+</div>
+
+{% endblock %}

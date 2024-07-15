@@ -1,0 +1,73 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Recipe's ETL Tasks{% endblock %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Tables /</span> Recipe's ETL Tasks
+</h4>
+
+
+<!-- Basic Bootstrap Table -->
+<div class="card">
+  
+  <div class="container-fluid d-flex align-items-center">
+    <h5 class="card-header flex-grow-1">Table Basic</h5>
+    
+    <a href="" class="btn btn-primary">
+      Create ETL Task
+    </a>
+  </div>
+  
+  <!-- Filter Form -->
+  <form method="get" class="card py-3 mb-4">
+    <div class="container-fluid d-flex align-items-center">
+      
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Type: </label>
+      </div>
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Status: </label>
+      </div>
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Started At: </label>
+      </div>
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Finished At: </label>
+      </div>
+      <div class="col-md-4 text-end">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </div>
+    
+  </form>
+  
+  <!-- Table -->
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Task</th>
+          <th>Users</th>
+          <th>Type</th>
+          <th>Status</th>
+          <th>Started At</th>
+          <th>Finished At</th>
+          <th>Max Records</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody class="table-border-bottom-0">
+        
+      </tbody>
+    </table>
+  </div>
+  
+  {% include "default/pagination.html" %}
+</div>
+<script src="{% static 'path/to/your/js/file.js' %}"></script>
+</div>
+{% endblock %}

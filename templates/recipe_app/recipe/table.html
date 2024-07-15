@@ -1,0 +1,88 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Recipes{% endblock %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Tables /</span> Recipes
+</h4>
+
+
+<!-- Basic Bootstrap Table -->
+<div class="card">
+  
+  <div class="container-fluid d-flex align-items-center">
+    <h5 class="card-header flex-grow-1">Recipe's table</h5>
+    
+  </div>
+  
+  <!-- Filter Form -->
+  <form method="get" class="card py-3 mb-4">
+    <div class="container-fluid d-flex align-items-center">
+      
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Created By: </label>
+        {{ filter.form.created_by}}
+      </div>
+      
+
+      <div class="col-md-10 text-end">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </div>
+    
+  </form>
+  
+  <!-- Table -->
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Title</th>
+          <th>Created By</th>
+          <th>Rating</th>
+          <th>Options</th>
+
+        </tr>
+      </thead>
+      <tbody class="table-border-bottom-0">
+        <tbody class="table-border-bottom-0">
+          {% for recipe in page_obj %}
+          <tr >
+            <td>{{ recipe.id }}</td>
+            <td>{{ recipe.title}}</td>
+            <td>{{ recipe.created_by}}</td>
+            <td>
+            {% if recipe.rating == None %}
+              {{ recipe.source_rating}}
+            {% else %}
+              {{ recipe.rating}}
+            {% endif %}
+          </td>
+
+          <td>
+            <div class="dropdown">
+              <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+              <div class="dropdown-menu">
+                <a class="dropdown-item" href=""><i class="bx bx-detail me-1"></i> Details</a>
+                <a class="dropdown-item" href=""><i class="bx bx-pencil me-1"></i> Edit</a>
+                <a class="dropdown-item" href=""><i class="bx bx-trash me-1"></i> Delete</a>
+              </div>
+            </div>
+          </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </tbody>
+    </table>
+  </div>
+  
+  {% include "default/pagination.html" %}
+</div>
+<script src="{% static 'path/to/your/js/file.js' %}"></script>
+</div>
+{% endblock %}

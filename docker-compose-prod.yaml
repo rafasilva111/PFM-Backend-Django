@@ -1,0 +1,61 @@
+version: '3'
+services:
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"  # Added management port
+    restart: always
+
+  postgresql:
+    image: postgres:13
+    container_name: postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "5432:5432"
+    restart: always
+
+  celery-worker:
+    build: .
+    container_name: celery-worker
+    depends_on:
+      - rabbitmq
+      - postgresql
+    command: celery -A config.celery worker --loglevel=INFO
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: always
+
+  celery-flower:
+    build: .
+    container_name: celery-flower
+    depends_on:
+      - rabbitmq
+      - celery-worker
+      - postgresql
+    command: celery -A config.celery flower
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: always
+
+  celery-beat:
+    build: .
+    container_name: celery-beat
+    depends_on:
+      - rabbitmq
+      - celery-worker
+      - postgresql
+    command: celery -A config.celery beat --loglevel=INFO
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: always
+
+volumes:
+  app-data:

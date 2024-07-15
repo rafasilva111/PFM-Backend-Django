@@ -8,13 +8,9 @@ from django.db import models
 from datetime import datetime
 from django.utils import timezone
 from django.utils.translation import  gettext_lazy
+from apps.common.models import BaseModel
 
-class BaseModel(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        abstract = True
+
 
 
 class UserManager(BaseUserManager):
@@ -60,21 +56,22 @@ class User(AbstractBaseUser):
 
     name = models.CharField(max_length=255, null=False)
     username = models.CharField(max_length=255, null=False, unique=True)
-    description = models.CharField(max_length=255, default='')
+    description = models.CharField(max_length=255, default='',blank=True)
     birth_date = models.DateTimeField(null=True)
-    img_source = models.CharField(max_length=255, default='')
+    img_source = models.CharField(max_length=255, default='',blank=True)
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
         unique=True)
     user_portion = models.IntegerField(default=-1)
     is_active = models.BooleanField(default=True)
-    fmc_token = models.CharField(max_length=255, default='')
+    fmc_token = models.CharField(max_length=255, default='',blank=True)
     height = models.FloatField(default=-1)
     weight = models.FloatField(default=-1)
     age = models.IntegerField(null=False)
     is_admin = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
+
     
     follows_c = models.IntegerField(default=0)
     followers_c = models.IntegerField(default=0)
@@ -84,16 +81,17 @@ class User(AbstractBaseUser):
     
     objects = UserManager()
     
-    class ActivityLevel(FloatChoices):
-        NOTHING = float(1), gettext_lazy('Nothing')
-        SEDENTARY =float(1.2) , gettext_lazy('Sedentary')
-        LIGHT = float(1.375), gettext_lazy('Light')
-        MODERATE = float(1.465), gettext_lazy('Moderate')  
-        ACTIVE = float(1.55), gettext_lazy('Active')  
-        VERY_ACTIVE = float(1.725), gettext_lazy('Very Active')
-        EXTRA_ACTIVE = float(1.9) , gettext_lazy('Extra Active')  
+    class ActivityLevel(models.TextChoices):
+        NOTHING = "1", gettext_lazy('Nothing')
+        SEDENTARY = "1.2" , gettext_lazy('Sedentary')
+        LIGHT = "1.375", gettext_lazy('Light')
+        MODERATE = "1.465", gettext_lazy('Moderate')  
+        ACTIVE = "1.55", gettext_lazy('Active')  
+        VERY_ACTIVE = "1.725", gettext_lazy('Very Active')
+        EXTRA_ACTIVE = "1.9" , gettext_lazy('Extra Active')  
         
-    activity_level = models.FloatField(
+    activity_level = models.CharField(
+        max_length=5,
         choices=ActivityLevel.choices,
         default=ActivityLevel.NOTHING 
     )
@@ -202,5 +200,3 @@ class Follow(BaseModel):
     followed = models.ForeignKey(User, related_name='followers', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     
-    
-

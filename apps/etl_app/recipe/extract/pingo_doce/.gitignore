@@ -1,0 +1,5 @@
+../../../.idea
+__pycache__
+people.db
+pfm-firebase-sdk.json
+images

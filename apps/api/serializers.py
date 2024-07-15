@@ -3,6 +3,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.urls import reverse
 
 User = get_user_model()
 
@@ -106,3 +107,40 @@ class ResetSerializer(serializers.Serializer):
             'max_length': 'The email address is too long.'
         }
     )
+    
+class PaginationMetadataSerializer(serializers.Serializer):
+
+    current_page = serializers.IntegerField()
+    items_per_page = serializers.IntegerField()
+    total_pages = serializers.IntegerField()
+    total_items = serializers.IntegerField()
+    next = serializers.CharField(allow_null=True)
+    previous = serializers.CharField(allow_null=True)
+
+    @staticmethod
+    def build_metadata(page, page_size, total_pages, total_items, endpoint_name, **kwargs):
+        metadata = {
+            'current_page': page,
+            'items_per_page': page_size,
+            'total_pages': total_pages,
+            'total_items': total_items,
+            'next': None,
+            'previous': None,
+        }
+
+        endpoint_url = reverse(endpoint_name)
+
+        if page < total_pages:
+            next_link = page + 1
+            metadata['next'] = f"{endpoint_url}?page={next_link}&page_size={page_size}"
+        if page > 1:
+            previous_link = page - 1
+            metadata['previous'] = f"{endpoint_url}?page={previous_link}&page_size={page_size}"
+        
+        metadata.update(kwargs)
+        return metadata
+    
+
+class IdListInputSerializer(serializers.Serializer):
+
+    current_page = serializers.ListField(child=serializers.IntegerField())

@@ -1,0 +1,95 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Jobs{% endblock %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Tables /</span> Jobs
+</h4>
+
+
+<!-- Basic Bootstrap Table -->
+<div class="card">
+  
+  <div class="container-fluid d-flex align-items-center">
+    <h5 class="card-header flex-grow-1">Job's table</h5>
+    
+    <a href="{% url 'job_create' %}" class="btn btn-primary">
+      Create Job
+    </a>
+  </div>
+  
+  <!-- Filter Form -->
+  <form method="get" class="card py-3 mb-4">
+    <div class="container-fluid d-flex align-items-center">
+      
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Created By: </label>
+        {{ filter.form.user}}
+      </div>
+
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Type: </label>
+        {{ filter.form.type}}
+      </div>
+      
+
+      <div class="col-md-8 text-end">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </div>
+    
+  </form>
+  
+  <!-- Table -->
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Company</th>
+          <th>Type</th>
+          <th>Recurrency</th>
+          <th>Last Run</th>
+          <th>Enabled</th>
+          <th>Options</th>
+
+        </tr>
+      </thead>
+      <tbody class="table-border-bottom-0">
+        <tbody class="table-border-bottom-0">
+          {% for record in page_obj %}
+          <tr >
+            <td>{{ record.id }}</td>
+            <td>{{ record.user.name}}</td>
+            <td>{{ record.type}}</td>
+            <td>{{ record.crontab}}</td>
+            <td>{{ record.last_run}}</td>    
+            <td>{{ record.periodic_task.enabled }}</td>
+                  
+
+            <td>
+              <div class="dropdown">
+                <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                <div class="dropdown-menu">
+                  <a class="dropdown-item" href="{% url 'job_detail' record.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                  <a class="dropdown-item" href=""><i class="bx bx-pencil me-1"></i> Edit</a>
+                  <a class="dropdown-item" href="{% url 'job_delete' record.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                </div>
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </tbody>
+    </table>
+  </div>
+   
+  {% include "default/pagination.html" %}
+</div>
+<script src="{% static 'path/to/your/js/file.js' %}"></script>
+</div>
+{% endblock %}

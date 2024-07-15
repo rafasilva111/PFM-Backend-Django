@@ -1,18 +1,25 @@
-FROM python:3.9
+# Use an ultra-light Python 3.9 image based on Alpine Linux
+FROM python:3.11-alpine
 
-# set environment variables
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
+# Install PostgreSQL development packages and other dependencies
+RUN apk update && apk add --no-cache postgresql-dev gcc python3-dev musl-dev
 
-COPY requirements.txt .
-# install python dependencies
 RUN pip install --upgrade pip
+
+# Set the working directory in the container
+WORKDIR /app
+
+# Copy only the requirements.txt file to the container
+COPY requirements.txt /app/
+
+# Install any needed packages specified in requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY . .
+# Copy only the necessary application files
+COPY config /app/config
 
-# running migrations
-RUN python manage.py migrate
+# Define environment variable
+ENV PYTHONUNBUFFERED=1
 
-# gunicorn
-CMD ["gunicorn", "--config", "gunicorn-cfg.py", "core.wsgi"]
+# Run the command to start your application (adjust this to your specific entry point)
+#CMD ["celery", "-A", "config.celery", "worker", "--loglevel=INFO"]

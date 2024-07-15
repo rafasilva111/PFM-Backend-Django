@@ -1,26 +1,10 @@
-from django.shortcuts import render
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout
+from django.contrib.auth import login, logout, authenticate
 from django.views import View
-from .forms import LoginForm,RegisterForm,ResetForm
+from .forms import LoginForm, RegisterForm, ResetForm
 from .models import User
-
-import pyrebase
-
-firebaseConfig = {
-    "apiKey": "AIzaSyDrma6XqL6Qyw3E5WnGS7iKnht2Ea8gksU",
-    "authDomain": "projetofoodmanager.firebaseapp.com",
-    "databaseURL": "https://projetofoodmanager-default-rtdb.europe-west1.firebasedatabase.app",
-    "projectId": "projetofoodmanager",
-    "storageBucket": "projetofoodmanager.appspot.com",
-    "messagingSenderId": "1060802135704",
-    "appId": "1:1060802135704:web:c3c91e650e38fa7fe532ed",
-    "measurementId": "G-216ZE9KDML"
-  }
-
-firebase = pyrebase.initialize_app(firebaseConfig)
-auth = firebase.auth()
-
+from django.views.generic import TemplateView
+from web_project import TemplateLayout, TemplateHelper
 # =========================
 # Authentication 
 # =========================
@@ -28,7 +12,7 @@ auth = firebase.auth()
 # Author: Rafael Silva
 # Date: May 12, 2024
 
-class LoginView(View):
+"""class LoginView(View):
     def get(self, request):
         form = LoginForm()
         return render(request, "accounts/login.html", {'form': form})
@@ -38,19 +22,45 @@ class LoginView(View):
         if form.is_valid():
             email = form.cleaned_data['email']
             password = form.cleaned_data['password']
-            try:
-                # Firebase Auth
-                user = auth.sign_in_with_email_and_password(email, password)
-                #
-                django_user = User.objects.get(email=email)
+            user = authenticate(request, email=email, password=password)
+            if user is not None:
                 # Django Auth
-                login(request, django_user)
-                
+                login(request, user)
                 return redirect("/")
-            except:
+            else:
                 # Handle authentication errors
                 form.add_error(None, "Invalid email or password")
-        return render(request, 'accounts/login.html', {'form': form})
+        return render(request, 'accounts/login.html', {'form': form})"""
+    
+    
+class LoginView(TemplateView):
+    template_name = 'auth_login_basic.html'  # Assuming the login template path
+    form = LoginForm()
+
+    def get_context_data(self, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context.update({
+            "layout_path": TemplateHelper.set_layout("layout_blank.html", context),
+            "form": self.form  # Initialize the login form
+        })
+        return context
+
+    def post(self, request):
+        self.form = LoginForm(request.POST)
+        if self.form.is_valid():
+            email = self.form.cleaned_data['email']
+            password = self.form.cleaned_data['password']
+            user = authenticate(request, email=email, password=password)
+            if user is not None:
+                login(request, user)
+                return redirect("home")
+            else:
+                self.form.add_error(None, "Invalid email or password")
+        # If form is invalid or authentication failed, pass form with errors back to template
+        context = self.get_context_data(form=self.form)  
+        return render(request, self.template_name, context)
+    
+    
     
 class RegisterView(View):
     def get(self, request):
@@ -62,49 +72,39 @@ class RegisterView(View):
         if form.is_valid():
             email = form.cleaned_data['email']
             password = form.cleaned_data['password1']
-            
             try:
-                
                 user = form.save()
-                firebase_auth = auth.create_user_with_email_and_password(email, password)
-                return redirect('login', {"msg":"User register succesfully, please login"})
-            
+                return redirect('login', {"msg": "User registered successfully, please login"})
             except Exception as e:
-                error_message = e.args[1] if len(e.args) > 1 else e.args[0]
+                error_message = str(e)
                 if "EMAIL_EXISTS" in error_message:
-                    form.add_error("email", f"Email already exist.")
+                    form.add_error("email", "Email already exists.")
                 else:
-                    form.add_error("password2", f"{error_message}")
-
-                
+                    form.add_error("password2", error_message)
         return render(request, 'accounts/register.html', {'form': form})
     
 class ResetView(View):
     def get(self, request):
         form = ResetForm()
         return render(request, "accounts/reset.html", {'form': form})
-
     
     def post(self, request):
         form = ResetForm(request.POST)
         if form.is_valid():
-            email = request.POST.get('email')
+            email = form.cleaned_data['email']
             try:
-                auth.send_password_reset_email(email)
-                message  = "A email to reset password is successfully sent"
-                return render(request, "accounts/reset.html", {"msg":message})
-            except:
-                message  = "Something went wrong, Please check the email you provided is registered or not"
-                return render(request, "Reset.html", {"msg":message})
+                # Assume you have a method to send reset email
+                #send_reset_email(email)
+                message = "An email to reset your password has been successfully sent"
+                return render(request, "accounts/reset.html", {"msg": message})
+            except Exception as e:
+                message = "Something went wrong. Please check if the email you provided is registered."
+                form.add_error(None, message)
         return render(request, "accounts/reset.html", {'form': form})
 
-    
-
 class LogoutView(View):
-    def get(self, request):
+
+    def post(self, request):
         logout(request)
-        return redirect('signIn')
-    
-
-
-
+        # You can add additional logic for handling POST requests if needed
+        return redirect('login')

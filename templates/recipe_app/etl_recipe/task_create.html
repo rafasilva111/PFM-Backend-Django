@@ -1,0 +1,95 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Basic Tables{% endblock %}
+
+{% block content %}
+
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Recipe /</span> Create ETL Task
+</h4>
+
+<div class="col-md-12">
+  <div class="card mb-4">
+    <h5 class="card-header">Default</h5>
+    <div class="card-body">
+      <div>
+        <form method="post">
+          {% csrf_token %}
+          
+          <!-- User field -->
+
+          {{ form.user.label }}
+          <div class="col-md-6 mt-2 mb-3">
+            {{ form.user}}
+          </div>
+
+          <!-- Type field -->
+           
+          {{ form.type.label }}
+          <div class="col-md-6 mt-2 mb-3">
+            {{ form.type }}
+          </div>
+          
+          <!-- Tasks Transformation field -->
+
+          <div id="parent-tasks-transform" style="display: none;">
+            {{ form.parent_tasks_transform.label_tag }}
+            <div class="col-md-6 mt-2 mb-3">
+              {{ form.parent_tasks_transform }}
+            </div>
+          </div>
+          
+          <!-- Tasks Extraction field -->
+          
+          <div id="parent-tasks-extract" style="display: none;">
+              {{ form.parent_tasks_extract.label_tag }}
+            <div class="col-md-6 mt-2 mb-3">
+              {{ form.parent_tasks_extract }}
+            </div>
+          </div>
+
+          <!-- Max records field -->
+           
+          {{ form.max_records.label }}
+          <div class="col-md-6 mt-2 mb-3">
+            {{ form.max_records }}
+          </div>
+
+          
+      
+          
+          <button type="submit" class="btn btn-primary">
+              Submit
+          </button>
+
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $(document).ready(function() {
+    $('#id_type').change(function() {
+      console.log($(this).val());
+      if ($(this).val() === 'LOAD') {
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').show();
+      } else if ($(this).val() === 'TRANSFORM') {
+        $('#parent-tasks-transform').hide()
+        $('#parent-tasks-extract').show();
+      } else{
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').hide()
+
+      }
+    });
+    
+    // Trigger change event on page load if type is pre-selected
+    $('#id_type').change();
+  });
+</script>
+{% endblock %}

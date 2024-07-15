@@ -2,6 +2,9 @@ from django.urls import path
 
 from .views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,GoalsView,IdealWeightView
 
+from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView,CommentView,RecipeReportListView,CommentListView,CommentLikeView,RecipesLikedView,RecipesSavedView,RecipesCreatedView
+
+from apps.notification_app.api_views import NotificationView,NotificationListView
 
 
 urlpatterns = [
@@ -46,7 +49,12 @@ urlpatterns = [
     path(f'goals', GoalsView.as_view(), name="goals"), # get, post, delete goal
     path(f'goals/weight', IdealWeightView.as_view(), name="ideal_weight"), # get User's ideal weight
     
+    ###
+    #   Notifications
+    ##
     
+    path(f'notification', NotificationView.as_view(), name="notification"), # get, post, put, delete Recipe Report
+    path(f'notification/list', NotificationListView.as_view(), name="notification_list"), # get, put, delete Notification List
     
     
     ###
@@ -59,6 +67,29 @@ urlpatterns = [
     #   Recipe
     ##
 
-    #path(f'recipe', RecipeDetailView.as_view(), name="login"),
-    #path(f'recipe/list', RecipeListView.as_view(), name="login"),
+    path(f'recipe', RecipeView.as_view(), name="recipe"), # post Recipe
+    path(f'recipe/list', RecipeListView.as_view(), name="recipe_list"), # get Recipes
+    
+    ###
+    #   Comments
+    ##
+    
+    path(f'recipe/comment', CommentView.as_view(), name="comment"), # get, post, put, delete Comment
+    path(f'recipe/comment/list', CommentListView.as_view(), name="comment_list"), # get Comments
+    path(f'recipe/comment/like', CommentLikeView.as_view(), name="comment_like"), # post, delete Comment like
+    
+    ###
+    #   Backgrounds
+    ##
+    
+    path(f'recipe/likes', RecipesLikedView.as_view(), name="recipes_liked"), # get Recipes Liked; post, delete Recipe Like
+    path(f'recipe/saves', RecipesSavedView.as_view(), name="recipes_saved"), # get Recipes Saved; post, delete Recipe Save
+    path(f'recipe/creates', RecipesCreatedView.as_view(), name="recipes_created"), # get Recipes Created
+    
+    ###
+    #   Recipe Report
+    ##
+    
+    path(f'recipe/report', RecipeReportView.as_view(), name="recipe_report"), # get, post, put, delete Recipe Report
+    path(f'recipe/report/list', RecipeReportListView.as_view(), name="recipe_report_list"), # get Recipe Reports
 ] 

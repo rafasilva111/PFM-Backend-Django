@@ -1,0 +1,129 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Perfect Scrollbar - Extended UI{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Tables / Recipe's ETL Tasks / </span> Task {{task.id}} details
+</h4>
+
+<div class="row">
+    <!-- Vertical Scrollbar -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h5 class="card-header">Task Details</h5>
+                <div>
+                    <a href="{% url 'recipe_task_pause' task.id%}" class="btn btn-primary py-1">
+                        Pause
+                    </a>
+                    <a href="{% url 'recipe_task_resume' task.id%}" class="btn btn-primary py-1">
+                        Resume
+                    </a>
+                    <a href="{% url 'recipe_task_cancel' task.id%}" class="btn btn-primary py-1">
+                        Cancel
+                    </a>
+                    <a href="{% url 'recipe_task_restart' task.id%}" class="btn btn-primary py-1">
+                        Restart
+                    </a>
+                    <a href="{% url 'recipe_task_delete' task.id %}" class="btn btn-danger py-1">
+                        Delete
+                    </a>
+                </div>
+            </div>
+            <div class="card-body task-details">
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6>User:</h6>
+                        <p class="badge bg-label-primary me-1">{{ task.user }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Type:</h6>
+                        <p class="badge bg-label-primary me-1">{{ task.type }}</p>
+                    </div>
+                    <div class="col-md-4">
+                        <h6>Status:</h6>
+                        <span class="
+                        badge 
+                        {% if task.status == 'STARTING' %}
+                            bg-label-primary
+                        {% elif task.status == 'RUNNING' %}
+                            bg-label-info
+                        {% elif task.status == 'CANCELED' %}
+                            bg-label-warning
+                        {% elif task.status == 'FAILED' %}
+                            bg-label-danger
+                        {% elif task.status == 'FINISHED' %}
+                            bg-label-success
+                        {% else %}
+                            bg-label-secondary
+                        {% endif %}
+                        me-1">{{ task.get_status_display }}</span>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6>Max Records:</h6>
+                        <p class="badge bg-label-primary me-1">{{ task.max_records }}</p>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-3">
+                        <h6>Started At:</h6>
+                        <p class="badge bg-label-primary  me-1">{{ task.started_at }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Finished At:</h6>
+                        <p class="badge bg-label-primary me-1">{{ task.finished_at }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!--/ Vertical Scrollbar -->
+    
+    <!-- Vertical & Horizontal Scrollbars -->
+    <div class="col-12">
+        <div class="card overflow-hidden" style="height: 500px;">
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header">Log</h5>
+            </div>
+            <div class="card-body" id="both-scrollbars-example">
+                <div id="log-container" style="white-space: pre-wrap; margin-top: 10px;">{{ log|safe }}</div>
+            </div>
+        </div>
+    </div>
+    <!--/ Vertical & Horizontal Scrollbars -->
+</div>
+
+<script>
+    const logContainer = document.getElementById('log-container');
+    const logPath = "{{ task.log_path }}";  // Assuming you pass task.log_path from the template context
+    const socket = new WebSocket('ws://' + window.location.host + '/ws/logs/?file=' + encodeURIComponent(logPath));
+    
+    socket.onmessage = function(event) {
+        const newLog = document.createTextNode(event.data);
+        logContainer.appendChild(newLog);
+
+        logContainer.scrollTop = logContainer.scrollHeight;
+    };
+</script>
+{% endblock %}

@@ -172,12 +172,12 @@ cython_debug/
 
 .env
 
-apps/etl_app/recipe/extract/pingo_doce/dbs/
 
-apps/etl_app/recipe/transform/dbs/
 
 .editorconfig
 
 .vscode/
 
 apps/etl_app/recipe/extract/continente/images/
+
+*.sql

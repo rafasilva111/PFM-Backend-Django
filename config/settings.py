@@ -159,6 +159,7 @@ DB_PASS = os.environ.get('DB_PASS', 'password')
 DB_HOST = os.environ.get('DB_HOST', 'localhost')
 DB_PORT = os.environ.get('DB_PORT', '5432')
 
+
 DATABASES = { 
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',

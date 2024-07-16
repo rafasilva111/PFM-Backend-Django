@@ -1,61 +1,118 @@
 version: '3'
 services:
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3-management
     container_name: rabbitmq
+    networks:
+      - develop-net
     ports:
       - "5672:5672"
-      - "15672:15672"  # Added management port
+      - "15672:15672"  # RabbitMQ management port
     restart: always
 
   postgresql:
     image: postgres:13
     container_name: postgres
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    env_file:
+      - .env 
+    networks:
+      - develop-net
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data  # Mount volume for PostgreSQL data
+    restart: always
+
+  django:
+    build: 
+      context: .
+      dockerfile: Dockerfile-Django
+    container_name: django
+    env_file:
+      - .env  
+    depends_on:
+      - rabbitmq
+      - postgresql
+    networks:
+      - develop-net
+    command: python manage.py runserver 0.0.0.0:8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    working_dir: /app
     restart: always
 
   celery-worker:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     container_name: celery-worker
+    env_file:
+      - .env  
     depends_on:
       - rabbitmq
       - postgresql
     command: celery -A config.celery worker --loglevel=INFO
+    networks:
+      - develop-net
     volumes:
       - .:/app
     working_dir: /app
     restart: always
 
-  celery-flower:
-    build: .
-    container_name: celery-flower
+  flower:
+    build: 
+      context: .
+      dockerfile: Dockerfile  # Assuming Flower is part of your main Dockerfile setup
+    container_name: flower
     depends_on:
       - rabbitmq
       - celery-worker
-      - postgresql
     command: celery -A config.celery flower
     volumes:
       - .:/app
     working_dir: /app
+    networks:
+      - develop-net
+    ports:
+      - "5555:5555"  # Expose Flower web UI on port 5555
     restart: always
 
   celery-beat:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile  # Assuming Celery beat is part of your main Dockerfile setup
     container_name: celery-beat
     depends_on:
       - rabbitmq
       - celery-worker
-      - postgresql
-    command: celery -A config.celery beat --loglevel=INFO
     volumes:
       - .:/app
     working_dir: /app
+    command: celery -A config.celery beat --loglevel=info
+    networks:
+      - develop-net
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    depends_on:
+      - django
+    networks:
+      - develop-net
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
     restart: always
 
 volumes:
   app-data:
+  postgres_data:
+
+
+networks:
+  develop-net:
+    driver: bridge

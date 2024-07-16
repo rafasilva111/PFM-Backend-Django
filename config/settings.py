@@ -246,7 +246,7 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 AUTH_USER_MODEL = 'user_app.User'
 
 # 0.0.0.0
-CELERY_BROKER_HOST = os.environ.get('APP_BROKER_URI', '0.0.0.0')
+CELERY_BROKER_HOST = os.environ.get('RABBITMQ_BROKER_HOST', '0.0.0.0')
 
 
 CELERY_BROKER_URL = f'pyamqp://{CELERY_BROKER_HOST}:5672'

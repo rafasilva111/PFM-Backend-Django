@@ -14,6 +14,7 @@ from apps.etl_app.filters import JobFilter,TaskFilter
 from apps.etl_app.models import Job
 from apps.recipe_app.models import Recipe
 from apps.recipe_app.filters import RecipeFilter
+from config.constants import WEBSOCKET_HOST   
 # Create your views here.
 
 
@@ -56,8 +57,8 @@ class JobCreateView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = JobForm(request.POST)
         if form.is_valid():
-            form.save()  
-            return redirect('job')
+            instance =form.save()  
+            return redirect(reverse('job_detail', args=[instance.id]))
 
         return render(request, self.template_name, {'form': form})
     
@@ -87,6 +88,8 @@ class JobDetailView(TemplateView):
         
         context['filter'] = filter
         context['page_obj'] = page_obj
+
+        context['WEBSOCKET_HOST'] =  WEBSOCKET_HOST
         
         return context
 

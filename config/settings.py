@@ -66,15 +66,7 @@ INSTALLED_APPS = [
     'django_celery_beat',
     'django_extensions',
     "apps.home",
-    "apps.layouts",
-    "apps.pages",
     "apps.authentication",
-    "apps.cards",
-    "apps.ui",
-    "apps.extended_ui",
-    "apps.icons",
-    "apps.forms",
-    "apps.form_layouts",
     'apps.common',
     'apps.user_app',
     'apps.recipe_app',
@@ -153,21 +145,21 @@ ASGI_APPLICATION = 'config.asgi.application'
 # Database
 # https://docs.djangoproject.com/en/5.0/ref/settings/#databases
 
-DB_NAME = os.environ.get('DB_NAME', 'goodbites')
-DB_USERNAME = os.environ.get('DB_USERNAME', 'postgres')
-DB_PASS = os.environ.get('DB_PASS', 'password')
-DB_HOST = os.environ.get('DB_HOST', 'localhost')
-DB_PORT = os.environ.get('DB_PORT', '5432')
+POSTGRES_DB = os.environ.get('POSTGRES_DB', 'goodbites')
+POSTGRES_USER = os.environ.get('POSTGRES_USER', 'postgres')
+POSTGRES_PASSWORD = os.environ.get('POSTGRES_PASSWORD', 'password')
+POSTGRES_HOST = os.environ.get('POSTGRES_HOST', 'localhost')
+POSTGRES_PORT = os.environ.get('POSTGRES_PORT', '5432')
 
 
 DATABASES = { 
         'default': {
             'ENGINE': 'django.db.backends.postgresql_psycopg2',
-            'NAME'    : DB_NAME,
-            'USER'    : DB_USERNAME,
-            'PASSWORD': DB_PASS,
-            'HOST'    : DB_HOST,
-            'PORT'    : DB_PORT,
+            'NAME'    : POSTGRES_DB,
+            'USER'    : POSTGRES_USER,
+            'PASSWORD': POSTGRES_PASSWORD,
+            'HOST'    : POSTGRES_HOST,
+            'PORT'    : POSTGRES_PORT,
         },
 
     }

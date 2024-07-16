@@ -116,8 +116,8 @@
 
 <script>
     const logContainer = document.getElementById('log-container');
-    const logPath = "{{ task.log_path }}";  // Assuming you pass task.log_path from the template context
-    const socket = new WebSocket('ws://' + window.location.host + '/ws/logs/?file=' + encodeURIComponent(logPath));
+    const logPath = "{{ task.log_path }}";
+    const socket = new WebSocket('ws://{{ WEBSOCKET_HOST }}/ws/logs/?file=' + encodeURIComponent(logPath));
     
     socket.onmessage = function(event) {
         const newLog = document.createTextNode(event.data);

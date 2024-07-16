@@ -14,10 +14,13 @@ from apps.etl_app.filters import TaskFilter
 from apps.etl_app.models import Task
 from apps.recipe_app.models import Recipe
 from apps.recipe_app.filters import RecipeFilter
+from config.constants import WEBSOCKET_HOST   
 
 
 from os import path
-# Create your views here.
+
+
+
 
 
 ###
@@ -25,6 +28,7 @@ from os import path
 #   Views
 #
 ##
+
 @method_decorator(login_required, name='dispatch')
 class RecipeTableView(TemplateView):
     template_name = 'recipe_app/recipe/table.html'
@@ -91,6 +95,9 @@ class RecipeTaskDetailView(TemplateView):
         if log_path and path.isfile(log_path):
             with open(log_path, 'r') as log_file:
                 context['log'] = log_file.read()  # Read the entire content of the log file
+
+        
+        context['WEBSOCKET_HOST'] =  WEBSOCKET_HOST
         
         return context
     
@@ -109,8 +116,8 @@ class RecipeTaskCreateView(TemplateView):
     def post(self, request, *args, **kwargs):
         form = TaskForm(request.POST)
         if form.is_valid():
-            form.save()  
-            return redirect('recipe_tasks')
+            instance = form.save()  
+            return redirect(reverse('recipe_task_detail', args=[instance.id]))
 
         return render(request, self.template_name, {'form': form})
  

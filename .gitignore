@@ -181,3 +181,5 @@ cython_debug/
 apps/etl_app/recipe/extract/continente/images/
 
 *.sql
+
+.env.prod

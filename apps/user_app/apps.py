@@ -6,4 +6,5 @@ class UserAppConfig(AppConfig):
     verbose_name = "User App"
     
     def ready(self):
+        # this is loading the signals   
         from apps.user_app.signals import nullify_user_in_outstanding_tokens

@@ -19,7 +19,7 @@ import requests
 from firebase_admin import credentials, initialize_app, storage
 from peewee import SqliteDatabase
 
-from apps.etl_app.constants import SERVER_URL, main_db,extract_recipe_pingo_doce
+from apps.etl_app.constants import  main_db
 from apps.etl_app.recipe.transform.models import Recipe, NutritionInformation, IngredientQuantity, Ingredient, Tag
 from .constants import ETL_EXTRACT_LOG_DIR, ETL_TRANSFORM_LOG_DIR,ETL_LOAD_LOG_DIR,ETL_FULL_PROCESS_LOG_DIR
 
@@ -78,10 +78,14 @@ def delete_task_database(task):
 
     try:
         if task.type == TaskType.FULL_PROCESS:
-            remove(task.extract_sql_file)
-            remove(task.transform_sql_file)
+            if task.extract_sql_file:
+                remove(task.extract_sql_file)
+
+            if task.transform_sql_file:
+                remove(task.transform_sql_file)
         else:
-            remove(task.sql_file)
+            if task.sql_file:
+                remove(task.sql_file)
     except FileNotFoundError:
         pass
 

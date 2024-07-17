@@ -11,6 +11,23 @@
   <span class="text-muted fw-light">Recipe /</span> Create ETL Task
 </h4>
 
+{% if form.errors %}
+
+<div class="bs-toast toast fade show bg-danger" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; bottom: 20px; right: 20px; z-index: 1050; max-width: 300px;">
+  <div class="toast-header">
+    <i class="bx bx-bell me-2"></i>
+    <div class="me-auto fw-medium">Bootstrap</div>
+    <small>11 mins ago</small>
+    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+  </div>
+  <div class="toast-body">
+    {{ form.errors }}
+  </div>
+</div>
+
+{% endif %}
+
+
 <div class="col-md-12">
   <div class="card mb-4">
     <h5 class="card-header">Default</h5>
@@ -19,11 +36,11 @@
         <form method="post">
           {% csrf_token %}
           
-          <!-- User field -->
+          <!-- Company field -->
 
-          {{ form.user.label }}
+          {{ form.company.label }}
           <div class="col-md-6 mt-2 mb-3">
-            {{ form.user}}
+            {{ form.company}}
           </div>
 
           <!-- Type field -->

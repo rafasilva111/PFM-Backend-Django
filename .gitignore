@@ -183,3 +183,7 @@ apps/etl_app/recipe/extract/continente/images/
 *.sql
 
 .env.prod
+
+.env.staging
+
+projetofoodmanager-firebase.json

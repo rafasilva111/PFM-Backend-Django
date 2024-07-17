@@ -13,6 +13,21 @@ from apps.common.models import BaseModel
 
 
 
+class Company(BaseModel):
+    name = models.CharField(max_length=255, null=False, unique=True)
+    email = models.EmailField(
+        verbose_name='email address',
+        max_length=255,
+        unique=True)
+
+    imgs_bucket = models.CharField(max_length=255, null=False)
+
+    user_account = models.OneToOneField('User',related_name="main_company", on_delete=models.CASCADE, default=None, null=True) 
+
+    def __str__(self):
+        return f"{self.id} - {self.name}"
+
+
 class UserManager(BaseUserManager):
     def create_user(self, email, password, **extra_fields):
         if not email:
@@ -51,13 +66,14 @@ class FloatChoices(models.TextChoices):
     @classmethod
     def labels(cls):
         return [choice[1] for choice in cls.choices]
+        
 
 class User(AbstractBaseUser):
 
     name = models.CharField(max_length=255, null=False)
     username = models.CharField(max_length=255, null=False, unique=True)
     description = models.CharField(max_length=255, default='',blank=True)
-    birth_date = models.DateTimeField(null=True)
+    birth_date = models.DateTimeField(null=False)
     img_source = models.CharField(max_length=255, default='',blank=True)
     email = models.EmailField(
         verbose_name='email address',
@@ -68,7 +84,6 @@ class User(AbstractBaseUser):
     fmc_token = models.CharField(max_length=255, default='',blank=True)
     height = models.FloatField(default=-1)
     weight = models.FloatField(default=-1)
-    age = models.IntegerField(null=False)
     is_admin = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
 
@@ -80,6 +95,12 @@ class User(AbstractBaseUser):
     updated_at = models.DateTimeField(auto_now=True)
     
     objects = UserManager()
+
+    @property
+    def age(self):
+        today = timezone.now()
+        age = today.year - self.birthdate.year - ((today.month, today.day) < (self.birthdate.month, self.birthdate.day))
+        return age
     
     class ActivityLevel(models.TextChoices):
         NOTHING = "1", gettext_lazy('Nothing')
@@ -105,7 +126,10 @@ class User(AbstractBaseUser):
         max_length=10,
         choices=ProfileType.choices,
         default=ProfileType.PRIVATE
-    )    
+    )
+    
+
+    company = models.ForeignKey(Company, related_name='user', on_delete=models.CASCADE, default=None, null=True) 
     
     class UserType(models.TextChoices):
         NORMAL = 'N', 'Normal'

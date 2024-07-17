@@ -26,7 +26,7 @@ urlpatterns = [
     path("api/v1/", include("apps.api.urls")),
 
     # Dashboard urls
-    path("", include("apps.home.urls")),
+    path("", include("apps.common.urls")),
 
     # Auth urls
     path("", include("apps.user_app.urls")),

@@ -14,7 +14,7 @@ from apps.etl_app.filters import JobFilter,TaskFilter
 from apps.etl_app.models import Job
 from apps.recipe_app.models import Recipe
 from apps.recipe_app.filters import RecipeFilter
-from config.constants import WEBSOCKET_HOST   
+from apps.common.constants import WEBSOCKET_HOST   
 # Create your views here.
 
 

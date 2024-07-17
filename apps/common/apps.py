@@ -1,23 +1,16 @@
 from django.apps import AppConfig
-
-#from apps.common.keys.firebase import firebaseConfig
-#import pyrebase
-
-class CommonConfig(AppConfig):
-    default_auto_field = 'django.db.models.BigAutoField'
-    name = 'apps.common'
-
-"""firebase = pyrebase.initialize_app(firebaseConfig)
-
-import firebase_admin
-from firebase_admin import credentials
+from django.conf import settings
 import os
-# Get the current directory
-current_dir = os.path.dirname(__file__) if '__file__' in locals() else os.getcwd()
+import firebase_admin
+from firebase_admin import credentials,storage
 
-# Path to service account credentials JSON file
-cred_path = os.path.join(current_dir, "keys", "projetofoodmanager-firebase.json")
+class DashboardsConfig(AppConfig):
+    default_auto_field = "django.db.models.BigAutoField"
+    name = "apps.common"
 
-# Initialize Firebase Admin SDK with service account credentials
-cred = credentials.Certificate(cred_path)
-firebase_admin.initialize_app(cred)"""
+cred = credentials.Certificate(os.path.join(settings.BASE_DIR, 'apps/common/keys/projetofoodmanager-firebase.json'))
+firebase_admin.initialize_app(cred, {
+    'storageBucket': 'projetofoodmanager.appspot.com'
+})
+
+# Path to your local image file

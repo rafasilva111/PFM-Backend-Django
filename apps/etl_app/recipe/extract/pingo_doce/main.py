@@ -7,10 +7,12 @@ from bs4 import BeautifulSoup
 from peewee import fn
 from os import path
 #from apps.etl_app.models import bcolors
-from apps.etl_app.constants import PINGO_DOCE_IMAGES_FOLDER
+from apps.etl_app.constants import PINGO_DOCE_IMAGES_FOLDER,DEFAULT_RECIPE_DIR
 from apps.etl_app.recipe.extract.pingo_doce.functions import start_recipe_extract_db
 from apps.etl_app.recipe.extract.pingo_doce.models import Tag, Recipe, NutritionInformation, \
     Ingredient, Recipe_links, IngredientQuantity
+
+from apps.common.functions import send_image_to_firebase
 
 
 PINGO_DOCE_BASE_URL = "https://www.pingodoce.pt/receitas/pesquisa/"
@@ -24,7 +26,7 @@ def persist_recipes_links(link, page, base_search_link, image_link):
     data_point.save()
 
 
-def extract_data_from_link(logger,recipe_link):
+def extract_data_from_link(logger,recipe_link,images_bucket):
     base_response = requests.get(recipe_link)
     html = BeautifulSoup(base_response.content, 'html.parser')
     title = html.find("title").text.split("|")[0].strip()
@@ -79,23 +81,31 @@ def extract_data_from_link(logger,recipe_link):
             portion_raw = item[0]
         elif "estrela" in item[1].lower():
             rating_raw = item[0]
-    string_helper = title.replace(chr(34), '').replace(" ", "_").replace('“', '').replace('”', '')
+    
 
     # image
 
-    file_storage = unidecode.unidecode(string_helper)
     image_source_link = Recipe_links.get(Recipe_links.link == recipe_link).image_link
-    img_source = f'{PINGO_DOCE_IMAGES_FOLDER}/{file_storage}.png'
-    if not path.exists(img_source):
-        try:
-            with open(img_source, "wb") as f:
-                f.write(requests.get(image_source_link).content)
-        except Exception as e:
-            logger.error(f"Error downloading image from {image_source_link}: {e}")
+    img_content = requests.get(image_source_link).content
+    file_name = unidecode.unidecode(title.replace(chr(34), '').replace(" ", "_").replace('“', '').replace('”', '')) 
+    file_storage = f"{images_bucket}{file_name}"
+    # download image
+    
+    #if not path.exists(img_source):
+    #    try:
+    #        with open(img_source, "wb") as f:
+    #            f.write(requests.get(image_source_link).content)
+    #    except Exception as e:
+    #        logger.error(f"Error downloading image from {image_source_link}: {e}")
+
+    # send to firebase
+
+    send_image_to_firebase(img_content, file_storage)
+
 
     # fills recipe object
     recipe_db = Recipe(title=title, source=recipe_link, company=company,
-                       img_source=img_source,
+                       img_source=file_storage,
                        time=tempo_raw, difficulty=dificuldade_raw, source_rating=rating_raw, source_link=recipe_link,
                        portion=portion_raw, description=desc)
 
@@ -256,9 +266,12 @@ def pull_pingo_doce_recipes(logger,task):
 
     total_recipes = Recipe.select().count()
     logger.info(f"Found {total_recipes} recipes on DB")
-
     logger.info("")
+
     counter = total_recipes
+
+    imgs_bucket = f"{task.company.imgs_bucket}/{DEFAULT_RECIPE_DIR}"
+    
     for recipe_link in Recipe_links.select().where(Recipe_links.id > total_recipes):
         
         if counter == 10:
@@ -267,17 +280,12 @@ def pull_pingo_doce_recipes(logger,task):
         if  counter == task.max_records:
             break
         
-        extract_data_from_link(logger,recipe_link.link)
+        extract_data_from_link(logger,recipe_link.link,imgs_bucket)
         counter += 1
         
     logger.info("")
     logger.info("All recipes were imported")
 
-
-def pull_pingo_doce_recipes_by_id(id):
-    print_it("Starting to pull Recipes...")
-
-    extract_data_from_link(Recipe_links.get(Recipe_links.id == id).link)
 
 
 def check_if_all_recipes_links_on_db(logger):
@@ -292,22 +300,6 @@ def check_if_all_recipes_links_on_db(logger):
         logger.info("All recipes links were imported")
         return True,nr_results_db
 
-
-def check_if_all_recipes_on_db():
-    base_response = requests.get(PINGO_DOCE_SEARCH_ALL_URL + str(1))
-    site_json = json.loads(base_response.content)
-    nr_results = site_json['data']['total']
-    try:
-        if int(nr_results) != Recipe.select().order_by(Recipe.id.desc()).get().id:
-            return False
-        else:
-            print_it("All recipes were imported")
-            return True
-
-    except Exception as e:
-        pass
-
-    return False
 
 
 def get_all_recipes_links(logger,task):

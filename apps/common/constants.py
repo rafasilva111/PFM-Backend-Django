@@ -1,0 +1,28 @@
+
+from os import environ
+
+## Websocket
+
+WEBSOCKET_HOST = environ.get('WEBSOCKET_HOST','127.0.0.1:8000')
+
+## Firebase Storage
+
+
+FIREBASE_STORAGE_BASE_BUCKET = "images"
+
+FIREBASE_STORAGE_COMPANY_BUCKET = f"{FIREBASE_STORAGE_BASE_BUCKET}/company"
+
+
+"""
+
+    Company names
+
+"""
+
+COMPANY_PINGO_DOCE = 'Pingo Doce'
+
+COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD = environ.get('COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD','password')
+
+COMPANY_CONTINENTE = 'Continente'
+
+COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD = environ.get('COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD','password')

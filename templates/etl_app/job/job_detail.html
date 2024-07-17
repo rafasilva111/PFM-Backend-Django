@@ -133,7 +133,7 @@
                     {% for task in page_obj %}
                     <tr>
                         <td>{{ task.id }}</td>
-                        <td>{{ task.user.name }}</td>
+                        <td>{{ task.company.name }}</td>
                         <td>{{ task.get_type_display }}</td>
                         <td><span class="badge 
                       {% if task.status == 'STARTING' %}

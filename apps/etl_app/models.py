@@ -6,7 +6,7 @@ from django.db import models
 from django.db import models
 from datetime import datetime
 from apps.common.models import BaseModel
-from apps.user_app.models import User
+from apps.user_app.models import Company
 from django.utils import timezone
 from apps.etl_app.tasks import _launch_task
 from apps.etl_app.functions import delete_task_logs,delete_task_database
@@ -41,7 +41,7 @@ class TaskType(models.TextChoices):
 
 
 class BaseTask(BaseModel):
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    company = models.ForeignKey(Company, on_delete=models.CASCADE)
     max_records = models.IntegerField(default=None, null=True, blank=True)
     type = models.CharField(
         max_length=12,

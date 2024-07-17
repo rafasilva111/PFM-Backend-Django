@@ -79,7 +79,7 @@ def transform_recipes(logger,task):
 def __transform_recipes(logger,task):
     
     # Log the start of the extraction process
-    logger.info(f"Transforming all recipes from {task.user.name}...")
+    logger.info(f"Transforming all recipes from {task.company.name}...")
     logger.info("")
     
     # Start the recipe transform database

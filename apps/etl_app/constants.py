@@ -13,7 +13,7 @@ ETL_LOAD_LOG_DIR = settings.ETL_LOG_DIR / "load"
 ETL_FULL_PROCESS_LOG_DIR = settings.ETL_LOG_DIR / "full_process"
 
 
-""" Main Datbase """
+""" Main Database """
 
 main_db = "./recipe/transform/transform_recipes.db"
 
@@ -42,9 +42,8 @@ ma = Marshmallow()
 
 """ Constants """
 
-ROOT_EMAIL = os.environ.get("ROOT_EMAIL")
-ROOT_PASSWORD = os.environ.get("ROOT_PASSWORD")
-SERVER_URL = os.environ.get("SERVER_URL")
+DEFAULT_RECIPE_DIR="recipes/"
+DEFAULT_INGREDIENTS_DIR="ingredients/"
 
 
 class Measures(models.IntegerChoices):

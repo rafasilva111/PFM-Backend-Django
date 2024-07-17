@@ -10,6 +10,7 @@ from apps.etl_app.recipe.extract.pingo_doce.main import __extract_pingo_doce
 from apps.etl_app.recipe.transform.main import __transform_recipes
 from apps.etl_app.recipe.load.main import __load_recipes
 
+from apps.common.constants import COMPANY_PINGO_DOCE,COMPANY_CONTINENTE
 
 ###
 #
@@ -21,7 +22,6 @@ from apps.etl_app.recipe.load.main import __load_recipes
 def _init_job(job_id):
     from .models import Job
     from .models import Task
-    print("here")
     try:
         job = Job.objects.get(id = job_id)
     except Job.DoesNotExist:
@@ -123,6 +123,7 @@ def _launch_task(task_id):
 
     task = Task.objects.get(id = task_id)
 
+
     logger, log_folder = configure_logging(task)
     task.log_path = log_folder
 
@@ -136,7 +137,7 @@ def _launch_task(task_id):
 
         logger.info('Starting data Extract')
 
-        if task.user.username == "Pingo Doce":
+        if task.company.name == COMPANY_PINGO_DOCE:
             __extract_pingo_doce(logger,task)
 
     elif task.type == TaskType.TRANSFORM:

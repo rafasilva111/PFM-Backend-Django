@@ -12,9 +12,9 @@ class TaskForm(forms.ModelForm):
     
     class Meta:
         model = Task
-        fields = ['user', 'type', 'max_records','parent_task']
+        fields = ['company', 'type', 'max_records','parent_task']
         widgets = {
-            'user': forms.Select(attrs={'class': 'form-select form-select-lg'}),
+            'company': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'type': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'max_records': forms.NumberInput(attrs={'class': 'form-control'}),
             'parent_task': forms.Select(attrs={'class': 'form-select form-select-lg'}),
@@ -23,7 +23,6 @@ class TaskForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filter users based on company type
-        self.fields['user'].queryset = User.objects.filter(user_type=User.UserType.COMPANY)
 
         
     def clean(self):
@@ -86,10 +85,10 @@ class JobForm(forms.ModelForm):
 
     class Meta:
         model = Job
-        fields = ['name','minute', 'hour', 'day_of_week', 'day_of_month', 'month_of_year','user', 'type', 'max_records','parent_task']
+        fields = ['name','minute', 'hour', 'day_of_week', 'day_of_month', 'month_of_year','company', 'type', 'max_records','parent_task']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control'}),
-            'user': forms.Select(attrs={'class': 'form-select form-select-lg'}),
+            'company': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'type': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'max_records': forms.NumberInput(attrs={'class': 'form-control'}),
             'parent_task': forms.Select(attrs={'class': 'form-select form-select-lg'}),
@@ -97,8 +96,6 @@ class JobForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Filter users based on company type
-        self.fields['user'].queryset = User.objects.filter(user_type=User.UserType.COMPANY)
 
     def save(self, commit=True):
         instance = super().save(commit=False)

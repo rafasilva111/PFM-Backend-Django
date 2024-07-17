@@ -14,7 +14,7 @@ from apps.etl_app.filters import TaskFilter
 from apps.etl_app.models import Task
 from apps.recipe_app.models import Recipe
 from apps.recipe_app.filters import RecipeFilter
-from config.constants import WEBSOCKET_HOST   
+from apps.common.constants import WEBSOCKET_HOST   
 
 
 from os import path
@@ -105,6 +105,8 @@ class RecipeTaskDetailView(TemplateView):
 #@method_decorator(login_required, name='dispatch')
 class RecipeTaskCreateView(TemplateView):
     template_name = 'recipe_app/etl_recipe/task_create.html'
+
+    
     
     def get_context_data(self, **kwargs):
         # A function to init the global layout. It is defined in web_project/__init__.py file
@@ -114,13 +116,18 @@ class RecipeTaskCreateView(TemplateView):
         return context
 
     def post(self, request, *args, **kwargs):
+        
         form = TaskForm(request.POST)
-        if form.is_valid():
-            instance = form.save()  
-            return redirect(reverse('recipe_task_detail', args=[instance.id]))
 
-        return render(request, self.template_name, {'form': form})
- 
+        if form.is_valid():
+            instance = form.save()
+            return redirect(reverse('recipe_task_detail', args=[instance.id]))
+        
+        # Use get_context_data to include layout_path and other context variables
+        context = self.get_context_data(**kwargs)
+        context['form'] = form
+
+        return render(request, self.template_name, context)
  
  
 ###

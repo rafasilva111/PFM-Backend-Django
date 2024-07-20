@@ -297,7 +297,7 @@ class UserListView(APIView):
 
 
         return Response(
-            response_data = ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(records_page, many=True),endpoint_name="user_list").data,
+            ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(records_page, many=True),endpoint_name="user_list").data,
             status=status.HTTP_200_OK)
     
     

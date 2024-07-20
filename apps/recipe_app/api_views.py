@@ -623,10 +623,6 @@ class RecipeReportView(APIView):
 
         return Response(status=status.HTTP_200_OK)
 
-
-
-
-
 class RecipeReportListView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -710,7 +706,7 @@ class CommentView(APIView):
         # Get Instance
         try:
             comment = Comment.objects.get(id=id)
-        except User.DoesNotExist:
+        except Comment.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Comment couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -731,7 +727,7 @@ class CommentView(APIView):
         # Get Instance
         try:
             recipe = Recipe.objects.get(id=id)
-        except User.DoesNotExist:
+        except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Validate serializer
@@ -760,7 +756,7 @@ class CommentView(APIView):
         # Retrieve the instance
         try:
             instance = Comment.objects.get(id=id, user = user)
-        except RecipeReport.DoesNotExist:
+        except Comment.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="Recipe Report can't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
         
         
@@ -792,7 +788,7 @@ class CommentView(APIView):
         # Get Instance
         try:
             instance = Comment.objects.get(id=id,user = user)
-        except RecipeReport.DoesNotExist:
+        except Comment.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe Report couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Delete Instance
@@ -870,7 +866,7 @@ class CommentLikeView(APIView):
         # Get Instance
         try:
             instance = Comment.objects.get(id=id)
-        except User.DoesNotExist:
+        except Comment.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -896,7 +892,7 @@ class CommentLikeView(APIView):
         # Get Instance
         try:
             instance = Comment.objects.get(id=id)
-        except User.DoesNotExist:
+        except Comment.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -928,7 +924,7 @@ class RecipesLikedView(APIView):
             # Get Instance
             try:
                 user_instance = User.objects.get(id=user_id)
-            except RecipeReport.DoesNotExist:
+            except User.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe Report couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
             
             # Query building
@@ -942,28 +938,17 @@ class RecipesLikedView(APIView):
 
         # Paginate the results
         paginator = Paginator(query, page_size)
-        total_items = paginator.count
-        total_pages = paginator.num_pages
 
+        # Get the requested page
         try:
-            result = paginator.page(page)
+            records_page = paginator.page(page)
         except Exception:
-            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Build metadata
-        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "recipe_list")
-        
-        # Serialize the data
-        serializer = RecipeSerializer(result, many=True)
-            
-        # Build response data
-        response_data = {
-            "_metadata": metadata,
-            "result": serializer.data
-        }
-        
+            return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(response_data, status=200)
+        return Response(
+            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            status=status.HTTP_200_OK
+        )
     
     def post(self,request):
         
@@ -980,7 +965,7 @@ class RecipesLikedView(APIView):
         # Get Instance
         try:
             instance = Recipe.objects.get(id=id)
-        except User.DoesNotExist:
+        except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -1006,7 +991,7 @@ class RecipesLikedView(APIView):
         # Get Instance
         try:
             instance = Recipe.objects.get(id=id)
-        except User.DoesNotExist:
+        except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -1022,7 +1007,31 @@ class RecipesSavedView(APIView):
     permission_classes = [IsAuthenticated]
     
     
+    @swagger_auto_schema(
+        tags=['Recipe Save'],
+        operation_summary="Get a recipe report by ID",
+        operation_description="Get a recipe report by ID for the authenticated user.",
+        manual_parameters=[
+            openapi.Parameter('page', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="The page number to retrieve. Defaults to 1.", required=False),
+            openapi.Parameter('page_size', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="The number of recipes per page. Must be one of [5, 10, 20, 40]. Defaults to 5.", required=False),
+            openapi.Parameter('user_id', openapi.IN_QUERY, type=openapi.TYPE_INTEGER, description="The ID of the user to retrieve saved recipes for. If not provided, it will be the authenticated user.", required=False),
+        ],
+        responses={
+            200: openapi.Response(description='A paginated list of saved recipes.', schema=ListResponseSerializer),
+            400: openapi.Response(description='Bad request. The provided page does not exist or other parameter issues.', schema=ErrorResponseSerializer),
+        }
+    )
     def get(self,request):
+        """
+        Get a paginated list of saved recipes.
+
+        :param page: The page number to retrieve. Defaults to 1.
+        :param page_size: The number of recipes per page. Must be one of [5, 10, 20, 40]. Defaults to 5.
+        :param user_id: The ID of the user to retrieve saved recipes for. If not provided, it will be the authenticated user.
+
+        :return: A paginated list of saved recipes.
+        :rtype: dict
+        """
         # Get user auth id
         user = request.user
 
@@ -1031,15 +1040,16 @@ class RecipesSavedView(APIView):
         page_size = int(request.GET.get('page_size', 5))
         user_id = request.GET.get('user_id')
         
+        
+        # Query building
         if user_id:
             
-            # Get Instance
             try:
                 user_instance = User.objects.get(id=user_id)
-            except RecipeReport.DoesNotExist:
+            except User.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe Report couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
             
-            # Query building
+            
             query = user_instance.saved_recipes.all()
             
         else:
@@ -1050,30 +1060,43 @@ class RecipesSavedView(APIView):
 
         # Paginate the results
         paginator = Paginator(query, page_size)
-        total_items = paginator.count
-        total_pages = paginator.num_pages
 
+        # Get the requested page
         try:
-            result = paginator.page(page)
+            records_page = paginator.page(page)
         except Exception:
-            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Build metadata
-        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "recipe_list")
-        
-        # Serialize the data
-        serializer = RecipeSerializer(result, many=True)
-            
-        # Build response data
-        response_data = {
-            "_metadata": metadata,
-            "result": serializer.data
-        }
-        
+            return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(response_data, status=200)
+        return Response(
+            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            status=status.HTTP_200_OK
+        )
     
-    def post(self,request):
+    @swagger_auto_schema(
+        tags=['Recipe Save'],
+        operation_summary="Get a recipe report by ID",
+        operation_description="Get a recipe report by ID for the authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                'id',
+                openapi.IN_QUERY,
+                description="The ID of the recipe report to retrieve.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description='The retrieved recipe report data.',
+                schema=RecipeReportSerializer
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description='Bad request. The provided ID is not valid, or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def post(self, request):
         
         # Get user authed
         user = request.user
@@ -1088,7 +1111,7 @@ class RecipesSavedView(APIView):
         # Get Instance
         try:
             instance = Recipe.objects.get(id=id)
-        except User.DoesNotExist:
+        except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -1099,6 +1122,30 @@ class RecipesSavedView(APIView):
         return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
 
     
+    @swagger_auto_schema(
+        tags=['Recipe Save'],
+        operation_summary="Get a recipe report by ID",
+        operation_description="Get a recipe report by ID for the authenticated user.",
+        manual_parameters=[
+            openapi.Parameter(
+                'id',
+                openapi.IN_QUERY,
+                description="The ID of the recipe report to retrieve.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='The retrieved recipe report data.',
+                schema=RecipeReportSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided ID is not valid, or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def delete(self,request):
         
         # Get user authed
@@ -1114,7 +1161,7 @@ class RecipesSavedView(APIView):
         # Get Instance
         try:
             instance = Recipe.objects.get(id=id)
-        except User.DoesNotExist:
+        except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Increment likes ( TODO idk if a many to many relation would be usefull to confirm likes )
@@ -1123,14 +1170,51 @@ class RecipesSavedView(APIView):
         instance.save()
 
         return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
-    
-      
+ 
 class RecipesCreatedView(APIView):
     
-    permission_classes = [IsAuthenticated]
-    
+    permission_classes = [IsAuthenticated]   
+    @swagger_auto_schema(
+        tags=['Recipe Creates'],
+        operation_summary="Get recipes created by the authenticated user",
+        operation_description="Get a paginated list of recipes created by the authenticated user. The results can be filtered and paginated using query parameters.",
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of recipes per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user to retrieve recipes for. If not provided, it will be the authenticated user.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of recipes created by the authenticated user.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided page does not exist or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def get(self,request):
-        # Get user auth id
+        
+        # Get user auth
         user = request.user
 
         # Get args
@@ -1138,12 +1222,13 @@ class RecipesCreatedView(APIView):
         page_size = int(request.GET.get('page_size', 5))
         user_id = request.GET.get('user_id')
         
+        # Validate args
         if user_id:
             
             # Get Instance
             try:
                 user_instance = User.objects.get(id=user_id)
-            except RecipeReport.DoesNotExist:
+            except User.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="Recipe Report couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
             
             # Query building
@@ -1157,26 +1242,14 @@ class RecipesCreatedView(APIView):
 
         # Paginate the results
         paginator = Paginator(query, page_size)
-        total_items = paginator.count
-        total_pages = paginator.num_pages
 
+        # Get the requested page
         try:
-            result = paginator.page(page)
+            records_page = paginator.page(page)
         except Exception:
-            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Build metadata
-        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "recipe_list")
-        
-        # Serialize the data
-        serializer = RecipeSerializer(result, many=True)
-            
-        # Build response data
-        response_data = {
-            "_metadata": metadata,
-            "result": serializer.data
-        }
-        
+            return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
-        return Response(response_data, status=200)
-    
+        return Response(
+            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipes_created").data,
+            status=status.HTTP_200_OK
+        )

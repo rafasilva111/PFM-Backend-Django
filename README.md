@@ -172,7 +172,7 @@ Go to postgresql
 ```bash
 
 ```
-
+wsl --install -d Debian
 
 more at [here](https://docs.docker.com/get-started/overview/)
 ## Contributing

@@ -110,9 +110,9 @@ urlpatterns = [
     #   Backgrounds
     ##
     
-    path(f'recipe/likes', RecipesLikedView.as_view(), name="recipes_liked"), # get Recipes Liked; post, delete Recipe Like
-    path(f'recipe/saves', RecipesSavedView.as_view(), name="recipes_saved"), # get Recipes Saved; post, delete Recipe Save
-    path(f'recipe/creates', RecipesCreatedView.as_view(), name="recipes_created"), # get Recipes Created
+    path(f'recipe/like', RecipesLikedView.as_view(), name="recipes_liked"), # get Recipes Liked; post, delete Recipe Like
+    path(f'recipe/save', RecipesSavedView.as_view(), name="recipes_saved"), # get Recipes Saved; post, delete Recipe Save
+    path(f'recipe/create', RecipesCreatedView.as_view(), name="recipes_created"), # get Recipes Created
     
     ###
     #   Recipe Report

@@ -59,12 +59,12 @@
       <ul class="menu-sub">
         <li class="menu-item {% if 'recipe_task' in request.resolver_match.url_name %}active{% endif %}">
           <a href="{% url 'recipe_tasks' %}" class="menu-link">
-            <div class="text-truncate" data-i18n="Analytics">Extraction Tasks</div>
+            <div class="text-truncate" data-i18n="Analytics">Tasks</div>
           </a>
         </li>
       </ul>
       <ul class="menu-sub">
-        <li class="menu-item {% if 'recipe_reports' in request.resolver_match.url_name %}active{% endif %}">
+        <li class="menu-item {% if 'report' in request.resolver_match.url_name and 'recipe' in request.resolver_match.url_name %}active{% endif %}">
           <a href="{% url 'recipe_reports' %}" class="menu-link">
             <div class="text-truncate" data-i18n="Analytics">Reports</div>
           </a>
@@ -124,7 +124,20 @@
 
 
 
+    <li class="menu-item {% if 'schema-swagger-ui' == request.resolver_match.url_name %}active{% endif %}"> 
+      <a href="{% url 'schema-swagger-ui' %}" class="menu-link" target="_blank">
+        <i class="menu-icon tf-icons bx bx-file"></i>
+        <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Swagger )</div>
+      </a>
+    </li>
     
+    <li class="menu-item {% if 'schema-redoc' == request.resolver_match.url_name %}active{% endif %}"> 
+      <a href="{% url 'schema-redoc' %}" class="menu-link" target="_blank">
+        <i class="menu-icon tf-icons bx bx-file"></i>
+        <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Redoc )</div>
+      </a>
+    </li>
+
 
   </ul>
 

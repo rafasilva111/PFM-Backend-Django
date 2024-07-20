@@ -90,7 +90,7 @@ class SimpleUserSerializer(serializers.ModelSerializer):
         fields = ['id','name','username','description','img_source','profile_type','user_type','follows_c','followers_c']
         
 
-class PatchUserSerializer(UserSerializer):
+class UserPatchSerializer(UserSerializer):
     old_password = serializers.CharField(write_only=True, required=False)
     
     class Meta:

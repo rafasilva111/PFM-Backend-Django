@@ -88,8 +88,6 @@ class JobDetailView(TemplateView):
         
         context['filter'] = filter
         context['page_obj'] = page_obj
-
-        context['WEBSOCKET_HOST'] =  WEBSOCKET_HOST
         
         return context
 

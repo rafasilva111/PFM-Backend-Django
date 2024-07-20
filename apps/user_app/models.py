@@ -129,7 +129,8 @@ class User(AbstractBaseUser):
     )
     
 
-    company = models.ForeignKey(Company, related_name='user', on_delete=models.CASCADE, default=None, null=True) 
+    company = models.ForeignKey(Company, related_name='user', on_delete=models.CASCADE, null=True, blank=True)
+
     
     class UserType(models.TextChoices):
         NORMAL = 'N', 'Normal'

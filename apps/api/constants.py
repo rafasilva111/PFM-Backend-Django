@@ -15,6 +15,7 @@ class ERROR_TYPES(models.TextChoices):
     LOGICAL = 'LOGICAL', 'Error in using faulty data to app logic'
     CONSTRAINT = 'CONSTRAINTS', 'Error in a constraint'
     MISSING_MODEL = 'MISSING_MODEL', 'Error find model'
+    MISSING = 'MISSING', 'Error model missing something.'
 
 
 """

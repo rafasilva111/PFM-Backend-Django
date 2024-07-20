@@ -4,6 +4,10 @@ from .models import Recipe, RecipeRating, RecipeBackground, Tag, Ingredient, Rec
 from apps.user_app.serializers import SimpleUserSerializer
 
 
+###
+#   Recipe 
+##
+
 class NutritionInformationSerializer(serializers.ModelSerializer):
     class Meta:
         model = NutritionInformation
@@ -23,10 +27,7 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = '__all__'
-        
-        
-
-
+           
 class RecipeIngredientQuantitySerializer(serializers.ModelSerializer):
     
     ingredient = IngredientSerializer()
@@ -110,8 +111,6 @@ class SimpleRecipeSerializer(serializers.ModelSerializer):
     def get_likes(self, obj):
         return obj.users_liked.count()
     
-
-
 class RecipePatchSerializer(RecipeSerializer):
     
     class Meta:
@@ -145,12 +144,18 @@ class RecipeRatingSerializer(serializers.ModelSerializer):
         model = RecipeRating
         fields = '__all__'
 
+###
+#   Backgrounds
+##
+
 class RecipeBackgroundSerializer(serializers.ModelSerializer):
     class Meta:
         model = RecipeBackground
         fields = '__all__'
 
-
+###
+#   Comments
+##
         
 class CommentSerializer(serializers.ModelSerializer):
     user = SimpleUserSerializer(required = False)
@@ -187,6 +192,10 @@ class CommentPatchSerializer(CommentSerializer):
         extra_kwargs = {
             'text': {'required': False},
         }
+
+###
+#   Recipe Report
+##
 
 class RecipeReportSerializer(serializers.ModelSerializer):
     

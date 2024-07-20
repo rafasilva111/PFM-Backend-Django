@@ -3,11 +3,11 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}Recipe - All{% endblock %}
+{% block title %}Recipe - Reports{% endblock %}
 
 {% block content %}
 <h4 class="py-3 mb-4">
-  <span class="text-muted fw-light">Recipe /</span> All
+  <span class="text-muted fw-light">Recipe /</span> Reports
 </h4>
 
 
@@ -15,7 +15,7 @@
 <div class="card">
   
   <div class="container-fluid d-flex align-items-center">
-    <h5 class="card-header flex-grow-1">Recipe's table</h5>
+    <h5 class="card-header flex-grow-1">Recipes Report's table</h5>
     
   </div>
   
@@ -43,32 +43,43 @@
         <tr>
           <th>Id</th>
           <th>Title</th>
+          <th>Message</th>
+          <th>Type</th>
+          <th>Status</th>
           <th>Created By</th>
-          <th>Rating</th>
           <th>Options</th>
 
         </tr>
       </thead>
       <tbody class="table-border-bottom-0">
         <tbody class="table-border-bottom-0">
-          {% for recipe in page_obj %}
+          {% for record in page_obj %}
           <tr >
-            <td>{{ recipe.id }}</td>
-            <td>{{ recipe.title}}</td>
-            <td>{{ recipe.created_by}}</td>
-            <td>
-            {% if recipe.rating == None %}
-              {{ recipe.source_rating}}
-            {% else %}
-              {{ recipe.rating}}
-            {% endif %}
-          </td>
+            <td>{{ record.id }}</td>
+            <td>{{ record.title}}</td>
+            <td>{{ record.message}}</td>
+            <td>{{ record.type}}</td>
+            <td><span class="badge 
+              {% if record.status == 'PENDING' %}
+                  bg-label-primary
+              {% elif record.status == 'IN_PROGRESS' %}
+                  bg-label-info
+              {% elif record.status == 'ON_HOLD' %}
+                  bg-label-warning
+              {% elif record.status == 'RESOLVED' %}
+                  bg-label-success
+              {% else %}
+                  bg-label-secondary
+              {% endif %}
+              me-1">{{ record.status }}</span></td>
+            <td>{{ record.user}}</td>
+
 
           <td>
             <div class="dropdown">
               <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
               <div class="dropdown-menu">
-                <a class="dropdown-item" href="{% url 'recipe_detail' recipe.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                <a class="dropdown-item" href="{% url 'recipe_report_detail' record.id %}"><i class="bx bx-detail me-1"></i> Details</a>
                 <a class="dropdown-item" href=""><i class="bx bx-pencil me-1"></i> Edit</a>
                 <a class="dropdown-item" href=""><i class="bx bx-trash me-1"></i> Delete</a>
               </div>

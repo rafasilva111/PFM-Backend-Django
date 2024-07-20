@@ -9,25 +9,24 @@ from .constants import REGISTER_MINIMUM_AGE
 from .models import User
 
 
+from django import forms
+from django.contrib.auth.models import User
+
+
 class LoginForm(forms.Form):
-    email = forms.CharField(
-        widget=forms.TextInput(
-            attrs={
-                "placeholder": "Email",
-                "class": "form-control"
-            }
-        ))
-    password = forms.CharField(
-        widget=forms.PasswordInput(
-            attrs={
-                "placeholder": "Palavra chave",
-                "class": "form-control"
-            }
-        ))
-        
-    class Meta:
-        model = User
-        fields = ['email', 'password']
+    email = forms.EmailField(label='Email', widget=forms.TextInput(attrs={
+        'placeholder': 'Enter your email or username',
+        'class': 'form-control'
+    }))
+    password = forms.CharField(label='Password', widget=forms.PasswordInput(attrs={
+        'placeholder': '********************',
+        'class': 'form-control'
+    }))
+    remember_me = forms.BooleanField(label='Remember Me', required=False, widget=forms.CheckboxInput(attrs={
+        'class': 'form-check-input'
+    }))
+
+
         
 
 class RegisterForm(UserCreationForm):

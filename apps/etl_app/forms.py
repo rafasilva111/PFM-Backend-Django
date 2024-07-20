@@ -16,7 +16,7 @@ class TaskForm(forms.ModelForm):
         widgets = {
             'company': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'type': forms.Select(attrs={'class': 'form-select form-select-lg'}),
-            'max_records': forms.NumberInput(attrs={'class': 'form-control'}),
+            'max_records': forms.NumberInput(attrs={'class': 'form-control', 'placeholder': 'Enter the maximum number of records'}),
             'parent_task': forms.Select(attrs={'class': 'form-select form-select-lg'}),
         }
     

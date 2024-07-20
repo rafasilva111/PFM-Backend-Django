@@ -47,7 +47,7 @@ DEBUG = os.environ.get("DEBUG", 'True').lower() in ['true', 'yes', '1']
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = ["localhost", "0.0.0.0", os.environ.get("ALLOWED_HOSTS", "127.0.0.1")]  
+ALLOWED_HOSTS = ["localhost", "0.0.0.0", os.environ.get("ALLOWED_HOSTS", "127.0.0.1"),'192.168.1.110']  
 
 # Current DJANGO_ENVIRONMENT
 ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     'django_celery_beat',
     'django_extensions',
+    'drf_yasg',
     "apps.common",
     "apps.authentication",
     'apps.user_app',
@@ -263,3 +264,4 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 # Commands
 # ------------------------------------------------------------------------------
 
+SESSION_COOKIE_AGE = 86400  # 1 day

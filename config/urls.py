@@ -25,11 +25,8 @@ urlpatterns = [
     # Api
     path("api/v1/", include("apps.api.urls")),
 
-    # Dashboard urls
+    # Front-end urls
     path("", include("apps.common.urls")),
-
-    # Auth urls
-    path("", include("apps.user_app.urls")),
 
 
 ]

@@ -20,7 +20,7 @@ class ShoppingIngredient(models.Model):
     Model to store ingredients in shopping lists.
     """
     ingredient = models.ForeignKey(Ingredient, related_name='shopping_ingredients', on_delete=models.CASCADE)
-    shopping_list = models.ForeignKey(ShoppingList, related_name='shopping_ingredients', on_delete=models.CASCADE)
+    shopping_list = models.ForeignKey(ShoppingList, related_name='shopping_ingredients', on_delete=models.CASCADE, blank=True, null=True)   
     checked = models.BooleanField(default=False)
     quantity = models.FloatField(null=False)
     extra_quantity = models.FloatField(null=True)

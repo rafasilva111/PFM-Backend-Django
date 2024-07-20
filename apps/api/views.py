@@ -15,9 +15,14 @@ from rest_framework.authtoken.models import Token
 from datetime import datetime,timezone
 from rest_framework.authentication import TokenAuthentication
 from rest_framework_simplejwt.views import TokenRefreshView
-from apps.api.serializers import TokenSerializer,ErrorResponseSerializer,LoginSerializer,ResetSerializer,LogoutSerializer,SuccessResponseSerializer
+from apps.api.serializers import TokenSerializer,ErrorResponseSerializer,LoginSerializer,ResetSerializer,LogoutSerializer,SuccessResponseSerializer,PaginationMetadataSerializer,ListResponseSerializer
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from apps.api.constants import ERROR_TYPES,RESPONSE_CODES
+
+from drf_yasg.utils import swagger_auto_schema
+from drf_yasg import openapi
+
+
 
 class CustomPagination(PageNumberPagination):
     page_size = 5  # Default page size
@@ -35,7 +40,7 @@ import logging
 logger = logging.getLogger('api')
 
 from apps.user_app.models import User, FollowRequest,Follow
-from apps.user_app.serializers import UserSerializer,SimpleUserSerializer,PatchUserSerializer,UserToFollowSerializer
+from apps.user_app.serializers import UserSerializer,SimpleUserSerializer,UserPatchSerializer,UserToFollowSerializer
 
 ###
 #   Auth
@@ -49,6 +54,17 @@ class LoginView(APIView):
     - Returns a token for successful authentication.
     """
     authentication_classes = [TokenAuthentication]
+
+    @swagger_auto_schema(
+        tags=['Auth'], 
+        operation_id="login", 
+        request_body=LoginSerializer,
+        responses={
+            200: TokenSerializer,
+            400: ErrorResponseSerializer,
+            401: ErrorResponseSerializer,
+        }
+    )
 
     def post(self, request):
         """
@@ -87,7 +103,7 @@ class AuthView(APIView):
     - GET: Returns user data if authenticated.
     - POST: Registers a new user.
     """
-
+    
     def get_permissions(self):
         """
         Define permissions based on HTTP method.
@@ -95,11 +111,18 @@ class AuthView(APIView):
         Returns:
             list: List of permissions for the request.
         """
-        if self.request.method == 'GET':
-            return [IsAuthenticated()]
-        if self.request.method == 'DELETE':
+        if self.request.method in ['GET', 'DELETE']:
             return [IsAuthenticated()]
         return []
+
+    @swagger_auto_schema(
+        tags=['Auth'],      
+        operation_id="session",     
+        responses={
+            200: UserSerializer,
+            401: ErrorResponseSerializer,
+        }
+    )
 
     def get(self, request):
         """
@@ -113,7 +136,16 @@ class AuthView(APIView):
         """
         return Response(UserSerializer(request.user).data, status=status.HTTP_200_OK)
 
-    def post(self, request):
+    @swagger_auto_schema(
+        tags=['Auth'],
+        operation_id="register", 
+        request_body=UserSerializer,
+        responses={
+            201: UserSerializer,
+            400: ErrorResponseSerializer,
+        }
+    )
+    def post(self, request):    
         """
         Handle POST request for user registration.
 
@@ -135,11 +167,21 @@ class AuthView(APIView):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
 
         except Exception as e:
-            return Response(ErrorResponseSerializer.from_dict({"exception":str(e)}).data, status=status.HTTP_400_BAD_REQUEST)
+            return Response(ErrorResponseSerializer.from_dict({"exception": str(e)}).data, status=status.HTTP_400_BAD_REQUEST)
 
+    @swagger_auto_schema(
+        tags=['Auth'],
+        operation_id="logout", 
+        request_body=LogoutSerializer,
+        responses={
+            200: openapi.Response(description="Logout successful"),
+            400: ErrorResponseSerializer,
+            500: ErrorResponseSerializer,
+        }
+    )
     def delete(self, request):
         """
-        Handle POST request for user logout.
+        Handle DELETE request for user logout.
 
         Args:
             request: HTTP request object containing user token.
@@ -152,25 +194,20 @@ class AuthView(APIView):
         
         if not serializer.is_valid():
             return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
+        
         try:
-                # Get user authed
             user = request.user
             
-            
             # Retrieve the user's refresh token
-            refresh_token = RefreshToken.for_user(user)
-            
+            refresh_token = RefreshToken(serializer.validated_data['refresh_token'])
             
             # Blacklist the refresh token
             refresh_token.blacklist()
             
             return Response(status=status.HTTP_200_OK)
             
-            return Response(status= status.HTTP_200_OK)
         except Exception as e:
-            return Response(ErrorResponseSerializer.from_dict({"exception":str(e)}).data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-
+            return Response(ErrorResponseSerializer.from_dict({"exception": str(e)}).data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 ###
 #   User
@@ -178,21 +215,57 @@ class AuthView(APIView):
 
 
 class UserListView(APIView):
+
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Retrieve a paginated list of users",
+        operation_description="Retrieve a paginated list of users based on optional search criteria.",
+        manual_parameters=[
+            openapi.Parameter(
+                'string',
+                openapi.IN_QUERY,
+                description="String to search for in users' first name, last name, or email address.",
+                type=openapi.TYPE_STRING,
+                default=""
+            ),
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve.",
+                type=openapi.TYPE_INTEGER,
+                default=1
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of users per page. Must be one of [5, 10, 20, 40].",
+                type=openapi.TYPE_INTEGER,
+                default=5
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided page does not exist or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def get(self, request):
         """
         Retrieve a paginated list of users based on optional search criteria.
 
-        Args:
-            request: HttpRequest object representing the incoming request.
-            string_to_search (str, optional): A string to search for in users' first name, last name, or email address.
-                Defaults to an empty string.
-            page (int, optional): The page number to retrieve. Defaults to 1.
-            page_size (int, optional): The number of users per page. Must be one of [5, 10, 20, 40]. Defaults to 5.
+        Search criteria:
+            - string: A string to search for in users' first name, last name, or email address. Defaults to an empty string.
+            - page: The page number to retrieve. Defaults to 1.
+            - page_size: The number of users per page. Must be one of [5, 10, 20, 40]. Defaults to 5.
 
         Returns:
             Response: A JSON response containing the paginated list of users and metadata.
                 The metadata includes information about the current page, page size, total pages, and total users.
-
         """
         
         # Get query parameters
@@ -213,31 +286,19 @@ class UserListView(APIView):
         
         # Paginate the results
         paginator = Paginator(base_query, page_size)
-        total_users = paginator.count
-        total_pages = paginator.num_pages
+
         
         # Get the requested page
         try:
-            users_page = paginator.page(page)
+            records_page = paginator.page(page)
         except Exception:
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
-       
-        serializer = SimpleUserSerializer(users_page, many=True)
-        
-        # Build response data
-        response_data = {
-            "_metadata": {
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "total_users": total_users
-            },
-            "result": serializer.data
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
-    
+
+
+        return Response(
+            response_data = ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(records_page, many=True),endpoint_name="user_list").data,
+            status=status.HTTP_200_OK)
     
     
 class UserView(APIView):
@@ -250,6 +311,25 @@ class UserView(APIView):
 
     permission_classes = [IsAuthenticated]
     
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Retrieve authenticated user profile",
+        operation_description="Retrieve the authenticated user's profile by ID or username",
+        manual_parameters=[
+            openapi.Parameter('id', openapi.IN_QUERY, description="User ID", type=openapi.TYPE_INTEGER),
+            openapi.Parameter('username', openapi.IN_QUERY, description="Username", type=openapi.TYPE_STRING),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Successful operation',
+                schema=SimpleUserSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def get(self, request):
         """
         Retrieve a user profile by ID or username.
@@ -298,6 +378,22 @@ class UserView(APIView):
 
 
 
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Patch authenticated user",
+        operation_description="Patch the authenticated user's profile",
+        request_body=UserPatchSerializer,
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description='User profile updated successfully',
+                schema=UserSerializer
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description='Error updating user profile',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def patch(self, request):
         """
         Patch the authenticated user.
@@ -308,19 +404,21 @@ class UserView(APIView):
         Returns:
             Response: JSON response containing the updated user profile or error message.
         """
-        
+
         # Get user authed
         user = request.user
 
-
-        # Validate user data
-        serializer = PatchUserSerializer(data=request.data, partial=True)
+        # Serialize    
+        serializer = UserPatchSerializer(data=request.data, partial=True)
+        
+        # Validate Serializer
         if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
 
-        # Update user instance
+        # Update instance
         try:
             validated_data = serializer.validated_data
+            
             if 'password' in validated_data:
                 if not user.check_password(validated_data.pop('old_password', '')):
                     return Response(ErrorResponseSerializer.from_dict({"validation":"Old password is incorrect."}).data, status=status.HTTP_400_BAD_REQUEST)
@@ -332,12 +430,27 @@ class UserView(APIView):
 
             user.updated_date = datetime.now(timezone.utc)
             user.save()
-
-            return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
+            
         except Exception as e:
             return Response(ErrorResponseSerializer.from_dict({"exception":"Error updating user."}).data, status=status.HTTP_400_BAD_REQUEST)
         
+        
+        return Response(UserSerializer(user).data, status=status.HTTP_200_OK)
     
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Delete authenticated user",
+        operation_description="Delete the authenticated user",
+        responses={
+            status.HTTP_200_OK: openapi.Response(
+                description='User deleted successfully'
+            ),
+            status.HTTP_400_BAD_REQUEST: openapi.Response(
+                description='Error deleting user',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def delete(self, request):
         """
         Delete the authenticated user.
@@ -348,7 +461,7 @@ class UserView(APIView):
         Returns:
             Response: JSON response indicating success or failure.
         """
-        
+
         # Get user authed
         user = request.user
         
@@ -359,12 +472,44 @@ class UserView(APIView):
         # Delete user instance
         user.delete()
         
-        # Blacklist the refresh token
-        refresh_token.blacklist()
-        return Response(status=status.HTTP_200_OK)
-    
+###
+#   Follows
+##
+
 class FollowView(APIView):
     
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Follow or send a follow request to a user",
+        operation_description=(
+            "Follow a user or send a follow request based on the target user's profile type. "
+            "If the target user's profile is private, a follow request is sent. If the profile is public, "
+            "the user is followed automatically. "
+            "Cannot follow oneself."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user to be followed.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Follow request sent successfully if the user has a private profile.',
+                schema=SuccessResponseSerializer
+            ),
+            201: openapi.Response(
+                description='User followed successfully if the user has a public profile.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def post(self, request):
         
          # Get user authed
@@ -408,7 +553,36 @@ class FollowView(APIView):
         # push_notification(to=user_to_be_followed, by=user, notification_type="FOLLOWED_USER") TODO
         return Response(status=status.HTTP_201_CREATED)
     
-    
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Unfollow a user",
+        operation_description="Unfollow a user by specifying either `user_follow_id` or `user_follower_id` in query parameters. Only one parameter can be supplied.",
+        manual_parameters=[
+            openapi.Parameter(
+                'user_follow_id',
+                openapi.IN_QUERY,
+                description="The ID of the user to be unfollowed.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'user_follower_id',
+                openapi.IN_QUERY,
+                description="The ID of the user who is unfollowing.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Successfully unfollowed the user.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing or conflicting parameters, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def delete(self,request):
     
          # Get user auth id
@@ -439,9 +613,184 @@ class FollowView(APIView):
             
         return Response(status=status.HTTP_200_OK)
 
+class FollowersListView(APIView):
+    
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Retrieve a paginated list of followers",
+        operation_description=(
+            "Retrieve a paginated list of users who are following the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of followers per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request due to pagination errors.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def get(self,request):
+        
+        # Get user auth id
+        user = request.user
+
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 5))
+
+        # Query
+        
+        # select all followers ids corresponding to current user       
+        follower_ids = Follow.objects.filter(followed=user).values_list('follower_id', flat=True)
+        
+        # search ids directly on bd
+        followers_users = User.objects.filter(id__in=follower_ids)
+
+        # Paginate the results
+        paginator = Paginator(followers_users, page_size)
+
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+        response_data = ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        status=status.HTTP_200_OK)
+    
+class FollowsListView(APIView):
+    
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Retrieve a paginated list of users followed by the authenticated user",
+        operation_description=(
+            "Retrieve a paginated list of users who are followed by the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of followed users per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request due to pagination errors.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def get(self,request):
+        
+        # Get user auth id
+        user = request.user
+
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 5))
+
+        # Query
+        
+        # select all followers ids corresponding to current user       
+        followed_ids = Follow.objects.filter(follower=user).values_list('followed_id', flat=True)
+        
+        # search ids directly on bd # TODO this should be better thought
+        followeds_users = User.objects.filter(id__in=followed_ids).order_by('created_at')
+
+        # Paginate the results
+        paginator = Paginator(followeds_users, page_size)
+
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
+        
+       
+        return Response(
+        response_data = ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        status=status.HTTP_200_OK)
+
+
+##
+#   Follow Request
+#
 class FollowRequestListView(APIView):
     
-     def get(self,request):
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Retrieve paginated list of follow requests",
+        operation_description=(
+            "Retrieve a paginated list of follow requests received by the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of follow requests per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        
+            responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided page does not exist or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+            }
+        
+    )
+    def get(self,request):
 
         # Get user auth id
         user = request.user
@@ -457,8 +806,6 @@ class FollowRequestListView(APIView):
         
         # Paginate the results
         paginator = Paginator(follow_requests, page_size)
-        total_users = paginator.count
-        total_pages = paginator.num_pages
         
         # Get the requested page
         try:
@@ -467,25 +814,39 @@ class FollowRequestListView(APIView):
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
         
        
-        serializer = SimpleUserSerializer(users_page, many=True)
-
-        # Build response data
-        response_data = {
-            "_metadata": {
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "total_users": total_users
-            },
-            "result": serializer.data
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
+        return Response(
+            response_data = ListResponseSerializer.build_(page,paginator,serializer = SimpleUserSerializer(users_page, many=True),endpoint_name="follow_requests_list").data,
+            status=status.HTTP_200_OK)
     
 
 class FollowRequestView(APIView):
     
-   
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Accept a follow request",
+        operation_description=(
+            "Accept a follow request from a user. If the request is accepted, the users are followed. "
+            "The request is automatically deleted. Cannot accept a follow request from oneself."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user whose follow request is to be accepted.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            201: openapi.Response(
+                description='Successfully accepted the follow request and followed the user.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def post(self,request):
         
         # Get user authed
@@ -522,6 +883,30 @@ class FollowRequestView(APIView):
         # push_notification(to=user_to_be_followed, by=user, notification_type="FOLLOWED_USER") TODO
         return Response(status=status.HTTP_201_CREATED)
     
+    
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Reject a follow request",
+        operation_description="Reject a follow request from a user. The request is deleted without further action.",
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user whose follow request is to be rejected.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Successfully rejected and deleted the follow request.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
     def delete(self,request):
     
         # Get user auth id
@@ -540,7 +925,6 @@ class FollowRequestView(APIView):
         return Response(status=status.HTTP_200_OK)
         
         
-
 class UsersToFollowView(APIView):
     
     def get(self, request):
@@ -592,97 +976,6 @@ class UsersToFollowView(APIView):
         
         return Response(response_data, status=status.HTTP_200_OK)
     
-class FollowersListView(APIView):
-    
-    def get(self,request):
-        
-        # Get user auth id
-        user = request.user
-
-        # Get args
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 5))
-
-        # Query
-        
-        # select all followers ids corresponding to current user       
-        follower_ids = Follow.objects.filter(followed=user).values_list('follower_id', flat=True)
-        
-        # search ids directly on bd
-        followers_users = User.objects.filter(id__in=follower_ids)
-
-        # Paginate the results
-        paginator = Paginator(followers_users, page_size)
-        total_users = paginator.count
-        total_pages = paginator.num_pages
-        
-        # Get the requested page
-        try:
-            users_page = paginator.page(page)
-        except Exception:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
-        
-       
-        serializer = SimpleUserSerializer(users_page, many=True)
-
-        # Build response data
-        response_data = {
-            "_metadata": {
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "total_users": total_users
-            },
-            "result": serializer.data
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
-    
-class FollowsListView(APIView):
-    
-    def get(self,request):
-        
-        # Get user auth id
-        user = request.user
-
-        # Get args
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 5))
-
-        # Query
-        
-        # select all followers ids corresponding to current user       
-        followed_ids = Follow.objects.filter(follower=user).values_list('followed_id', flat=True)
-        
-        # search ids directly on bd # TODO this should be better thought
-        followeds_users = User.objects.filter(id__in=followed_ids).order_by('created_at')
-
-        # Paginate the results
-        paginator = Paginator(followeds_users, page_size)
-        total_users = paginator.count
-        total_pages = paginator.num_pages
-        
-        # Get the requested page
-        try:
-            users_page = paginator.page(page)
-        except Exception:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
-        
-       
-        serializer = SimpleUserSerializer(users_page, many=True)
-
-        # Build response data
-        response_data = {
-            "_metadata": {
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "total_users": total_users
-            },
-            "result": serializer.data
-        }
-        
-        return Response(response_data, status=status.HTTP_200_OK)
 
 from apps.user_app.models import Goal
 from apps.user_app.serializers import GoalSerializer,IdealWeightSerializer

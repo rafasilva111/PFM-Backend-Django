@@ -144,3 +144,46 @@ class PaginationMetadataSerializer(serializers.Serializer):
 class IdListInputSerializer(serializers.Serializer):
 
     current_page = serializers.ListField(child=serializers.IntegerField())
+
+
+
+class ListResponseSerializer(serializers.Serializer):
+    _metadata = serializers.DictField(
+        child=serializers.JSONField(),
+        help_text="Pagination metadata including page, page_size, total_pages, and total_users."
+    )
+    result = serializers.ListField(
+        child=serializers.DictField(),
+        help_text="List of results from the specified serializer."
+    )
+
+    @classmethod
+    def build_(cls, page, paginator, serializer, endpoint_name):
+        """
+        Build the response data including metadata and result.
+        
+        :param page: Current page number.
+        :param paginator: Paginator instance.
+        :param serializer: Serializer instance for result data.
+        :param endpoint_name: Name of the endpoint for metadata purposes.
+        :return: A ListResponseSerializer instance with populated data.
+        """
+        total_users = paginator.count
+        total_pages = paginator.num_pages
+        page_size = paginator.per_page
+        
+        metadata = {
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "total_users": total_users
+        }
+
+        result = serializer.data
+
+        response_data = {
+            "_metadata": metadata,
+            "result": result
+        }
+
+        return cls(response_data)

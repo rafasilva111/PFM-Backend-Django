@@ -15,6 +15,18 @@ FIREBASE_STORAGE_COMPANY_BUCKET = f"{FIREBASE_STORAGE_BASE_BUCKET}/company"
 
 """
 
+    Management Accounts
+
+"""
+
+AUTOMATION_ACCOUNT = 'Automation'
+
+AUTOMATION_ACCOUNT_DEFAULT_USER_PASSWORD = environ.get('AUTOMATION_ACCOUNT_DEFAULT_USER_PASSWORD','password')
+
+
+
+"""
+
     Company names
 
 """

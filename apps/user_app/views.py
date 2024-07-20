@@ -5,6 +5,7 @@ from .forms import LoginForm, RegisterForm, ResetForm
 from .models import User
 from django.views.generic import TemplateView
 from web_project import TemplateLayout, TemplateHelper
+from django.conf import settings
 # =========================
 # Authentication 
 # =========================
@@ -34,15 +35,14 @@ from web_project import TemplateLayout, TemplateHelper
     
     
 class LoginView(TemplateView):
-    template_name = 'auth_login_basic.html'  # Assuming the login template path
+    template_name = 'user_app/auth/login.html'  # Assuming the login template path
     form = LoginForm()
 
     def get_context_data(self, **kwargs):
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context.update({
-            "layout_path": TemplateHelper.set_layout("layout_blank.html", context),
-            "form": self.form  # Initialize the login form
-        })
+        context['layout_path']  = TemplateHelper.set_layout("layout_blank.html", context)
+        context['form'] = self.form
+
         return context
 
     def post(self, request):
@@ -50,9 +50,19 @@ class LoginView(TemplateView):
         if self.form.is_valid():
             email = self.form.cleaned_data['email']
             password = self.form.cleaned_data['password']
+            remember_me  = self.form.cleaned_data['remember_me']
             user = authenticate(request, email=email, password=password)
             if user is not None:
                 login(request, user)
+
+
+                if remember_me:
+                    # If remember_me is checked, set a longer session expiry time
+                    request.session.set_expiry(settings.SESSION_COOKIE_AGE)
+                else:
+                    # If remember_me is not checked, use the default session expiry time
+                    request.session.set_expiry(0)  # Expire at browser close
+
                 return redirect("home")
             else:
                 self.form.add_error(None, "Invalid email or password")

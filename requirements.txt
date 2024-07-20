@@ -101,3 +101,4 @@ whitenoise==6.6.0
 zope.interface==6.4.post2
 django-celery-beat
 django_extensions
+drf_yasg

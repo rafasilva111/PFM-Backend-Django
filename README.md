@@ -179,7 +179,7 @@ more at [here](https://docs.docker.com/get-started/overview/)
 You can do whatever you want with this repo.
 
 
-
+psql -U postgres -h localhost -d goodbites
 
 docker run -d -p 5672:5672 rabbitmq
 
@@ -197,3 +197,4 @@ sudo bash -c 'echo "[network]" > /etc/wsl.conf'
 sudo bash -c 'echo "generateResolvConf = false" >> /etc/wsl.conf'
 sudo chattr +i /etc/resolv.conf
 
+scp -i C:\Users\rafae\.ssh\ssh_key.pem projetofoodmanager-6087f7b4c412.json azureuser@172.162.241.76:/tmp

@@ -1,0 +1,391 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Perfect Scrollbar - Extended UI{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Recipe / Reports / </span> Job {{record.id}} details
+</h4>
+
+
+<!-- Details -->
+
+<div class="col-md-12">
+    <div class="card overflow-hidden mb-4" style="height: auto;">
+        <div class="container-fluid d-flex align-items-center justify-content-between">
+            <h5 class="card-header">Recipe Details</h5>
+            <div>
+                <a href="{% url 'recipe_report_create' record.id %}" class="btn btn-primary py-1">
+                    Report
+                </a>
+                <a href="{% url 'recipe_delete' record.id %}" class="btn btn-danger py-1">
+                    Delete
+                </a>             
+
+                
+            </div>
+        </div>
+        <div class="card-body recipe-details">
+            <div class="row">
+                <div class="col-md-9">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Title:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.title }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Description:</h6>
+                            <p>{{ record.description }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Views:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.views }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Created By:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.created_by.username }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Rating:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.rating }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Source Rating:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.source_rating }}</p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Source Link:</h6>
+                            <p><a href="{{ record.source_link }}" target="_blank">{{ record.source_link }}</a></p>
+                        </div>
+                        <div class="col-md-3">
+                            <h6>Verified:</h6>
+                            <p class="badge bg-label-primary me-1">{{ record.verified }}</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex justify-content-end align-items-center">
+                    <img class="card-img" src="{{ image_url }}" alt="Recipe image">
+                </div>
+            </div>
+        </div>
+
+
+        <!-- Nutrition table -->
+
+        <div class="card m-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h5 class="card-header">Nutrition Information</h5>
+            </div>
+            <!-- Table -->
+
+            <div class="table-responsive text-nowrap">
+                <table class="table table-bordered table-striped">
+                    <thead class="thead-dark">
+                        <tr>
+                            <th>Label</th>
+                            <th>Value</th>
+                            <th>Percentage</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if record.nutrition_information.energia %}
+                        <tr>
+                            <td>Energy</td>
+                            <td>{{ record.nutrition_information.energia }} kcal</td>
+                            <td>{% if record.nutrition_information.energia_perc %}{{ record.nutrition_information.energia_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.gordura %}
+                        <tr>
+                            <td>Fat</td>
+                            <td>{{ record.nutrition_information.gordura }} g</td>
+                            <td>{% if record.nutrition_information.gordura_perc %}{{ record.nutrition_information.gordura_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.gordura_saturada %}
+                        <tr>
+                            <td>Saturated Fat</td>
+                            <td>{{ record.nutrition_information.gordura_saturada }} g</td>
+                            <td>{% if record.nutrition_information.gordura_saturada_perc %}{{ record.nutrition_information.gordura_saturada_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.hidratos_carbonos %}
+                        <tr>
+                            <td>Carbohydrates</td>
+                            <td>{{ record.nutrition_information.hidratos_carbonos }} g</td>
+                            <td>{% if record.nutrition_information.hidratos_carbonos_perc %}{{ record.nutrition_information.hidratos_carbonos_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.hidratos_carbonos_acucares %}
+                        <tr>
+                            <td>Sugars</td>
+                            <td>{{ record.nutrition_information.hidratos_carbonos_acucares }} g</td>
+                            <td>{% if record.nutrition_information.hidratos_carbonos_acucares_perc %}{{ record.nutrition_information.hidratos_carbonos_acucares_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.fibra %}
+                        <tr>
+                            <td>Fiber</td>
+                            <td>{{ record.nutrition_information.fibra }} g</td>
+                            <td>{% if record.nutrition_information.fibra_perc %}{{ record.nutrition_information.fibra_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                        {% if record.nutrition_information.proteina %}
+                        <tr>
+                            <td>Protein</td>
+                            <td>{{ record.nutrition_information.proteina }} g</td>
+                            <td>{% if record.nutrition_information.proteina_perc %}{{ record.nutrition_information.proteina_perc }}%{% endif %}</td>
+                        </tr>
+                        {% endif %}
+                    </tbody>
+                </table>
+            </div>
+
+        </div>
+
+        <!-- Ingredients table -->
+
+        <div class="card m-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h5 class="card-header">Ingredients</h5>
+            </div>
+
+            <div class="card-body">
+                <div class="row">
+                    {% for ingredient in record.ingredients.all %}
+                    <div class="col-md-6 mb-4">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">{{ ingredient.ingredient.name }}</h5>
+                                <p class="card-text">
+                                    <strong>Original Quantity:</strong> {{ ingredient.quantity_original }}<br>
+                                    <strong>Normalized Quantity:</strong> {{ ingredient.quantity_normalized }} {{ ingredient.units_normalized }}<br>
+                                    {% if ingredient.extra_quantity %}
+                                        <strong>Extra Quantity:</strong> {{ ingredient.extra_quantity }} {{ ingredient.extra_units }}
+                                    {% endif %}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+
+
+        <!-- Preparation table -->
+        <div class="card m-4" style="height: auto;">
+            <div class="card-header d-flex align-items-center justify-content-between">
+                <h5 class="mb-0">Preparation Steps</h5>
+            </div>
+            <div class="card-body">
+                <div class="col">
+                    {% for preparation in record.preparation.all %}
+                    <div class="mb-4">
+                        <h5>Step:  {{ preparation.step }}</h5>
+                        <p class="mt-2">{{ preparation.description }}</p>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+
+    </div>
+</div>
+
+
+<!-- Nutrition table -->
+
+<div class="col-md-12 col-sm-12">
+
+</div>
+
+<div class="col-12">
+    <div class="card">
+
+        <div class="container-fluid d-flex align-items-center">
+            <h5 class="card-header flex-grow-1">Task List</h5>
+
+        </div>
+
+        <!-- Table -->
+        <div class="table-responsive text-nowrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Users</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Started At</th>
+                        <th>Finished At</th>
+                        <th>Max Records</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for task in page_obj %}
+                    <tr>
+                        <td>{{ task.id }}</td>
+                        <td>{{ task.company.name }}</td>
+                        <td>{{ task.get_type_display }}</td>
+                        <td><span class="badge 
+                      {% if task.status == 'STARTING' %}
+                          bg-label-primary
+                      {% elif task.status == 'RUNNING' %}
+                          bg-label-info
+                      {% elif task.status == 'CANCELED' %}
+                          bg-label-warning
+                      {% elif task.status == 'FAILED' %}
+                          bg-label-danger
+                      {% elif task.status == 'FINISHED' %}
+                          bg-label-success
+                      {% else %}
+                          bg-label-secondary
+                      {% endif %}
+                      me-1">{{ task.get_status_display }}</span></td>
+                        <td>{{ task.started_at }}</td>
+                        <td>{{ task.finished_at }}</td>
+                        <td>{{ task.max_records }}</td>
+                        <td>
+                            <div class="dropdown">
+                                <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
+                                    data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="{% url 'recipe_task_detail' task.id %}"><i
+                                            class="bx bx-detail me-1"></i> Details</a>
+                                    <a class="dropdown-item" href="{% url 'recipe_task_delete' task.id %}"><i
+                                            class="bx bx-trash me-1"></i> Delete</a>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+</div>
+
+<!-- Task table -->
+
+<div class="col-12">
+    <div class="card">
+
+        <div class="container-fluid d-flex align-items-center">
+            <h5 class="card-header flex-grow-1">Task List</h5>
+
+            <a href="{% url 'recipe_task_create' %}" class="btn btn-primary">
+                Create ETL Task
+            </a>
+        </div>
+
+        <!-- Filter Form -->
+        <form method="get" class="card py-3 mb-4">
+            <div class="container-fluid d-flex align-items-center">
+
+                <div class="col-md-2 pe-md-1">
+                    <label class="form-label">Type: </label>
+                    {{ filter.form.type}}
+                </div>
+                <div class="col-md-2 pe-md-1">
+                    <label class="form-label">Status: </label>
+                    {{ filter.form.status }}
+                </div>
+                <div class="col-md-2 pe-md-1">
+                    <label class="form-label">Started At: </label>
+                    {{ filter.form.started_at }}
+                </div>
+                <div class="col-md-2 pe-md-1">
+                    <label class="form-label">Finished At: </label>
+                    {{ filter.form.finished_at }}
+                </div>
+                <div class="col-md-4 text-end">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                </div>
+            </div>
+
+        </form>
+
+        <!-- Table -->
+        <div class="table-responsive text-nowrap">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Task</th>
+                        <th>Users</th>
+                        <th>Type</th>
+                        <th>Status</th>
+                        <th>Started At</th>
+                        <th>Finished At</th>
+                        <th>Max Records</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for task in page_obj %}
+                    <tr>
+                        <td>{{ task.id }}</td>
+                        <td>{{ task.company.name }}</td>
+                        <td>{{ task.get_type_display }}</td>
+                        <td><span class="badge 
+                      {% if task.status == 'STARTING' %}
+                          bg-label-primary
+                      {% elif task.status == 'RUNNING' %}
+                          bg-label-info
+                      {% elif task.status == 'CANCELED' %}
+                          bg-label-warning
+                      {% elif task.status == 'FAILED' %}
+                          bg-label-danger
+                      {% elif task.status == 'FINISHED' %}
+                          bg-label-success
+                      {% else %}
+                          bg-label-secondary
+                      {% endif %}
+                      me-1">{{ task.get_status_display }}</span></td>
+                        <td>{{ task.started_at }}</td>
+                        <td>{{ task.finished_at }}</td>
+                        <td>{{ task.max_records }}</td>
+                        <td>
+                            <div class="dropdown">
+                                <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
+                                    data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                <div class="dropdown-menu">
+                                    <a class="dropdown-item" href="{% url 'recipe_task_detail' task.id %}"><i
+                                            class="bx bx-detail me-1"></i> Details</a>
+                                    <a class="dropdown-item" href="{% url 'recipe_task_delete' task.id %}"><i
+                                            class="bx bx-trash me-1"></i> Delete</a>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% include "default/pagination.html" %}
+    </div>
+
+</div>
+{% endblock %}

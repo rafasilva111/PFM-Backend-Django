@@ -8,85 +8,94 @@
 {% block content %}
 
 <h4 class="py-3 mb-4">
-  <span class="text-muted fw-light">Recipe /</span> Create ETL Task
+  <span class="text-muted fw-light">Recipe / Tasks / </span> Create ETL Task
 </h4>
 
-{% if form.errors %}
-
-<div class="bs-toast toast fade show bg-danger" role="alert" aria-live="assertive" aria-atomic="true" style="position: fixed; bottom: 20px; right: 20px; z-index: 1050; max-width: 300px;">
-  <div class="toast-header">
-    <i class="bx bx-bell me-2"></i>
-    <div class="me-auto fw-medium">Bootstrap</div>
-    <small>11 mins ago</small>
-    <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
-  </div>
-  <div class="toast-body">
-    {{ form.errors }}
-  </div>
-</div>
-
-{% endif %}
-
-
-<div class="col-md-12">
-  <div class="card mb-4">
-    <h5 class="card-header">Default</h5>
-    <div class="card-body">
-      <div>
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
         <form method="post">
           {% csrf_token %}
-          
-          <!-- Company field -->
 
-          {{ form.company.label }}
-          <div class="col-md-6 mt-2 mb-3">
-            {{ form.company}}
+          <!-- Company field -->
+          {{ form.company.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.company }}
+            {% if form.company.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.company.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
           <!-- Type field -->
-           
-          {{ form.type.label }}
-          <div class="col-md-6 mt-2 mb-3">
+          {{ form.type.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
             {{ form.type }}
+            {% if form.type.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.type.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
-          
-          <!-- Tasks Transformation field -->
 
+          <!-- Tasks Transformation field -->
           <div id="parent-tasks-transform" style="display: none;">
             {{ form.parent_tasks_transform.label_tag }}
-            <div class="col-md-6 mt-2 mb-3">
+            <div class="col-md-12 mt-2 mb-3">
               {{ form.parent_tasks_transform }}
+              {% if form.parent_tasks_transform.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_tasks_transform.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           </div>
-          
+
           <!-- Tasks Extraction field -->
-          
           <div id="parent-tasks-extract" style="display: none;">
-              {{ form.parent_tasks_extract.label_tag }}
-            <div class="col-md-6 mt-2 mb-3">
+            {{ form.parent_tasks_extract.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
               {{ form.parent_tasks_extract }}
+              {% if form.parent_tasks_extract.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_tasks_extract.errors %}
+                    {{ error }}
+                  {% endfor %}
+                </div>
+              {% endif %}
             </div>
           </div>
 
           <!-- Max records field -->
-           
-          {{ form.max_records.label }}
-          <div class="col-md-6 mt-2 mb-3">
+          {{ form.max_records.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
             {{ form.max_records }}
+            {% if form.max_records.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.max_records.errors %}
+                  {{ error }}
+                {% endfor %}
+              </div>
+            {% endif %}
           </div>
 
-          
-      
-          
-          <button type="submit" class="btn btn-primary">
-              Submit
-          </button>
+          <button type="submit" class="btn btn-primary">Submit</button>
 
         </form>
       </div>
     </div>
   </div>
 </div>
+
+
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
   $(document).ready(function() {

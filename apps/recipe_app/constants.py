@@ -1,21 +1,22 @@
 
 from enum import Enum
+from django.db import models
 
-class RECIPES_SORTING_TYPE(Enum):
-    VERIFIED = "VERIFIED"
-    DATE = "DATE"
-    LIKES = "LIKES"
-    SAVES = "SAVES"
-    RANDOM = "RANDOM"
-    CLASSIFICATION = "CLASSIFICATION"
+class RecipeSortingTypes(models.TextChoices):
+    VERIFIED = "VERIFIED","Verified"
+    DATE = "DATE", "Date"
+    LIKES = "LIKES", "Likes"
+    SAVES = "SAVES", "Saves"
+    RANDOM = "RANDOM","Random"
+    CLASSIFICATION = "CLASSIFICATION", "Classification"
 
-# Creating a set of the values of the enum
-RECIPES_SORTING_TYPE_SET = [item.value for item in RECIPES_SORTING_TYPE]
+    @classmethod
+    def is_valid_choice(cls, value):
+
+        return value in cls.values
 
 
-class RECIPES_BACKGROUND_TYPE(Enum):
-    LIKED = "L"
-    SAVED = "S"
 
-# Creating a set of the values of the enum
-RECIPES_BACKGROUND_TYPE_SET = [item.value for item in RECIPES_BACKGROUND_TYPE]
+class RecipesBackgroundType(models.TextChoices):
+    LIKED = "L", "Liked"
+    SAVED = "S","Saved"

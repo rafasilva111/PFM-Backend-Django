@@ -147,11 +147,11 @@ class Task(BaseTask):
         
         
         
-        #self.celery_task_id = _launch_task.delay(self.id).id
+        self.celery_task_id = _launch_task.delay(self.id).id
 
         self.save()
         
-        _launch_task(self.id)
+        #_launch_task(self.id)
         
     
     def purge(self):

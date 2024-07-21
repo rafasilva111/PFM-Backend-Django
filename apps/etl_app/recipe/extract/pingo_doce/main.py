@@ -107,7 +107,7 @@ def extract_data_from_link(logger,recipe_link,images_bucket):
     #   Try find the image in the response
     #   
     
-    if not image_source_link:
+    if not img_content:
     
         img_tag = html.find('img', {
             'class': 'image',

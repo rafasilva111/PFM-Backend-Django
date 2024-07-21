@@ -82,25 +82,75 @@ def extract_data_from_link(logger,recipe_link,images_bucket):
         elif "estrela" in item[1].lower():
             rating_raw = item[0]
     
-
-    # image
-
-    image_source_link = Recipe_links.get(Recipe_links.link == recipe_link).image_link
-    img_content = requests.get(image_source_link).content
-    file_name = unidecode.unidecode(title.replace(chr(34), '').replace(" ", "_").replace('“', '').replace('”', '')) 
-    file_storage = f"{images_bucket}{file_name}"
-    # download image
+    ###
+    #    Image
+    # 
+    ##
     
-    #if not path.exists(img_source):
-    #    try:
-    #        with open(img_source, "wb") as f:
-    #            f.write(requests.get(image_source_link).content)
-    #    except Exception as e:
-    #        logger.error(f"Error downloading image from {image_source_link}: {e}")
+    file_storage = None
+    
+    ##
+    #   Try match the name of the image
+    #    
+    
+    image_source_link = Recipe_links.get(Recipe_links.link == recipe_link).image_link
 
-    # send to firebase
+    if image_source_link:
+        response = requests.get(image_source_link)
+        
+        if response.status_code == 200:
+            img_content = response.content
+            
+        
+    
+    ##
+    #   Try find the image in the response
+    #   
+    
+    if not image_source_link:
+    
+        img_tag = html.find('img', {
+            'class': 'image',
+            'src': True,  # Ensure the src attribute is present
+            'width': '617',  # Ensure the width attribute is present
+            'height': '370'  # Ensure the height attribute is present
+        })
+        
+        image_source_link = img_tag['src']
+        img_content = requests.get(image_source_link).content
+    
+    
+    
+    if img_content:
+        
+        file_name = unidecode.unidecode(title.replace(chr(34), '').replace(" ", "_").replace('“', '').replace('”', '')) 
+        file_storage = f"{images_bucket}{file_name}"
+        # download image
+        
+        #if not path.exists(img_source):
+        #    try:
+        #        with open(img_source, "wb") as f:
+        #            f.write(requests.get(image_source_link).content)
+        #    except Exception as e:
+        #        logger.error(f"Error downloading image from {image_source_link}: {e}")
 
-    send_image_to_firebase(img_content, file_storage)
+        # send to firebase
+
+        send_image_to_firebase(img_content, file_storage)
+    
+    ##
+    #   Find in Video layout
+    #   TODO
+    
+        
+        
+        
+        
+        
+    
+    
+
+    
 
 
     # fills recipe object
@@ -274,8 +324,6 @@ def pull_pingo_doce_recipes(logger,task):
     
     for recipe_link in Recipe_links.select().where(Recipe_links.id > total_recipes):
         
-        if counter == 10:
-            print()
 
         if  counter == task.max_records:
             break
@@ -343,7 +391,7 @@ def get_all_recipes_links(logger,task):
         results = str(site_json['data']['html'])
         html = BeautifulSoup(results, 'html.parser')
         links = [a['href'] for a in html.find_all('a')]
-        image_link = [a['src'] for a in html.find_all("img")]
+        image_link = [a['src'].replace("-240x191", "") for a in html.find_all("img")]
 
         for x in range(0, 24):
             try:

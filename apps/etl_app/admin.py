@@ -9,7 +9,7 @@ class TaskAdmin(admin.ModelAdmin):
     actions = ['duplicate_tasks']
 
     def get_company_name(self, obj):
-        return obj.user.name
+        return obj.company.name
     get_company_name.short_description = 'Company'
     
     def duplicate_tasks(self, request, queryset):

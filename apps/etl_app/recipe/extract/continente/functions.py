@@ -24,9 +24,9 @@ def start_recipe_extract_db(new_copy=False):
     extract_recipe_continente_db.create_tables(models_)
 
 
-def persist_recipes_links(link, page, base_search_link, image_link):
+def persist_recipes_links(link, page, base_search_link):
     if link != "https://feed.continente.pt":
-        data_point = Recipe_links(link=link, page=page, base_search_link=base_search_link, image_link=image_link)
+        data_point = Recipe_links(link=link, page=page, base_search_link=base_search_link)
         data_point.save()
 
 # Regular expression pattern for separating quantity, unit, and ingredient

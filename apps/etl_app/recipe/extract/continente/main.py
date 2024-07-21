@@ -65,6 +65,8 @@ def extract_data_from_link(recipe_link):
     " Image "
 
     file_storage = unidecode.unidecode(recipe_db.title).replace(" ", "_")
+    recipe_steps_raw = html.find('img', class_='image')
+    
     image_source_link = Recipe_links.get(Recipe_links.link == recipe_link).image_link
     img_source = f'{CONTINENTE_IMAGES_FOLDER}/{file_storage}.png'
     recipe_db.img = img_source

@@ -60,7 +60,7 @@ from apps.user_app.models import User
 #   Serializers
 #
 
-from apps.recipe_app.serializers import RecipeSerializer,RecipeReportSerializer,RecipeReportPatchSerializer,RecipePatchSerializer,CommentSerializer,CommentPatchSerializer
+from apps.recipe_app.serializers import RecipeSerializer,RecipeReportSerializer,RecipeReportPatchSerializer,RecipePatchSerializer,CommentSerializer,CommentPatchSerializer,RecipeBackgroundSerializer
 from apps.api.serializers import SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer
 
 
@@ -76,6 +76,7 @@ from apps.api.serializers import SuccessResponseSerializer,ErrorResponseSerializ
 
 from apps.recipe_app.constants import RecipeSortingTypes,RecipesBackgroundType
 from apps.api.constants import ERROR_TYPES
+from apps.common.constants import MAX_USER_NORMAL_SAVED_RECIPES, MAX_USER_PREMIUM_SAVED_RECIPES
 
 
 
@@ -906,6 +907,9 @@ class CommentLikeView(APIView):
 #   Background
 ##
 
+
+#   Liked recipes shound not be saved (on Frontend local memory)
+
 class RecipesLikedView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -1000,8 +1004,11 @@ class RecipesLikedView(APIView):
         instance.save()
 
         return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
-    
-    
+
+
+#   User Normal can only have 25 saved recipes (on Frontend local memory)
+#   User Premium can have 100 saved recipes (on Frontend local memory)
+  
 class RecipesSavedView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -1108,6 +1115,15 @@ class RecipesSavedView(APIView):
         if not id:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing param Id.").data,status=status.HTTP_400_BAD_REQUEST)
         
+        # Validate User
+        
+        if user.user_type == User.UserType.PREMIUM:
+            if user.saved_recipes.all().count() >= MAX_USER_PREMIUM_SAVED_RECIPES:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.RESOURCE_LIMIT.value,message=f"You can only save {MAX_USER_PREMIUM_SAVED_RECIPES} recipes.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            if user.saved_recipes.all().count() >= MAX_USER_NORMAL_SAVED_RECIPES:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.RESOURCE_LIMIT.value,message="You can only save {MAX_USER_NORMAL_SAVED_RECIPES} recipes.").data,status=status.HTTP_400_BAD_REQUEST)
+        
         # Get Instance
         try:
             instance = Recipe.objects.get(id=id)
@@ -1171,6 +1187,8 @@ class RecipesSavedView(APIView):
 
         return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
  
+#   All users should have access to all created recipes (on Frontend local memory)
+
 class RecipesCreatedView(APIView):
     
     permission_classes = [IsAuthenticated]   
@@ -1253,3 +1271,16 @@ class RecipesCreatedView(APIView):
             ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipes_created").data,
             status=status.HTTP_200_OK
         )
+
+
+
+class RecipeBackgroundView(APIView):
+    
+    permission_classes = [IsAuthenticated]  
+    
+    def get(self,request):
+        
+        # Get user auth
+        user = request.user
+        
+        return Response(RecipeBackgroundSerializer(user).data,status=status.HTTP_200_OK)

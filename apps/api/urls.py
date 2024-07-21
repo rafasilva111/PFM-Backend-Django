@@ -11,7 +11,8 @@ from .views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,Fo
 #   Views
 ##
 
-from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView,CommentView,RecipeReportListView,CommentListView,CommentLikeView,RecipesLikedView,RecipesSavedView,RecipesCreatedView
+from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView,CommentView,RecipeReportListView,CommentListView,CommentLikeView,RecipesLikedView,RecipesSavedView,\
+    RecipesCreatedView,RecipeBackgroundView
 from apps.calendar_app.api_views import CalendarListView, CalendarView, CalendarIngredientsListView, CalendarEntryListCheckView
 from apps.notification_app.api_views import NotificationView,NotificationListView
 
@@ -110,6 +111,7 @@ urlpatterns = [
     #   Backgrounds
     ##
     
+    path(f'recipe/background', RecipeBackgroundView.as_view(), name="recipes_liked_list"), # get Recipes Background
     path(f'recipe/like', RecipesLikedView.as_view(), name="recipes_liked"), # get Recipes Liked; post, delete Recipe Like
     path(f'recipe/save', RecipesSavedView.as_view(), name="recipes_saved"), # get Recipes Saved; post, delete Recipe Save
     path(f'recipe/create', RecipesCreatedView.as_view(), name="recipes_created"), # get Recipes Created

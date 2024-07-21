@@ -2,7 +2,7 @@ from rest_framework import serializers
 from django.db import transaction
 from .models import Recipe, RecipeRating, RecipeBackground, Tag, Ingredient, RecipeIngredientQuantity, Comment, RecipeReport,NutritionInformation,Preparation
 from apps.user_app.serializers import SimpleUserSerializer
-
+from apps.user_app.models import User
 
 ###
 #   Recipe 
@@ -149,10 +149,12 @@ class RecipeRatingSerializer(serializers.ModelSerializer):
 ##
 
 class RecipeBackgroundSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RecipeBackground
-        fields = '__all__'
+    created_recipes = RecipeSerializer(many=True, read_only=True)
+    saved_recipes = RecipeSerializer(many=True, read_only=True)
 
+    class Meta:
+        model = User
+        fields = ['created_recipes', 'saved_recipes']
 ###
 #   Comments
 ##

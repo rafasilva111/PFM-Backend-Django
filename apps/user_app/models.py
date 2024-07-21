@@ -135,7 +135,7 @@ class User(AbstractBaseUser):
     class UserType(models.TextChoices):
         NORMAL = 'N', 'Normal'
         COMPANY = 'C', 'Company'
-        VIP = 'V', 'VIP'
+        PREMIUM = 'P', 'Premium'
         ADMIN = 'A', 'Admin'
 
     user_type = models.CharField(

@@ -92,7 +92,7 @@ class LoginView(APIView):
     - Accepts POST requests with email and password.
     - Returns a token for successful authentication.
     """
-    authentication_classes = [IsAuthenticated] # TokenAuthentication
+
 
     @swagger_auto_schema(
         tags=['Auth'], 
@@ -255,6 +255,8 @@ class AuthView(APIView):
 
 class UserListView(APIView):
 
+    permission_classes = [IsAuthenticated]
+    
     @swagger_auto_schema(
         tags=['User'],
         operation_summary="Retrieve a paginated list of users",
@@ -348,7 +350,6 @@ class UserView(APIView):
     Requires JWT authentication.
     """
 
-    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         tags=['User'],

@@ -1,10 +1,14 @@
 from rest_framework import serializers
-from .models import ShoppingList, ShoppingIngredient
+from apps.shopping_app.models import ShoppingList, ShoppingIngredient
+from apps.recipe_app.serializers import IngredientSerializer
 
 class ShoppingIngredientSerializer(serializers.ModelSerializer):
+    
+    ingredient = IngredientSerializer
+    
     class Meta:
         model = ShoppingIngredient
-        fields = ['id', 'ingredient', 'shopping_list', 'checked', 'quantity', 'extra_quantity', 'units', 'extra_units']
+        fields = '__all__'
 
 class ShoppingListSerializer(serializers.ModelSerializer):
     shopping_ingredients = ShoppingIngredientSerializer(many=True, read_only=True)

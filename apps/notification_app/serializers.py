@@ -3,12 +3,12 @@ from django.contrib.auth.hashers import make_password
 from datetime import datetime
 from pytz import timezone, utc
 from .models import Notification
-from apps.user_app.serializers import SimpleUserSerializer
+from apps.user_app.serializers import UserSimpleSerializer
 from apps.recipe_app.serializers import SimpleRecipeSerializer, CommentSerializer
 
 class NotificationSerializer(serializers.ModelSerializer):
     
-    from_user = SimpleUserSerializer(required = False)
+    from_user = UserSimpleSerializer(required = False)
     recipe = SimpleRecipeSerializer(required = False)
     comment = CommentSerializer(required = False)
     

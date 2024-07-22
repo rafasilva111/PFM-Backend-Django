@@ -6,6 +6,7 @@ from .models import User
 from django.views.generic import TemplateView
 from web_project import TemplateLayout, TemplateHelper
 from django.conf import settings
+
 # =========================
 # Authentication 
 # =========================
@@ -69,9 +70,7 @@ class LoginView(TemplateView):
         # If form is invalid or authentication failed, pass form with errors back to template
         context = self.get_context_data(form=self.form)  
         return render(request, self.template_name, context)
-    
-    
-    
+     
 class RegisterView(View):
     def get(self, request):
         form = RegisterForm()

@@ -84,11 +84,23 @@ class UserSerializer(serializers.ModelSerializer):
     
     
 
-class SimpleUserSerializer(serializers.ModelSerializer):
+class UserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['id','name','username','description','img_source','profile_type','user_type','follows_c','followers_c']
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    
+    recipes_created = serializers.SerializerMethodField()
+     
+    class Meta:
+        model = User
+        fields = ['id','name','username','description','img_source','profile_type','user_type','follows_c','followers_c','recipes_created']   
         
+        
+    def get_recipes_created(self, obj):
+
+        return obj.created_recipes.count()    
 
 class UserPatchSerializer(UserSerializer):
     old_password = serializers.CharField(write_only=True, required=False)
@@ -116,11 +128,11 @@ class UserPatchSerializer(UserSerializer):
 class UserToFollowSerializer(serializers.Serializer):
     follower = serializers.BooleanField(default = False)
     request_sent = serializers.BooleanField(default = False)
-    user = SimpleUserSerializer(required = True)
+    user = UserSimpleSerializer(required = True)
     
 class FollowRequestSerializer(UserSerializer):
-    follower = SimpleUserSerializer(required= True)
-    followed = SimpleUserSerializer(required = True)
+    follower = UserSimpleSerializer(required= True)
+    followed = UserSimpleSerializer(required = True)
     
     class Meta:
         model = FollowRequest
@@ -128,7 +140,7 @@ class FollowRequestSerializer(UserSerializer):
         
 class GoalSerializer(UserSerializer):
     
-    user = SimpleUserSerializer(required = False)
+    user = UserSimpleSerializer(required = False)
     
     class Meta:
         model = Goal

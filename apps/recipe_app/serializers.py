@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.db import transaction
 from .models import Recipe, RecipeRating, RecipeBackground, Tag, Ingredient, RecipeIngredientQuantity, Comment, RecipeReport,NutritionInformation,Preparation
-from apps.user_app.serializers import SimpleUserSerializer
+from apps.user_app.serializers import UserSimpleSerializer
 from apps.user_app.models import User
 
 ###
@@ -41,7 +41,7 @@ class RecipeIngredientQuantitySerializer(serializers.ModelSerializer):
 class RecipeSerializer(serializers.ModelSerializer):
 
     nutrition_information = NutritionInformationSerializer(required = False)
-    created_by = SimpleUserSerializer(required = False)
+    created_by = UserSimpleSerializer(required = False)
     preparation = PrepationSerializer(many = True,required = False)
     ingredients = RecipeIngredientQuantitySerializer(many = True,required = False)
     tags = TagSerializer(many = True,required = False)
@@ -99,7 +99,7 @@ class RecipeSerializer(serializers.ModelSerializer):
     
 class SimpleRecipeSerializer(serializers.ModelSerializer):
 
-    created_by = SimpleUserSerializer(required = False)
+    created_by = UserSimpleSerializer(required = False)
     tags = TagSerializer(many = True)
     
     likes = serializers.SerializerMethodField()
@@ -160,7 +160,7 @@ class RecipeBackgroundSerializer(serializers.ModelSerializer):
 ##
         
 class CommentSerializer(serializers.ModelSerializer):
-    user = SimpleUserSerializer(required = False)
+    user = UserSimpleSerializer(required = False)
     recipe = SimpleRecipeSerializer(required = False)
     likes = serializers.SerializerMethodField()
     
@@ -201,7 +201,7 @@ class CommentPatchSerializer(CommentSerializer):
 
 class RecipeReportSerializer(serializers.ModelSerializer):
     
-    user = SimpleUserSerializer(required = False)
+    user = UserSimpleSerializer(required = False)
     recipe = SimpleRecipeSerializer(required = False)
     
     class Meta:

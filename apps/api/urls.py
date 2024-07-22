@@ -5,7 +5,6 @@ from rest_framework import permissions
 from drf_yasg.views import get_schema_view
 from drf_yasg import openapi
 
-from .views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,GoalsView,IdealWeightView
 
 ###
 #   Views
@@ -15,6 +14,8 @@ from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView
     RecipesCreatedView,RecipeBackgroundView
 from apps.calendar_app.api_views import CalendarListView, CalendarView, CalendarIngredientsListView, CalendarEntryListCheckView
 from apps.notification_app.api_views import NotificationView,NotificationListView
+from apps.user_app.api_views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,\
+    GoalsView,IdealWeightView
 
 
 

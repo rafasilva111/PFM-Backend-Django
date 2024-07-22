@@ -168,7 +168,8 @@ class ListResponseSerializer(serializers.Serializer):
         :param endpoint_name: Name of the endpoint for metadata purposes.
         :return: A ListResponseSerializer instance with populated data.
         """
-        total_users = paginator.count
+        
+        total_items = paginator.count
         total_pages = paginator.num_pages
         page_size = paginator.per_page
         
@@ -176,7 +177,7 @@ class ListResponseSerializer(serializers.Serializer):
             "page": page,
             "page_size": page_size,
             "total_pages": total_pages,
-            "total_users": total_users
+            "total_items": total_items
         }
 
         result = serializer.data

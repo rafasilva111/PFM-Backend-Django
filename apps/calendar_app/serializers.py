@@ -2,8 +2,11 @@
 
 from rest_framework import serializers
 from apps.calendar_app.models import CalendarEntry
+from apps.recipe_app.serializers import RecipeSerializer
 
 class CalendarEntrySerializer(serializers.ModelSerializer):
+    
+    recipe = RecipeSerializer()
     class Meta:
         model = CalendarEntry
         fields = '__all__'

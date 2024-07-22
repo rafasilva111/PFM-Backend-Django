@@ -86,61 +86,76 @@ class CalendarListView(generics.ListAPIView):
     serializer_class = CalendarEntrySerializer
 
     @swagger_auto_schema(
+        tags=['Calendar'],
+        operation_summary="List all calendar entries",
+        operation_description="List all calendar entries for the authenticated user.",
         manual_parameters=[
             openapi.Parameter(
                 name='page',
                 in_=openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
                 type=openapi.TYPE_INTEGER,
-                description='Page number.',
-                default=1
+                required=False
             ),
             openapi.Parameter(
                 name='page_size',
                 in_=openapi.IN_QUERY,
+                description="The number of items per page. Defaults to 5.",
                 type=openapi.TYPE_INTEGER,
-                description='Number of items in a page.',
-                default=5
+                required=False
             ),
             openapi.Parameter(
                 name='id',
                 in_=openapi.IN_QUERY,
+                description="Filter by calendar entry ID.",
                 type=openapi.TYPE_INTEGER,
-                description='Filter by calendar entry ID.'
+                required=False
             ),
             openapi.Parameter(
                 name='date',
                 in_=openapi.IN_QUERY,
+                description="Filter by date in the format DD/MM/YYYYThh:mm:ss.",
                 type=openapi.TYPE_STRING,
-                description='Filter by date in the format YYYY-MM-DD.'
+                required=False
             ),
             openapi.Parameter(
                 name='from_date',
                 in_=openapi.IN_QUERY,
+                description="Filter by date after this in the format DD/MM/YYYYThh:mm:ss.",
                 type=openapi.TYPE_STRING,
-                description='Filter by date after this in the format YYYY-MM-DD.'
+                required=False
             ),
             openapi.Parameter(
                 name='to_date',
                 in_=openapi.IN_QUERY,
+                description="Filter by date before this in the format DD/MM/YYYYThh:mm:ss.",
                 type=openapi.TYPE_STRING,
-                description='Filter by date before this in the format YYYY-MM-DD.'
+                required=False
             ),
             openapi.Parameter(
                 name='user_id',
                 in_=openapi.IN_QUERY,
+                description="Filter by user ID.",
                 type=openapi.TYPE_INTEGER,
-                description='Filter by user ID.'
+                required=False
             ),
             openapi.Parameter(
                 name='recipe_id',
                 in_=openapi.IN_QUERY,
+                description="Filter by recipe ID.",
                 type=openapi.TYPE_INTEGER,
-                description='Filter by recipe ID.'
+                required=False
             ),
         ],
         responses={
-            200: ListResponseSerializer,
-            400: ErrorResponseSerializer
+            200: openapi.Response(
+                description='A paginated list of calendar entries.',
+                schema=ListResponseSerializer(many=True),
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided parameters are not valid, or other parameter issues.',
+                schema=ErrorResponseSerializer,
+            ),
         }
     )
     def get(self, request):
@@ -201,7 +216,7 @@ class CalendarListView(generics.ListAPIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=CalendarEntry(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(page, paginator, serializer=CalendarEntrySerializer(records_page, many=True), endpoint_name="calendar_list").data,
             status=status.HTTP_200_OK
         )
 

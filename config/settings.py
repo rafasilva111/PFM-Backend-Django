@@ -65,6 +65,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     'django_celery_beat',
     'django_extensions',
+    'rest_framework_simplejwt.token_blacklist',
     'drf_yasg',
     "apps.common",
     "apps.authentication",
@@ -259,6 +260,7 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
         'schedule': crontab(hour=0, minute=0),  # Runs every night at midnight
     },
 }"""
+
 
 
 # Commands

@@ -123,19 +123,19 @@ class RecipeView(APIView):
         # TODO user shouldnt be able to see private account recipes
         
         # Get args
-        id = int(request.GET.get('id', -1))
-        
+        id = int(request.query_params.get('id', -1))
+
         # Validate args
         if id == -1:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Recipe report Id not supplied.").data,status=status.HTTP_400_BAD_REQUEST)
         
         # Retrieve the instance
         try:
-            recipe = Recipe.objects.get(id=id)
+            recipe = Recipe.objects.get(id=id)  
         except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
     
-        return Response(RecipeSerializer(recipe).data, status=200)
+        return Response(RecipeSerializer(recipe).data, status=status.HTTP_200_OK)
             
     @swagger_auto_schema(
         tags=['Recipe'],
@@ -167,54 +167,6 @@ class RecipeView(APIView):
 
         return Response(serializer.data, status=status.HTTP_201_CREATED)
     
-    @swagger_auto_schema(
-        tags=['Recipe'],
-        operation_summary="Get a recipe by ID",
-        operation_description="Get a recipe by ID for the authenticated user.",
-        manual_parameters=[
-            openapi.Parameter(
-                'id',
-                openapi.IN_QUERY,
-                description="The ID of the recipe to retrieve.",
-                type=openapi.TYPE_INTEGER,
-                required=True
-            ),
-        ],
-        responses={
-            200: openapi.Response(
-                description='The retrieved recipe data.',
-                schema=RecipeSerializer
-            ),
-            400: openapi.Response(
-                description='Bad request. The provided ID is not valid, or other parameter issues.',
-                schema=ErrorResponseSerializer
-            ),
-            404: openapi.Response(
-                description='Not found. The recipe with the provided ID could not be found.',
-                schema=ErrorResponseSerializer
-            ),
-        }
-    )
-    def get(self,request):
-        
-        # Get user authed
-        user = request.user
-        
-        # Get args
-        id = int(request.GET.get('id', -1))
-        
-        # Validate args
-        if id == -1:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Recipe ID not supplied.").data,status=status.HTTP_400_BAD_REQUEST)
-        
-        # Retrieve the instance
-        try:
-            recipe = Recipe.objects.get(id=id, created_by = user)
-        except Recipe.DoesNotExist:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="Recipe can't be found by this id.").data, status=status.HTTP_404_NOT_FOUND)
-        
-        
-        return Response(RecipeSerializer(recipe).data,status=status.HTTP_200_OK)
 
     @swagger_auto_schema(
         tags=['Recipe'],
@@ -822,30 +774,20 @@ class CommentListView(APIView):
         if client_id:
             query.filter(recipe= int(client_id))
 
+
         # Paginate the results
         paginator = Paginator(query, page_size)
-        total_items = paginator.count
-        total_pages = paginator.num_pages
 
+        
+        # Get the requested page
         try:
-            result = paginator.page(page)
+            records_page = paginator.page(page)
         except Exception:
-            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
+            return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
-        # Build metadata
-        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "recipe_list")
-        
-        # Serialize the data
-        serializer = CommentSerializer(result, many=True)
-            
-        # Build response data
-        response_data = {
-            "_metadata": metadata,
-            "result": serializer.data
-        }
-        
-
-        return Response(response_data, status=200)
+        return Response(
+            ListResponseSerializer.build_(page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="comment_list").data,
+            status=status.HTTP_200_OK)
 
 
 class CommentLikeView(APIView):

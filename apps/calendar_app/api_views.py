@@ -178,21 +178,21 @@ class CalendarListView(generics.ListAPIView):
             return Response(ErrorResponseSerializer.from_dict({"invalid":"from_date cannot be greater than to_date"}).data, status=status.HTTP_400_BAD_REQUEST)
 
         # Query building
-        base_query = CalendarEntry.objects.filter(user=user)
+        query = CalendarEntry.objects.filter(user=user)
 
         if date:
             next_day = add_days(date, 1)
-            base_query = base_query.filter(realization_date__gte=date, realization_date__lt=next_day)
+            query = query.filter(realization_date__gte=date, realization_date__lt=next_day)
 
         elif from_date and to_date:
-            base_query = base_query.filter(realization_date__gte=from_date, realization_date__lte=to_date).order_by('realization_date')
+            query = query.filter(realization_date__gte=from_date, realization_date__lte=to_date).order_by('realization_date')
 
             response_holder = {}
 
             # Group entries by date
             date_to_entries = defaultdict(list)
 
-            for item in base_query:
+            for item in query:
                 date_string = item.realization_date.strftime("%d/%m/%Y")
                 date_to_entries[date_string].append(CalendarEntrySerializer(item).data)
 
@@ -207,7 +207,7 @@ class CalendarListView(generics.ListAPIView):
             return Response(data=response_holder, status=status.HTTP_200_OK)
 
         # Paginate the results
-        paginator = Paginator(base_query, page_size)
+        paginator = Paginator(query, page_size)
 
         # Get the requested page
         try:

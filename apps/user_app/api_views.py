@@ -104,7 +104,6 @@ class LoginView(APIView):
             401: ErrorResponseSerializer,
         }
     )
-
     def post(self, request):
         """
         Handle POST request for user login.
@@ -235,7 +234,7 @@ class AuthView(APIView):
             return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
         
         try:
-            user = request.user
+            
             
             # Retrieve the user's refresh token
             refresh_token = RefreshToken(serializer.validated_data['refresh_token'])
@@ -315,18 +314,18 @@ class UserListView(APIView):
         page_size = int(request.query_params.get('page_size', 5))
                 
         # Build base query
-        base_query = User.objects.exclude(user_type=User.UserType.ADMIN.value).order_by('created_at')
+        query = User.objects.exclude(user_type=User.UserType.ADMIN.value).order_by('created_at')
         
         # Perform search if string_to_search is provided
         if string_to_search:
-            base_query = base_query.filter(
+            query = query.filter(
                 Q(first_name__icontains=string_to_search) |
                 Q(last_name__icontains=string_to_search) |
                 Q(email__icontains=string_to_search)
             )
         
         # Paginate the results
-        paginator = Paginator(base_query, page_size)
+        paginator = Paginator(query, page_size)
 
         
         # Get the requested page
@@ -335,8 +334,6 @@ class UserListView(APIView):
         except Exception:
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
-
-
         return Response(
             ListResponseSerializer.build_(page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="user_list").data,
             status=status.HTTP_200_OK)

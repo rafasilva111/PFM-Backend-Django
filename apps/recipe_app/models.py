@@ -125,6 +125,8 @@ class RecipeRating(BaseModel):
     user = models.ForeignKey(User, related_name='rated_recipes', on_delete=models.CASCADE)
     rating = models.IntegerField(null=True)
 
+
+# to be removed
 class RecipeBackground(BaseModel):
     """
     Model to store background information for recipes.

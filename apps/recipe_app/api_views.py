@@ -60,7 +60,8 @@ from apps.user_app.models import User
 #   Serializers
 #
 
-from apps.recipe_app.serializers import RecipeSerializer,RecipeReportSerializer,RecipeReportPatchSerializer,RecipePatchSerializer,CommentSerializer,CommentPatchSerializer,RecipeBackgroundSerializer
+from apps.recipe_app.serializers import RecipeSerializer,RecipeReportSerializer,RecipeReportPatchSerializer,RecipePatchSerializer,CommentSerializer,CommentPatchSerializer,\
+    RecipeBackgroundSerializer,SimpleRecipeSerializer
 from apps.api.serializers import SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer
 
 
@@ -122,6 +123,7 @@ class RecipeView(APIView):
     def get(self,request):
         # TODO user shouldnt be able to see private account recipes
         
+        user = request.user
         # Get args
         id = int(request.query_params.get('id', -1))
 
@@ -135,7 +137,7 @@ class RecipeView(APIView):
         except Recipe.DoesNotExist:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
     
-        return Response(RecipeSerializer(recipe).data, status=status.HTTP_200_OK)
+        return Response(RecipeSerializer(recipe, context={'user': user}).data, status=status.HTTP_200_OK)
             
     @swagger_auto_schema(
         tags=['Recipe'],
@@ -327,10 +329,15 @@ class RecipeListView(APIView):
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
             query = Recipe.objects.filter(comments__user=user).distinct()
         else:
-            query = Recipe.objects.all()
+            query = Recipe.objects.all().order_by('id')
 
         if search_string:
-            query = query.filter(Q(title__icontains=search_string) | Q(id=search_string))
+            
+            if search_string.isdigit():
+                query = query.filter(Q(id=search_string))
+            else:
+                print("here")
+                query = query.filter(Q(title__icontains=search_string)|Q(tags__title__icontains=search_string))
 
         if search_tag:
             query = query.filter(tags__title__icontains=search_tag)
@@ -338,7 +345,7 @@ class RecipeListView(APIView):
         # Apply sorting
         if by:
             if by == RecipeSortingTypes.DATE:
-                query = query.order_by('created_date')
+                query = query.order_by('created_at')
                 
             elif by == RecipeSortingTypes.RANDOM:
                 query = query.annotate(random_number=Random()).order_by('random_number')
@@ -347,19 +354,14 @@ class RecipeListView(APIView):
                 query = query.filter(verified=True)
                 
             elif by == RecipeSortingTypes.LIKES:
-                likes_subquery = RecipeBackground.objects.filter(
-                    recipe=OuterRef('pk'), type=RecipesBackgroundType.LIKED
-                ).values('recipe').annotate(count=Count('id')).values('count')
-                query = query.annotate(likes=Subquery(likes_subquery)).order_by('-likes')
+                query = query.annotate(liked_count=Count('users_liked')).order_by('-liked_count')
                 
             elif by == RecipeSortingTypes.SAVES:
-                saves_subquery = RecipeBackground.objects.filter(
-                    recipe=OuterRef('pk'), type=RecipesBackgroundType.SAVED
-                ).values('recipe').annotate(count=Count('id')).values('count')
-                query = query.annotate(saves=Subquery(saves_subquery)).order_by('-saves')
+                query = query.annotate(saved_count=Count('users_saved')).order_by('-saved_count')
                 
             elif by == RecipeSortingTypes.CLASSIFICATION:
-                query = query.annotate(avg_rating=Avg('ratings__rating')).order_by('-avg_rating')
+                query = query.annotate(avg_rating=Avg('ratings__rating')).order_by('avg_rating')
+                
 
         # Paginate the results
         paginator = Paginator(query, page_size)
@@ -370,11 +372,19 @@ class RecipeListView(APIView):
         except Exception:
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.PAGINATION.value, message="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
         
-
+        
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipe_list").data,
-            status=status.HTTP_200_OK
-        )
+                ListResponseSerializer.build_(
+                    request,
+                    page,
+                    paginator,
+                    serializer=SimpleRecipeSerializer(records_page, many=True, context={'user': user}),
+                    endpoint_name="recipe_list"
+                ).data,
+                status=status.HTTP_200_OK
+            )
+        
+
 ###
 #   Recipe Report
 ##
@@ -630,7 +640,7 @@ class RecipeReportListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=RecipeReport(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeReport(records_page, many=True), endpoint_name="calendar_list").data,
             status=status.HTTP_200_OK
         )
 
@@ -786,7 +796,7 @@ class CommentListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(
-            ListResponseSerializer.build_(page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="comment_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="comment_list").data,
             status=status.HTTP_200_OK)
 
 
@@ -880,7 +890,7 @@ class RecipesLikedView(APIView):
             
             # Query building
             query = user.liked_recipes.all()
-            
+        
 
         # Paginate the results
         paginator = Paginator(query, page_size)
@@ -892,7 +902,7 @@ class RecipesLikedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="calendar_list").data,
             status=status.HTTP_200_OK
         )
     
@@ -919,7 +929,7 @@ class RecipesLikedView(APIView):
         # Save model
         instance.save()
 
-        return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
+        return Response(RecipeSerializer(instance,context={'user':user}).data,status=status.HTTP_201_CREATED)
 
     
     def delete(self,request):
@@ -945,7 +955,7 @@ class RecipesLikedView(APIView):
         # Save model
         instance.save()
 
-        return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
+        return Response(RecipeSerializer(instance,context={'user':user}).data,status=status.HTTP_200_OK)
 
 
 #   User Normal can only have 25 saved recipes (on Frontend local memory)
@@ -1017,7 +1027,7 @@ class RecipesSavedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="calendar_list").data,
             status=status.HTTP_200_OK
         )
     
@@ -1077,7 +1087,7 @@ class RecipesSavedView(APIView):
         # Save model
         instance.save()
 
-        return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
+        return Response(RecipeSerializer(instance,context={'user':user}).data,status=status.HTTP_201_CREATED)
 
     
     @swagger_auto_schema(
@@ -1127,7 +1137,7 @@ class RecipesSavedView(APIView):
         # Save model
         instance.save()
 
-        return Response(RecipeSerializer(instance).data,status=status.HTTP_201_CREATED)
+        return Response(RecipeSerializer(instance,context={'user':user}).data,status=status.HTTP_200_OK)
  
 #   All users should have access to all created recipes (on Frontend local memory)
 
@@ -1210,7 +1220,7 @@ class RecipesCreatedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipes_created").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipes_created").data,
             status=status.HTTP_200_OK
         )
 
@@ -1225,4 +1235,4 @@ class RecipeBackgroundView(APIView):
         # Get user auth
         user = request.user
         
-        return Response(RecipeBackgroundSerializer(user).data,status=status.HTTP_200_OK)
+        return Response(RecipeBackgroundSerializer(user, context={'user':user}).data,status=status.HTTP_200_OK)

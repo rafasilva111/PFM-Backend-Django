@@ -129,9 +129,8 @@ class LoginView(APIView):
             return Response(ErrorResponseSerializer.from_dict({'auth': ['Invalid email or password']}).data, status=status.HTTP_401_UNAUTHORIZED)
         
         # Generate token and expiration time
-        token_serializer = TokenSerializer.for_user(user)
         
-        return Response(token_serializer.data, status=status.HTTP_200_OK)
+        return Response(TokenSerializer.for_user(user).data, status=status.HTTP_200_OK)
 
 
 class AuthView(APIView):
@@ -335,7 +334,7 @@ class UserListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(
-            ListResponseSerializer.build_(page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="user_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="user_list").data,
             status=status.HTTP_200_OK)
     
     
@@ -714,7 +713,7 @@ class FollowersListView(APIView):
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-        response_data = ListResponseSerializer.build_(page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
         status=status.HTTP_200_OK)
     
 class FollowsListView(APIView):
@@ -782,7 +781,7 @@ class FollowsListView(APIView):
         
        
         return Response(
-        response_data = ListResponseSerializer.build_(page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
         status=status.HTTP_200_OK)
 
 
@@ -852,7 +851,7 @@ class FollowRequestListView(APIView):
         
        
         return Response(
-            response_data = ListResponseSerializer.build_(page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests_list").data,
+            response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests_list").data,
             status=status.HTTP_200_OK)
     
 

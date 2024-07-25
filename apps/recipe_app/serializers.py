@@ -45,13 +45,19 @@ class RecipeSerializer(serializers.ModelSerializer):
     preparation = PrepationSerializer(many = True,required = False)
     ingredients = RecipeIngredientQuantitySerializer(many = True,required = False)
     tags = TagSerializer(many = True,required = False)
+    
     likes = serializers.SerializerMethodField()
     saves = serializers.SerializerMethodField()
     
+    liked = serializers.SerializerMethodField()
+    saved = serializers.SerializerMethodField()
+    
+    
+    
     class Meta:
         model = Recipe
-        fields = ['id','title','description','img_source','verified','difficulty','ingredients','tags','portion','preparation','time','likes','saves','views','nutrition_information','rating','source_rating','source_link','created_at', 'updated_at','created_by']  # Include all fields
-        read_only_fields = ['id', 'created_at', 'updated_at','created_by','ingredients','preparation','tags','nutrition_information']
+        fields = ['id','title','description','img_source','verified','difficulty','ingredients','tags','portion','preparation','time','likes','saves','views','nutrition_information','rating','source_rating','source_link','created_at', 'updated_at','saved','liked','created_by']  # Include all fields
+        read_only_fields = ['id', 'created_at', 'updated_at','created_by','ingredients','preparation','tags','nutrition_information','saved','liked']
         
         
     def create(self, validated_data):
@@ -96,20 +102,34 @@ class RecipeSerializer(serializers.ModelSerializer):
     
     def get_saves(self, obj):
         return obj.users_saved.count()
-    
-class SimpleRecipeSerializer(serializers.ModelSerializer):
 
-    created_by = UserSimpleSerializer(required = False)
-    tags = TagSerializer(many = True)
+    def get_liked(self, obj):
+        user = self.context.get('user')
+        
+        if user:
+            return obj.users_liked.filter(id=user.id).exists()
+        
+        return None
+
     
-    likes = serializers.SerializerMethodField()
+    def get_saved(self, obj):
+        user = self.context.get('user')
+        
+        if user:
+            return obj.users_saved.filter(id=user.id).exists()
+        
+        return None
+    
+
+    
+class SimpleRecipeSerializer(RecipeSerializer):
     
     class Meta:
         model = Recipe
-        fields = ['id','title','description','img_source','verified','difficulty','tags','portion','time','likes','views','rating','source_rating','created_by']  # Include all fields
+        fields = ['id','title','description','img_source','verified','difficulty','tags','portion','time','likes','saves','views','rating','source_rating','created_at','updated_at','created_by','saved','liked'] 
     
-    def get_likes(self, obj):
-        return obj.users_liked.count()
+
+
     
 class RecipePatchSerializer(RecipeSerializer):
     
@@ -155,6 +175,8 @@ class RecipeBackgroundSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ['created_recipes', 'saved_recipes']
+        
+
 ###
 #   Comments
 ##

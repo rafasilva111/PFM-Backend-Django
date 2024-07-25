@@ -4,7 +4,7 @@ from apps.recipe_app.serializers import IngredientSerializer
 
 class ShoppingIngredientSerializer(serializers.ModelSerializer):
     
-    ingredient = IngredientSerializer
+    ingredient = IngredientSerializer()
     
     class Meta:
         model = ShoppingIngredient

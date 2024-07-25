@@ -3,6 +3,7 @@ from enum import Enum
 from django.db import models
 
 class RecipeSortingTypes(models.TextChoices):
+    ALL = "ALL","All"
     VERIFIED = "VERIFIED","Verified"
     DATE = "DATE", "Date"
     LIKES = "LIKES", "Likes"

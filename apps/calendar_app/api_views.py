@@ -216,7 +216,7 @@ class CalendarListView(generics.ListAPIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(page, paginator, serializer=CalendarEntrySerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=CalendarEntrySerializer(records_page, many=True), endpoint_name="calendar_list").data,
             status=status.HTTP_200_OK
         )
 

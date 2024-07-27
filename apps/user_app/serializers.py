@@ -1,10 +1,13 @@
 from rest_framework import serializers
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+
 from django.contrib.auth.hashers import make_password
+from django.utils import timezone
 from datetime import datetime
 from pytz import timezone, utc
 from .models import User,FollowRequest,Goal
 from .constants import USER_MAX_WEIGHT,USER_MIN_WEIGHT,USER_MIN_HEIGHT,USER_MAX_HEIGHT,STRING_USER_BIRTHDATE_PAST_ERROR,STRING_USER_BIRTHDATE_YOUNG_ERROR
-
+from django.conf import settings
 class CustomDateFormatField(serializers.DateField):
     def to_internal_value(self, value):
         try:
@@ -33,7 +36,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     def get_age(self, obj):
         if obj.birth_date:
-            today = datetime.now().date()
+            today = timezone.now().date()
             age = today.year - obj.birth_date.year - ((today.month, today.day) < (obj.birth_date.month, obj.birth_date.day))
             return age
         else:
@@ -62,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
         value_utc = value.astimezone(utc)
         
         # Get the current time in UTC
-        now_utc = datetime.now(utc)
+        now_utc = timezone.now(utc)
         
         if value_utc > now_utc:
             raise serializers.ValidationError(STRING_USER_BIRTHDATE_PAST_ERROR)

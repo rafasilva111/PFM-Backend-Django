@@ -4,6 +4,8 @@ from datetime import datetime, timedelta
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.urls import reverse
+from django.utils import timezone
+from rest_framework_simplejwt.tokens import RefreshToken, TokenError
 
 User = get_user_model()
 
@@ -20,8 +22,8 @@ class TokenSerializer(serializers.Serializer):
         refresh_token = RefreshToken.for_user(user)
         access = refresh_token.access_token
 
-        access_token_expires = datetime.now() + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
-        refresh_token_expires = datetime.now() + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+        access_token_expires = timezone.now() + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+        refresh_token_expires = timezone.now() + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
 
         return cls({
             'refresh_token': str(refresh_token),
@@ -30,6 +32,29 @@ class TokenSerializer(serializers.Serializer):
             'access_token_expires': access_token_expires.isoformat() + 'Z',
             
         })
+    @classmethod
+    def from_refresh_token(cls, refresh_token_):
+        
+
+    
+        try:
+            refresh_token = RefreshToken(refresh_token_)
+        except TokenError as e:
+            raise serializers.ValidationError({'refresh': str(e)})
+        
+        access = refresh_token.access_token
+
+        access_token_expires = timezone.now() + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+        refresh_token_expires = timezone.now() + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+
+        return cls({
+            'refresh_token': str(refresh_token),
+            'refresh_token_expires': refresh_token_expires.isoformat() + 'Z',
+            'access_token': str(access),
+            'access_token_expires': access_token_expires.isoformat() + 'Z',
+            
+        })
+    
 
 class ErrorResponseSerializer(serializers.Serializer):
     error = serializers.DictField()
@@ -95,7 +120,20 @@ class LogoutSerializer(serializers.Serializer):
             'max_length': 'The refresh token is too long.'
         }
     )
-    
+
+class RefreshTokenSerializer(serializers.Serializer):
+    refresh = serializers.CharField(
+        max_length=255,
+        required=True,
+        error_messages={
+            'required': 'Please provide your refresh token.',
+            'blank': 'Please provide your refresh token.',
+            'invalid': 'Please enter a valid refresh token.',
+            'max_length': 'The refresh token is too long.'
+        }
+    )
+
+ 
 class ResetSerializer(serializers.Serializer):
     email = serializers.CharField(
         max_length=255,

@@ -306,14 +306,19 @@ class RecipeListView(APIView):
         by = request.GET.get('by')
         user_id = request.GET.get('user_id')
         commented_by = request.GET.get('commented_by')
-        search_string = request.GET.get('searchString')
-        search_tag = request.GET.get('searchTag')
+        search_string = request.GET.get('search_string')
+        search_tag = request.GET.get('search_tag')
         
 
         # Validate args
         if by and not RecipeSortingTypes.is_valid_choice(by):
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Sorting by is not in RECIPES_SORTING_TYPE list.").data,status=status.HTTP_400_BAD_REQUEST)
 
+        if search_string == "":
+            search_string = None
+        
+        if search_tag == "":
+            search_tag = None
 
         # Query building
         if user_id:
@@ -336,7 +341,6 @@ class RecipeListView(APIView):
             if search_string.isdigit():
                 query = query.filter(Q(id=search_string))
             else:
-                print("here")
                 query = query.filter(Q(title__icontains=search_string)|Q(tags__title__icontains=search_string))
 
         if search_tag:

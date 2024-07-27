@@ -10,6 +10,7 @@
 from django.utils import timezone
 from django.contrib.auth import login, logout, authenticate
 from django.db.models import Q
+from django.conf import settings
 
 ##
 #   Django Rest Framework
@@ -20,7 +21,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
-
+from rest_framework_simplejwt.views import TokenRefreshView
 
 
 ##
@@ -58,7 +59,7 @@ from apps.user_app.models import User, FollowRequest,Follow
 #
 
 from apps.user_app.serializers import UserSerializer,UserSimpleSerializer,UserPatchSerializer,UserToFollowSerializer,UserProfileSerializer
-from apps.api.serializers import LoginSerializer,LogoutSerializer,TokenSerializer,SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer
+from apps.api.serializers import LoginSerializer,LogoutSerializer,TokenSerializer,SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer,RefreshTokenSerializer
 
 
 ##
@@ -72,6 +73,7 @@ from apps.api.serializers import LoginSerializer,LogoutSerializer,TokenSerialize
 
 
 from apps.api.constants import ERROR_TYPES,RESPONSE_CODES
+
 
 
 
@@ -129,7 +131,7 @@ class LoginView(APIView):
             return Response(ErrorResponseSerializer.from_dict({'auth': ['Invalid email or password']}).data, status=status.HTTP_401_UNAUTHORIZED)
         
         # Generate token and expiration time
-        
+        print("here")
         return Response(TokenSerializer.for_user(user).data, status=status.HTTP_200_OK)
 
 
@@ -160,7 +162,6 @@ class AuthView(APIView):
             401: ErrorResponseSerializer,
         }
     )
-
     def get(self, request):
         """
         Handle GET request for user authentication.
@@ -245,6 +246,39 @@ class AuthView(APIView):
             
         except Exception as e:
             return Response(ErrorResponseSerializer.from_dict({"exception": str(e)}).data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+from rest_framework_simplejwt.serializers import TokenRefreshSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.views import TokenRefreshView
+from datetime import datetime
+from django.utils import timezone
+
+class CustomTokenRefreshView(TokenRefreshView):
+    def get_serializer_class(self):
+        # Use the existing TokenRefreshSerializer from simple_jwt
+        return TokenRefreshSerializer
+
+    def post(self, request, *args, **kwargs):
+        # Call the parent class's post method to get the original response
+        print(request.data)
+        response = super().post(request, *args, **kwargs)
+
+        
+        # Extract expiration dates
+        access_token_expires = timezone.now() + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
+        refresh_token_expires = timezone.now() + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
+
+
+        # Add expiration details to the response data
+        response.data ={
+            'refresh_token': str(response.data['refresh']),            
+            'refresh_token_expires': refresh_token_expires.isoformat(),
+            'access_token': str(response.data['access']),
+            'access_token_expires': access_token_expires.isoformat()
+            
+        }
+
+        return response
 
 ###
 #   User
@@ -890,21 +924,20 @@ class FollowRequestView(APIView):
         
         # Get query parameters
         
-        user_to_permit_follow_id = request.query_params.get('user_id')
+        user_follow_request_id = request.query_params.get('id')
 
         # Validate args
-        if not user_to_permit_follow_id:
+        if not user_follow_request_id:
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
         
-        user_to_permit_follow_id = int(user_to_permit_follow_id)
+        user_follow_request_id = int(user_follow_request_id)
 
-        if user_to_permit_follow_id == user.id:
-            logger.error("This isn't supose to happen, this problem should be caught on FollowView post method where we create the follow request...") # TODO make test about this
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User can't accept follow request himself...").data, status=status.HTTP_400_BAD_REQUEST)
-        
+        if user_follow_request_id == user.id:
+           return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User can't accept follow request himself...").data, status=status.HTTP_400_BAD_REQUEST)
+        print(user.email)
         try:
-            user_follow_request = FollowRequest.objects.get(follower=user_to_permit_follow_id,followed= user)
-        except User.DoesNotExist:
+            user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,followed= user)
+        except FollowRequest.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
             
         # Automatically follow if user profile_type is public
@@ -949,13 +982,18 @@ class FollowRequestView(APIView):
         user = request.user
         
         # Get query parameters
-        user_followed_id = request.query_params.get('user_id')
+        user_follow_request_id = request.query_params.get('id')
         
         try:
-            user_follow_request = FollowRequest.objects.get(follower=user,followed= user_followed_id)
-        except User.DoesNotExist:
+            user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,followed= user)
+        except FollowRequest.DoesNotExist:
+            
+            try:
+                user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,follower= user)
+            except FollowRequest.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
             
+
         user_follow_request.delete()
             
         return Response(status=status.HTTP_200_OK)

@@ -143,8 +143,8 @@ class Recipe(BaseModel):
     rating = FloatField(null=True)
     link = CharField(null=True)
 
-    created_date = DateTimeField(default=datetime.now(), null=False)
-    updated_date = DateTimeField(default=datetime.now(), null=False)
+    created_date = DateTimeField(default=timezone.now(), null=False)
+    updated_date = DateTimeField(default=timezone.now(), null=False)
 
 
 class Ingredient(BaseModel):

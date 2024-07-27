@@ -30,7 +30,7 @@ def _init_job(job_id):
     task = Task.objects.create(user = job.user, max_records= job.max_records, type = job.type, parent_task = job.parent_task, job = job )
     task.save()
     
-    job.last_run = datetime.now()
+    job.last_run = timezone.now()
     job.save()
 
     task.start()

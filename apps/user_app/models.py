@@ -174,7 +174,7 @@ class User(AbstractBaseUser):
         return self.is_admin
 
     def save(self, *args, **kwargs):
-        today = datetime.now().date()
+        today = timezone.now().date()
         try:
             self.age = today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
         except:

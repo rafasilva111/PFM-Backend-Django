@@ -128,7 +128,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'ACCESS_TOKEN_LIFETIME': timedelta(hours=6),  # Adjust the duration as needed
+    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),  # Adjust the duration as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,

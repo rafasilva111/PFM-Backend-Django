@@ -107,7 +107,7 @@ def configure_logging(task):
     makedirs(log_folder , exist_ok=True)
 
     # Define log filenames with the creation date
-    date = datetime.now().strftime("%d_%m_%Y__%H_%M")
+    date = timezone.now().strftime("%d_%m_%Y__%H_%M")
     info_log_filename = f'{log_folder}/info__{date}.log'
     error_log_filename = f'{log_folder}/errors__{date}.log'
 

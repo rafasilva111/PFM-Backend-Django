@@ -181,7 +181,7 @@ class PaginationMetadataSerializer(serializers.Serializer):
 
 class IdListInputSerializer(serializers.Serializer):
 
-    current_page = serializers.ListField(child=serializers.IntegerField())
+    ids = serializers.ListField(child=serializers.IntegerField())
 
 
 

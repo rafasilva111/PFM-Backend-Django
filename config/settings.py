@@ -73,6 +73,7 @@ INSTALLED_APPS = [
     'apps.recipe_app',
     'apps.calendar_app',
     'apps.shopping_app',
+    'apps.group_app',
     'apps.dispensery_app',
     'apps.notification_app',
     'apps.api',
@@ -128,7 +129,7 @@ REST_FRAMEWORK = {
 
 SIMPLE_JWT = {
     'AUTH_TOKEN_CLASSES': ('rest_framework_simplejwt.tokens.AccessToken',),
-    'ACCESS_TOKEN_LIFETIME': timedelta(minutes=1),  # Adjust the duration as needed
+    'ACCESS_TOKEN_LIFETIME': timedelta(days=1),  # Adjust the duration as needed
     'REFRESH_TOKEN_LIFETIME': timedelta(days=7),
     'ROTATE_REFRESH_TOKENS': True,
     'BLACKLIST_AFTER_ROTATION': True,

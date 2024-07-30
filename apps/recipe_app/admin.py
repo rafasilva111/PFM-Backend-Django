@@ -11,6 +11,7 @@ from .models import (
 @admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
     list_display = ('name',)
+    search_fields = ('name',) 
 
 @admin.register(RecipeIngredientQuantity)
 class RecipeIngredientQuantityAdmin(admin.ModelAdmin):

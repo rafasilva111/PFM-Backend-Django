@@ -17,6 +17,10 @@ from apps.notification_app.api_views import NotificationView,NotificationListVie
 from apps.user_app.api_views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,\
     GoalsView,IdealWeightView,CustomTokenRefreshView
 
+from apps.shopping_app.api_views import ShoppingListView,ShoppingListsView
+
+from apps.group_app.api_views import GroupListView,GroupView,GroupInviteView,GroupInvitesView
+
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
@@ -136,7 +140,31 @@ urlpatterns = [
     
     path('calendar', CalendarView.as_view(), name='calendar'), # get, post, put, delete CalendarEntrys
     path('calendar/list', CalendarListView.as_view(), name='calendar_list'), # get CalendarEntrys
-    path('calendar/ingredients/list', CalendarIngredientsListView.as_view(), name='calendar-ingredients-list'),
-    path('calendar/list/check', CalendarEntryListCheckView.as_view(), name='calendar-list-check'),
-
+    path('calendar/ingredients/list', CalendarIngredientsListView.as_view(), name='calendar_ingredients_list'), # post ShoppingList
+    path('calendar/list/check', CalendarEntryListCheckView.as_view(), name='calendar_list_check'), # update CalendarEntrys checked parameter in mass
+    
+    
+    ###
+    #
+    #   Shopping App
+    #
+    ##
+    
+    ###
+    #   Shopping Lists
+    ##
+    
+    path('shopping/shopping-list', ShoppingListView.as_view(), name='shopping_list'), # get, put, post, delete ShoppingList
+    path('shopping/shopping-list/list', ShoppingListsView.as_view(), name='shopping_lists'), # get ShoppingList
+    
+    ###
+    #
+    #   Group App
+    #
+    ##
+    
+    path('group', GroupView.as_view(), name='group'), # get, put, post, delete Group
+    path('groups', GroupListView.as_view(), name='groups'), # get Group
+    path('group/invites', GroupInvitesView.as_view(), name='group_invites'), # get Group invites
+    path('group/invite', GroupInviteView.as_view(), name='group_invite'), # get, put, delete Group Invite
 ] 

@@ -16,7 +16,7 @@ class ERROR_TYPES(models.TextChoices):
     CONSTRAINT = 'CONSTRAINTS', 'Error in a constraint'
     MISSING_MODEL = 'MISSING_MODEL', 'Error find model'
     MISSING = 'MISSING', 'Error model missing something.'
-    RESOURCE_LIMIT = 'RESOURCE_LIMIT', 'Error in resource limit'
+    RESOURCE_LIMIT = 'RESOURCE_LIMIT', 'Error in resource limit.'
 
 
 """

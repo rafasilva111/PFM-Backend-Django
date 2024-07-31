@@ -371,7 +371,7 @@ class ShoppingListsView(APIView):
         if group_id:
             query = ShoppingList.objects.filter(group = group_id).order_by('created_at')
         else:
-            query = request.user.shoppinglists.all().order_by('created_at') 
+            query = request.user.shopping_lists.all().order_by('created_at') 
         
         
         # Paginate the results

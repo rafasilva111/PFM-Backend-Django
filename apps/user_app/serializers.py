@@ -4,7 +4,7 @@ from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from django.contrib.auth.hashers import make_password
 from django.utils import timezone
 from datetime import datetime
-from pytz import timezone, utc
+from pytz import  timezone as pytz_timezone,utc
 from .models import User,FollowRequest,Goal
 from .constants import USER_MAX_WEIGHT,USER_MIN_WEIGHT,USER_MIN_HEIGHT,USER_MAX_HEIGHT,STRING_USER_BIRTHDATE_PAST_ERROR,STRING_USER_BIRTHDATE_YOUNG_ERROR
 from django.conf import settings
@@ -55,7 +55,7 @@ class UserSerializer(serializers.ModelSerializer):
     def validate_birth_date(self, value):
         
         # Define the Portugal timezone
-        portugal_tz = timezone('Europe/Lisbon')
+        portugal_tz = pytz_timezone('Europe/Lisbon')
         
         # Convert the naive datetime to Portugal timezone if it's naive
         if value.tzinfo is None:
@@ -65,7 +65,7 @@ class UserSerializer(serializers.ModelSerializer):
         value_utc = value.astimezone(utc)
         
         # Get the current time in UTC
-        now_utc = timezone.now(utc)
+        now_utc = timezone.now().astimezone(utc)    
         
         if value_utc > now_utc:
             raise serializers.ValidationError(STRING_USER_BIRTHDATE_PAST_ERROR)
@@ -111,9 +111,10 @@ class UserPatchSerializer(UserSerializer):
     class Meta:
         model = User
         fields = [
-            'name', 'username', 'description', 'img_source','old_password','password' ,
+            'name', 'username', 'description', 'img_source','old_password','password' ,'age','birth_date',
             'user_portion', 'fmc_token', 'activity_level', 'height', 'weight', 'profile_type', 'user_type', 'sex'
         ]
+        read_only_fields = ['age', 'birth_date']
     
     def validate(self, data):
 

@@ -10,16 +10,37 @@ class CalendarEntrySerializer(serializers.ModelSerializer):
     class Meta:
         model = CalendarEntry
         fields = '__all__'
+        
+
 
 
 class CalendarEntryPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = CalendarEntry
         fields = '__all__'
-        read_only_fields = ['user']
+        read_only_fields = ['id','user']
+        
+        
+
+    def update(self, instance, validated_data):
+        
+        # Extract nested data
+        user = self.context.pop('user', None)
+        
+        # Update the main instance
+        instance = super().update(instance, validated_data)
+        
+        # Validate context instances       
+        if not user:
+            raise serializers.ValidationError("User in context is required.")
+        
+        if self.instance.user.id != user.id:
+            raise serializers.ValidationError("You do not own this Calendar entry.")
+
+                
+        return instance
 
 
-from django.db import models
 
 
 class CalendarEntryListUpdateSerializer(serializers.Serializer):

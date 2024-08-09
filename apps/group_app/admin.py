@@ -23,8 +23,8 @@ class GroupAdmin(admin.ModelAdmin):
 
 class GroupInviteAdmin(admin.ModelAdmin):
     list_display = ('title', 'inviter', 'invited', 'description')
-    search_fields = ('title', 'inviter__name', 'invited__username')
+    search_fields = ('title', 'inviter', 'invited__username')
     list_filter = ('inviter',)
 
 admin.site.register(Group, GroupAdmin)
-admin.site.register(GroupInvite, GroupInviteAdmin)
+#admin.site.register(GroupInvite, GroupInviteAdmin)

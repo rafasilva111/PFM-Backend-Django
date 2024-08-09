@@ -178,27 +178,27 @@ class CalendarListView(generics.ListAPIView):
             return Response(ErrorResponseSerializer.from_dict({"invalid":"from_date cannot be greater than to_date"}).data, status=status.HTTP_400_BAD_REQUEST)
 
         # Query building
-        query = CalendarEntry.objects.filter(user=user)
+        base_query = CalendarEntry.objects.filter(user=user)
 
         if date:
             next_day = add_days(date, 1)
-            query = query.filter(realization_date__gte=date, realization_date__lt=next_day)
+            base_query = base_query.filter(realization_date__gte=date, realization_date__lt=next_day)
 
         elif from_date and to_date:
-            query = query.filter(realization_date__gte=from_date, realization_date__lte=to_date).order_by('realization_date')
+            base_query = base_query.filter(realization_date__gte=from_date, realization_date__lte=to_date).order_by('realization_date')
 
             response_holder = {}
 
             # Group entries by date
             date_to_entries = defaultdict(list)
 
-            for item in query:
-                date_string = item.realization_date.strftime("%d/%m/%Y")
+            for item in base_query:
+                date_string = item.realization_date.strftime("%Y-%m-%d")
                 date_to_entries[date_string].append(CalendarEntrySerializer(item).data)
 
             # Create a date range and initialize result dictionary with empty arrays
             date_range = [from_date + timedelta(days=i) for i in range((to_date - from_date).days + 1)]
-            response_holder["result"] = {date.strftime("%d/%m/%Y"): [] for date in date_range}
+            response_holder["result"] = {date.strftime("%Y-%m-%d"): [] for date in date_range}
 
             # Fill the result dictionary with grouped entries
             for date_string, entries in date_to_entries.items():
@@ -207,7 +207,7 @@ class CalendarListView(generics.ListAPIView):
             return Response(data=response_holder, status=status.HTTP_200_OK)
 
         # Paginate the results
-        paginator = Paginator(query, page_size)
+        paginator = Paginator(base_query, page_size)
 
         # Get the requested page
         try:
@@ -368,10 +368,11 @@ class CalendarView(APIView):
 
         
         # Serialize    
-        serializer = CalendarEntryPatchSerializer(data=request.data, partial=True)
+        serializer = CalendarEntryPatchSerializer(data=request.data, partial=True, context={'user': request.user})
         
         # Validate Serializer
         if not serializer.is_valid():
+            print("here")
             return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
 
         

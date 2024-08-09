@@ -131,7 +131,6 @@ class LoginView(APIView):
             return Response(ErrorResponseSerializer.from_dict({'auth': ['Invalid email or password']}).data, status=status.HTTP_401_UNAUTHORIZED)
         
         # Generate token and expiration time
-        print("here")
         return Response(TokenSerializer.for_user(user).data, status=status.HTTP_200_OK)
 
 
@@ -237,15 +236,15 @@ class AuthView(APIView):
             
             
             # Retrieve the user's refresh token
-            refresh_token = RefreshToken(serializer.validated_data['refresh_token'])
+            refresh_token = RefreshToken(serializer.validated_data['refresh'])
             
             # Blacklist the refresh token
             refresh_token.blacklist()
             
-            return Response(status=status.HTTP_200_OK)
+            return Response( status=status.HTTP_204_NO_CONTENT)
             
         except Exception as e:
-            return Response(ErrorResponseSerializer.from_dict({"exception": str(e)}).data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.INTERNAL.value, message= str(e)).data, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 from rest_framework_simplejwt.serializers import TokenRefreshSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
@@ -943,7 +942,7 @@ class FollowRequestView(APIView):
         # Automatically follow if user profile_type is public
         follow, created = Follow.objects.get_or_create(follower=user_follow_request.follower, followed=user_follow_request.followed)
         if not created:
-            logger.error("This isn't supose to happen, this problem should be caught on FollowView post method where we create the follow request...") # TODO make test about this
+            #logger.error("This isn't supose to happen, this problem should be caught on FollowView post method where we create the follow request...") # TODO make test about this
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User already follows this account.").data, status=status.HTTP_400_BAD_REQUEST)
         
         # delete obselete follow request

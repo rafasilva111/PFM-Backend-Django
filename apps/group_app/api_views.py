@@ -192,8 +192,6 @@ class GroupView(APIView):
         return Response(data = serializer.data, status=status.HTTP_201_CREATED)
         
         
-    
-
     @swagger_auto_schema(
         tags=['Shopping List'],
         operation_summary="Patch authenticated user",

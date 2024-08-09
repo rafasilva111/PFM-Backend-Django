@@ -57,23 +57,23 @@ class TokenSerializer(serializers.Serializer):
     
 
 class ErrorResponseSerializer(serializers.Serializer):
-    error = serializers.DictField()
+    errors = serializers.DictField()
     @classmethod
     def from_serializer_errors(cls, serializer):
         return cls({
-            'error': serializer.errors,  
+            'errors': serializer.errors,  
         })
     
     @classmethod
     def from_dict(cls, dict):
         return cls({
-            'error': dict,  
+            'errors': dict,  
         })
         
     @classmethod
     def from_params(cls, type, message):
         return cls({
-            'error': {type:message},  
+            'errors': {type:[message]},  
         })
         
 class SuccessResponseSerializer(serializers.Serializer):
@@ -110,7 +110,7 @@ class LoginSerializer(serializers.Serializer):
     )
 
 class LogoutSerializer(serializers.Serializer):
-    refresh_token = serializers.CharField(
+    refresh = serializers.CharField(
         max_length=255,
         required=True,
         error_messages={

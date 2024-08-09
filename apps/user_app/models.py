@@ -70,7 +70,7 @@ class FloatChoices(models.TextChoices):
 
 class User(AbstractBaseUser):
 
-    name = models.CharField(max_length=255, null=False)
+    name = models.CharField(max_length=40, null=False)
     username = models.CharField(max_length=255, null=False, unique=True)
     description = models.CharField(max_length=255, default='',blank=True)
     birth_date = models.DateTimeField(null=False)

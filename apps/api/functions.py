@@ -1,6 +1,6 @@
-from datetime import timedelta, datetime
+from datetime import timedelta
 from django.utils import timezone
-
+from pytz import utc
 def add_days(date_obj, days):
     """
     Add a specified number of days to a given datetime object, considering timezone.
@@ -22,7 +22,7 @@ def parse_date(date_str):
     Parse a date string to a timezone-aware datetime object.
 
     Args:
-        date_str (str): The date string in 'DD/MM/YYYYThh:mm:ss' format.
+        date_str (str): The date string in '2024-07-17T13:37:40.087Z' or '2024-07-17T13:37:40Z' format.
 
     Returns:
         datetime: A timezone-aware datetime object.
@@ -31,7 +31,13 @@ def parse_date(date_str):
         ValueError: If the date string is in an invalid format.
     """
     try:
-        date_obj = datetime.strptime(date_str, "%d/%m/%YT%H:%M:%S")
-        return timezone.make_aware(date_obj)
+        # Try parsing the date string with fractional seconds
+        aware_datetime = timezone.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=utc)
     except ValueError:
-        raise ValueError("Invalid date format. Please use 'DD/MM/YYYYThh:mm:ss' format.")
+        try:
+            # Try parsing the date string without fractional seconds
+            aware_datetime = timezone.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
+        except ValueError:
+            print(f"Error parsing date string '{date_str}'")
+            raise ValueError("Invalid date format. Please use 'YYYY-MM-DDTHH:MM:SS.sssZ' or 'YYYY-MM-DDTHH:MM:SSZ' format.")
+    return aware_datetime

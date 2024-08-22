@@ -193,12 +193,12 @@ class CalendarListView(generics.ListAPIView):
             date_to_entries = defaultdict(list)
 
             for item in base_query:
-                date_string = item.realization_date.strftime("%Y-%m-%d")
+                date_string = item.realization_date.strftime("%d/%m/%Y")
                 date_to_entries[date_string].append(CalendarEntrySerializer(item).data)
 
             # Create a date range and initialize result dictionary with empty arrays
             date_range = [from_date + timedelta(days=i) for i in range((to_date - from_date).days + 1)]
-            response_holder["result"] = {date.strftime("%Y-%m-%d"): [] for date in date_range}
+            response_holder["result"] = {date.strftime("%d/%m/%Y"): [] for date in date_range}
 
             # Fill the result dictionary with grouped entries
             for date_string, entries in date_to_entries.items():

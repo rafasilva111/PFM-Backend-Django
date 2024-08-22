@@ -177,7 +177,18 @@ class PaginationMetadataSerializer(serializers.Serializer):
         
         metadata.update(kwargs)
         return metadata
+
+class IdResponseSerializer(serializers.Serializer):
+
+    id = serializers.IntegerField()
     
+    @classmethod
+    def build_(cls, id):
+
+        
+        return cls({
+            'id': id,
+            })
 
 class IdListInputSerializer(serializers.Serializer):
 

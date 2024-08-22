@@ -221,7 +221,7 @@ class FollowRequest(BaseModel):
     created_at = models.DateTimeField(auto_now_add=True)
 
 class Follow(BaseModel):
-    follower = models.ForeignKey(User, related_name='followeds', on_delete=models.CASCADE)
-    followed = models.ForeignKey(User, related_name='followers', on_delete=models.CASCADE)
+    follower = models.ForeignKey(User, related_name='followers', on_delete=models.CASCADE)
+    followed = models.ForeignKey(User, related_name='followeds', on_delete=models.CASCADE)
     created_at = models.DateTimeField(auto_now_add=True)
     

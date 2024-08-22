@@ -134,9 +134,22 @@ class UserToFollowSerializer(serializers.Serializer):
     request_sent = serializers.BooleanField(default = False)
     user = UserSimpleSerializer(required = True)
     
+    def to_representation(self, instance):
+        # Assume `instance` is the item object
+        # Extract required fields
+        print(instance)
+        representation = super().to_representation({
+            'user': instance,  
+            'request_sent': instance.request_sent,
+            'follower': instance.follower
+        })
+        return representation
+    
 class FollowRequestSerializer(UserSerializer):
     follower = UserSimpleSerializer(required= True)
     followed = UserSimpleSerializer(required = True)
+    is_follow = serializers.BooleanField(default = False)
+    request_sent = serializers.BooleanField(default = False)
     
     class Meta:
         model = FollowRequest

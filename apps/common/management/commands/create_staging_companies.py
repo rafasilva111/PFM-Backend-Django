@@ -37,6 +37,7 @@ class Command(BaseCommand):
                 defaults={
                     'name': COMPANY_PINGO_DOCE,
                     'password': COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD,
+                    'img_source':"images/company/pingo_doce/profile_img.png",
                     'verified': True,
                     'birth_date': timezone.now(),
                 }

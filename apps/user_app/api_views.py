@@ -9,8 +9,8 @@
 
 from django.utils import timezone
 from django.contrib.auth import login, logout, authenticate
-from django.db.models import Q
 from django.conf import settings
+from django.db.models import Case, When, Value, BooleanField,Q
 
 ##
 #   Django Rest Framework
@@ -58,8 +58,8 @@ from apps.user_app.models import User, FollowRequest,Follow
 #   Serializers
 #
 
-from apps.user_app.serializers import UserSerializer,UserSimpleSerializer,UserPatchSerializer,UserToFollowSerializer,UserProfileSerializer
-from apps.api.serializers import LoginSerializer,LogoutSerializer,TokenSerializer,SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer,RefreshTokenSerializer
+from apps.user_app.serializers import UserSerializer,UserSimpleSerializer,UserPatchSerializer,UserToFollowSerializer,UserProfileSerializer,FollowRequestSerializer
+from apps.api.serializers import LoginSerializer,LogoutSerializer,TokenSerializer,SuccessResponseSerializer,ErrorResponseSerializer,ListResponseSerializer,IdResponseSerializer
 
 
 ##
@@ -372,6 +372,9 @@ class UserListView(APIView):
     
     
 class UserView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
     """
     API endpoint for user operations.
 
@@ -547,6 +550,7 @@ class UserView(APIView):
 
 class FollowView(APIView):
     
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         tags=['Follow'],
         operation_summary="Follow or send a follow request to a user",
@@ -677,12 +681,16 @@ class FollowView(APIView):
                 
         except Follow.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
-            
+        
+        # delete
+        id_removed = follow.id 
         follow.delete()
             
-        return Response(status=status.HTTP_200_OK)
+        return Response(IdResponseSerializer.build_(id=id_removed).data,status=status.HTTP_200_OK)
 
 class FollowersListView(APIView):
+    
+    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         tags=['Follow'],
@@ -720,23 +728,34 @@ class FollowersListView(APIView):
     )
     def get(self,request):
         
-        # Get user auth id
-        user = request.user
-
         # Get args
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 5))
+        search_string = request.GET.get('search_string', None)
+        user_id = request.GET.get('user_id', None)
+        
+        # Validate args
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Get user auth
+            user = request.user
+        
 
         # Query
         
-        # select all followers ids corresponding to current user       
-        follower_ids = Follow.objects.filter(followed=user).values_list('follower_id', flat=True)
+        query = User.objects.filter(followers__followed=user)
         
-        # search ids directly on bd
-        followers_users = User.objects.filter(id__in=follower_ids)
+        # Filter by search string if provided
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
 
         # Paginate the results
-        paginator = Paginator(followers_users, page_size)
+        paginator = Paginator(query, page_size)
 
         
         # Get the requested page
@@ -746,10 +765,12 @@ class FollowersListView(APIView):
             return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-        response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
         status=status.HTTP_200_OK)
     
 class FollowsListView(APIView):
+    
+    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         tags=['User'],
@@ -787,23 +808,34 @@ class FollowsListView(APIView):
     )
     def get(self,request):
         
-        # Get user auth id
-        user = request.user
-
         # Get args
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 5))
+        search_string = request.GET.get('search_string', None)
+        user_id = request.GET.get('user_id', None)
+        
+        # Validate args
+        
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Get user auth
+            user = request.user
+        
 
         # Query
         
-        # select all followers ids corresponding to current user       
-        followed_ids = Follow.objects.filter(follower=user).values_list('followed_id', flat=True)
+        query = User.objects.filter(followeds__follower=user)
         
-        # search ids directly on bd # TODO this should be better thought
-        followeds_users = User.objects.filter(id__in=followed_ids).order_by('created_at')
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
 
         # Paginate the results
-        paginator = Paginator(followeds_users, page_size)
+        paginator = Paginator(query, page_size)
 
         
         # Get the requested page
@@ -814,15 +846,86 @@ class FollowsListView(APIView):
         
        
         return Response(
-        response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
         status=status.HTTP_200_OK)
 
+class UsersToFollowView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        
+        # Get user authed
+        user = request.user
+        
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        search_string = request.GET.get('search_string', None)
+        
+        # Fetch follow request and follow information
+        follow_requests_ids = set(FollowRequest.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        follows_ids = set(Follow.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        
+        # Annotate query to mark users with pending follow requests and if they are followed
+        query = User.objects.exclude(user_type=User.UserType.ADMIN.value).exclude(id=user.id).exclude(id__in=follows_ids).order_by('created_at')
+
+        # Annotate with request_sent and follower boolean fields
+        query = query.annotate(
+            request_sent=Case(
+                When(id__in=follow_requests_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            ),
+            follower=Case(
+                When(id__in=follows_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            )
+        ).order_by('-request_sent', 'created_at')
+        
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
+        # Paginate the results
+        paginator = Paginator(query, page_size)
+        total_users = paginator.count
+        total_pages = paginator.num_pages
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value: "Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Build response data
+        response_data = {
+            "_metadata": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_users": total_users
+            },
+            "result": []
+        }
+        
+
+        # Fill Results
+        for item in users_page:
+            user_data = UserToFollowSerializer(item).data
+            response_data["result"].append(user_data)
+        
+        return Response(
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserToFollowSerializer(users_page, many=True),endpoint_name="users_to_follow_list").data,
+        status=status.HTTP_200_OK)
 
 ##
 #   Follow Request
 #
 class FollowRequestListView(APIView):
     
+    
+    permission_classes = [IsAuthenticated]
     @swagger_auto_schema(
         tags=['Follow Request'],
         operation_summary="Retrieve paginated list of follow requests",
@@ -859,8 +962,7 @@ class FollowRequestListView(APIView):
             }
         
     )
-    def get(self,request):
-
+    def get(self, request):
         # Get user auth id
         user = request.user
 
@@ -868,27 +970,48 @@ class FollowRequestListView(APIView):
         page = int(request.GET.get('page', 1))
         page_size = int(request.GET.get('page_size', 5))
 
-        # Query
+        # Fetch follow request and follow information
+        follow_requests_ids = set(FollowRequest.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        follows_ids = set(Follow.objects.filter(follower=user.id).values_list('followed_id', flat=True))
         
-        # select all followers ids corresponding to current user       
-        follow_requests = FollowRequest.objects.filter(followed=user).order_by('created_at')
-        
+        print(follows_ids)
+        print(FollowRequest.objects.filter(followed=user).values_list('follower_id', flat=True))
+
+        # Query and annotate with request_sent and is_follower boolean fields
+        follow_requests = FollowRequest.objects.filter(followed=user).annotate(
+            request_sent=Case(
+                When(follower__id__in=follow_requests_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            )
+        ).order_by('created_at')
+
         # Paginate the results
         paginator = Paginator(follow_requests, page_size)
-        
+
         # Get the requested page
         try:
             users_page = paginator.page(page)
         except Exception:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
-        
-       
+            return Response(
+                ErrorResponseSerializer.from_params(
+                    type=ERROR_TYPES.PAGINATION.value,
+                    message="Page does not exist."
+                ).data, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
         return Response(
-            response_data = ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests_list").data,
-            status=status.HTTP_200_OK)
+            ListResponseSerializer.build_(
+                request, page, paginator, serializer=FollowRequestSerializer(users_page, many=True), endpoint_name="follow_requests_list"
+            ).data,
+            status=status.HTTP_200_OK
+        )
     
 
 class FollowRequestView(APIView):
+    
+    permission_classes = [IsAuthenticated]
     
     @swagger_auto_schema(
         tags=['Follow Request'],
@@ -933,7 +1056,6 @@ class FollowRequestView(APIView):
 
         if user_follow_request_id == user.id:
            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User can't accept follow request himself...").data, status=status.HTTP_400_BAD_REQUEST)
-        print(user.email)
         try:
             user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,followed= user)
         except FollowRequest.DoesNotExist:
@@ -981,74 +1103,41 @@ class FollowRequestView(APIView):
         user = request.user
         
         # Get query parameters
-        user_follow_request_id = request.query_params.get('id')
+        follower_id = request.query_params.get('follower_id')
+        followed_id = request.query_params.get('follow_id')
         
-        try:
-            user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,followed= user)
-        except FollowRequest.DoesNotExist:
+        # Validate args
+        if follower_id:
+            follower_id = int(follower_id)
+            
+        elif followed_id:
+            followed_id = int(followed_id)
+            
+        else:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Parse args
+        
+        
+        if follower_id:
             
             try:
-                user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,follower= user)
+                user_follow_request = FollowRequest.objects.get(followed_id = user.id,follower= follower_id)
             except FollowRequest.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
-            
-
+        else:
+            try:
+                user_follow_request = FollowRequest.objects.get(followed_id = followed_id,follower= user.id)
+            except FollowRequest.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        
+        # delete
+        id_removed = user_follow_request.id 
         user_follow_request.delete()
             
-        return Response(status=status.HTTP_200_OK)
+        return Response(IdResponseSerializer.build_(id=id_removed).data,status=status.HTTP_200_OK)
         
         
-class UsersToFollowView(APIView):
-    
-    def get(self, request):
-        
-        # Get user authed
-        user = request.user
-        
-        # Get args
-        page = int(request.GET.get('page', 1))
-        page_size = int(request.GET.get('page_size', 10))
-        search_string = request.GET.get('searchString', '')
-        
-        # Query
-        query = User.objects.exclude(user_type=User.UserType.ADMIN.value).exclude(id=user.id).order_by('created_at')
-
-        if search_string:
-            query = query.filter(Q(name__icontains=search_string) | Q(id=search_string))
-
-        # Fetch follow request and follow information
-        follow_requests_ids = set(FollowRequest.objects.filter(follower=user.id).values_list('followed_id', flat=True))
-        follows_ids = set(Follow.objects.filter(followed=user.id).values_list('follower_id', flat=True))
-
-        # Paginate the results
-        paginator = Paginator(query, page_size)
-        total_users = paginator.count
-        total_pages = paginator.num_pages
-        
-        # Get the requested page
-        try:
-            users_page = paginator.page(page)
-        except Exception:
-            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
-        
-        # Build response data
-        response_data = {
-            "_metadata": {
-                "page": page,
-                "page_size": page_size,
-                "total_pages": total_pages,
-                "total_users": total_users
-            },
-            "result": []
-        }
-        
-        # Fill Results
-        for item in users_page:
-            user_data = UserToFollowSerializer({"user": item, "request_sent": item.id in follow_requests_ids, "follower": item.id in follows_ids}).data
-            response_data["result"].append(user_data)
-        
-        return Response(response_data, status=status.HTTP_200_OK)
-    
 
 from apps.user_app.models import Goal
 from apps.user_app.serializers import GoalSerializer,IdealWeightSerializer
@@ -1059,6 +1148,8 @@ from apps.user_app.functions import calculate_bmi
 ##
 
 class IdealWeightView(APIView):
+    
+    permission_classes = [IsAuthenticated]
     def get(self,request):
         # Standart BMI 
         
@@ -1079,6 +1170,8 @@ class IdealWeightView(APIView):
         
        
 class GoalsView(APIView):
+    
+    permission_classes = [IsAuthenticated]
     
     def get(self,request):
         

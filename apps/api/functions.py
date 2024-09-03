@@ -41,3 +41,17 @@ def parse_date(date_str):
             print(f"Error parsing date string '{date_str}'")
             raise ValueError("Invalid date format. Please use 'YYYY-MM-DDTHH:MM:SS.sssZ' or 'YYYY-MM-DDTHH:MM:SSZ' format.")
     return aware_datetime
+
+
+def build_paginated_url(request, page_number):
+    """
+    Helper function to build a URL with an updated 'page' query parameter.
+    """
+    path = request.path  # Get the path part of the URL
+    query_params = request.GET.copy()  # Get a mutable copy of the current query parameters
+
+    # Update the 'page' parameter in query_params
+    query_params['page'] = page_number
+
+    # Construct the new URL with updated query parameters
+    return f"{path}?{query_params.urlencode()}"

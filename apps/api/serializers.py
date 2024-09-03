@@ -6,6 +6,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework_simplejwt.tokens import RefreshToken, TokenError
+from apps.api.functions import build_paginated_url
 
 User = get_user_model()
 
@@ -226,6 +227,8 @@ class ListResponseSerializer(serializers.Serializer):
         total_pages = paginator.num_pages
         page_size = paginator.per_page
 
+        current_page = request.build_absolute_uri(reverse(endpoint_name) + f'?page={page}&page_size={page_size}')
+        
         next_page = None
         if page < total_pages:
             next_page = request.build_absolute_uri(reverse(endpoint_name) + f'?page={page + 1}')
@@ -239,6 +242,49 @@ class ListResponseSerializer(serializers.Serializer):
             "page_size": page_size,
             "total_pages": total_pages,
             "total_items": total_items,
+            "current_page": current_page,
+            "next_page": next_page,
+            "previous_page": previous_page
+        }
+
+        result = serializer.data
+
+        response_data = {
+            "_metadata": metadata,
+            "result": result
+        }
+
+        return cls(response_data)
+
+    
+    # Use this one
+    @classmethod
+    def build__(cls, request, page, paginator, serializer):
+        """
+        Build the response data including metadata and result.
+
+        :param request: DRF request object.
+        :param page: Current page number.
+        :param paginator: Paginator instance.
+        :param serializer: Serializer instance for result data.
+        :return: A ListResponseSerializer instance with populated data.
+        """
+
+        total_items = paginator.count
+        total_pages = paginator.num_pages
+        page_size = paginator.per_page
+        
+        current_page = request.get_full_path()
+        
+        next_page = build_paginated_url(request, page + 1) if page < total_pages else None
+        previous_page = build_paginated_url(request, page - 1) if page > 1 else None
+
+        metadata = {
+            "page": page,
+            "page_size": page_size,
+            "total_pages": total_pages,
+            "total_items": total_items,
+            "current_page": current_page,
             "next_page": next_page,
             "previous_page": previous_page
         }

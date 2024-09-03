@@ -296,6 +296,7 @@ class RecipeListView(APIView):
     )
     def get(self,request):
         
+
         # Get user auth 
         user = request.user
 
@@ -380,12 +381,11 @@ class RecipeListView(APIView):
         
         
         return Response(
-                ListResponseSerializer.build_(
+                ListResponseSerializer.build__(
                     request,
                     page,
                     paginator,
-                    serializer=SimpleRecipeSerializer(records_page, many=True, context={'user': user}),
-                    endpoint_name="recipe_list"
+                    serializer=SimpleRecipeSerializer(records_page, many=True, context={'user': user})
                 ).data,
                 status=status.HTTP_200_OK
             )

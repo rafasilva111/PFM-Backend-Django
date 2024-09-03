@@ -78,6 +78,7 @@ INSTALLED_APPS = [
     'apps.notification_app',
     'apps.api',
     'apps.etl_app',
+    'apps.goal_app',
 ]
 
 MIDDLEWARE = [

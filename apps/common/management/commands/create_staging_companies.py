@@ -5,7 +5,7 @@ from apps.common.functions import lower_and_underescore
 from django.utils import timezone
 
 class Command(BaseCommand):
-    help = 'Create the default company if it does not exist'
+    help = 'Create the default company objects.'
 
     def handle(self, *args, **kwargs):
 

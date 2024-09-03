@@ -15,11 +15,13 @@ from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView
 from apps.calendar_app.api_views import CalendarListView, CalendarView, CalendarIngredientsListView, CalendarEntryListCheckView
 from apps.notification_app.api_views import NotificationView,NotificationListView
 from apps.user_app.api_views import LoginView,AuthView,UserView,UserListView,UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,\
-    GoalsView,IdealWeightView,CustomTokenRefreshView
+    CustomTokenRefreshView
 
 from apps.shopping_app.api_views import ShoppingListView,ShoppingListsView
 
 from apps.group_app.api_views import GroupListView,GroupView,GroupInviteView,GroupInvitesView
+
+from apps.goal_app.api_views import GoalsView,IdealWeightView
 
 from rest_framework_simplejwt.views import (
     TokenRefreshView,

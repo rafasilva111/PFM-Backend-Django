@@ -189,32 +189,6 @@ class MyModelQuerySet(models.QuerySet):
     def hard_delete(self):
         return super().delete()
 
-class GoalManager(models.Manager):
-    def get_queryset(self):
-        return MyModelQuerySet(self.model, using=self._db).filter(deleted_at=None)
-        
-class Goal(BaseModel):
-    goal = models.FloatField()
-    calories = models.FloatField()
-    fat_upper_limit = models.FloatField()
-    fat_lower_limit = models.FloatField()
-    saturated_fat = models.FloatField()
-    carbohydrates = models.FloatField()
-    proteins_upper_limit = models.FloatField()
-    proteins_lower_limit = models.FloatField()
-    user = models.ForeignKey(User, related_name='goals', on_delete=models.CASCADE)
-    created_at = models.DateTimeField(auto_now_add=True)
-    deleted_at = models.DateTimeField(null=True, blank=True)
-    
-    objects = GoalManager()
-    
-    def delete(self, using=None, keep_parents=False):
-        self.deleted_at = timezone.now()
-        self.save()
-
-    def hard_delete(self, using=None, keep_parents=False):
-        super(Goal, self).delete(using, keep_parents)
-
 class FollowRequest(BaseModel):
     follower = models.ForeignKey(User, related_name='followers_request', on_delete=models.CASCADE)
     followed = models.ForeignKey(User, related_name='followeds_request', on_delete=models.CASCADE)

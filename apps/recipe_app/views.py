@@ -209,7 +209,6 @@ def recipe_task_restart(request, id):
     
     return redirect(reverse('recipe_task_detail', args=[instance.id])) 
 
-
 @require_GET
 def recipe_task_pause(request, id):
     instance = get_object_or_404(Task, id=id)
@@ -242,7 +241,6 @@ def recipe_task_delete(request, id):
     instance.delete()
     
     return redirect('recipe_tasks')
-
 
 ###
 #   Recipe Reports

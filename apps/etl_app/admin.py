@@ -17,12 +17,14 @@ class TaskAdmin(admin.ModelAdmin):
             task.pk = None  # This sets the primary key to None, creating a new instance
             task.save()
     duplicate_tasks.short_description = 'Duplicate selected tasks'
+    
+    
 @admin.register(Job)
 class JobAdmin(admin.ModelAdmin):
-    list_display = ('get_company_name', 'crontab', 'periodic_task', 'last_run')
+    list_display = ('get_company_name', 'last_run')
     search_fields = ('get_company_name',)
     list_filter = ('last_run',)
-    readonly_fields = ('periodic_task', 'last_run')
+    readonly_fields = ( 'last_run',)
 
     def get_company_name(self, obj):
         return obj.user.name

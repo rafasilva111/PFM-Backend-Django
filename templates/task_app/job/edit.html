@@ -8,7 +8,7 @@
 {% block content %}
 
 <h4 class="py-3 mb-4">
-  <span class="text-muted fw-light">Job /</span> Create Job
+  <span class="text-muted fw-light">Job /</span> Edit Job 
 </h4>
 
 <div class="row justify-content-center">
@@ -17,19 +17,6 @@
       <div class="card-body">
         <form method="post">
           {% csrf_token %}
-
-          <!-- Company field -->
-          {{ form.company.label_tag }}
-          <div class="col-md-12 mt-2 mb-3">
-            {{ form.company }}
-            {% if form.company.errors %}
-            <div class="invalid-feedback d-block">
-              {% for error in form.company.errors %}
-              {{ error }}
-              {% endfor %}
-            </div>
-            {% endif %}
-          </div>
 
           <!-- Type field -->
           {{ form.type.label_tag }}
@@ -56,66 +43,6 @@
               {% endfor %}
             </div>
             {% endif %}
-          </div>
-
-          <!-- Tasks Extraction field -->
-          <div id="parent-tasks-extract" class="mt-5" style="display: none;">
-            {{ form.parent_task_extract.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_task_extract }}
-              {% if form.parent_task_extract.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_task_extract.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <!-- Tasks Transformation field -->
-          <div id="parent-tasks-transform" class="mt-5" style="display: none;">
-            {{ form.parent_task_transform.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_task_transform }}
-              {% if form.parent_task_transform.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_task_transform.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <!-- Job Extraction field -->
-          <div id="parent-jobs-extract" style="display: none;">
-            {{ form.parent_job_extract.label }}
-            <div class="col-md-12 mt-2 mb-5">
-              {{ form.parent_job_extract }}
-              {% if form.parent_job_extract.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_job_extract.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <!-- Job Transformation field -->
-          <div id="parent-jobs-transform" style="display: none;">
-            {{ form.parent_job_transform.label }}
-            <div class="col-md-12 mt-2 mb-5">
-              {{ form.parent_job_transform }}
-              {% if form.parent_job_transform.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_job_transform.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
           </div>
 
           <!-- Starting Condition field -->
@@ -292,43 +219,40 @@
               </div>
             </div>
           </div>
-          
 
-          <!-- MaxRecords Condition field -->
-          <div id="stop-time-max-records-form" class="mt-1 mb-4" style="display: none;">
+          <!-- Threshold Condition field -->
+          <div id="stop-threshold-condition-form" class="mt-1 mb-4" >
             <div class="row ml-2">
-              <!-- Minute field -->
-
-              <div class="col-md-12 mt-2 mb-3">
-                {{ stopping_condition_max_records_form.max_records.label }}
-                {{ stopping_condition_max_records_form.max_records }}
-                {% if stopping_condition_max_records_form.max_records.errors %}
-                <div class="invalid-feedback d-block">
-                  {% for error in stopping_condition_max_records_form.max_records.errors %}
-                  {{ error }}
-                  {% endfor %}
+                {{ stopping_condition_threshold_form.threshold_value.label_tag }}
+                <div class="col-md-12 mt-2 mb-3">
+                  {{ stopping_condition_threshold_form.threshold_value }}
+                  {% if stopping_condition_threshold_form.threshold_value.errors %}
+                    <div class="invalid-feedback d-block">
+                      {% for error in stopping_condition_threshold_form.threshold_value.errors %}
+                        {{ error }}
+                      {% endfor %}
+                    </div>
+                  {% endif %}
                 </div>
-                {% endif %}
-              </div>
 
             </div>
           </div>
 
-
-          <!-- Debug Mode field -->
-
-          <div class="col-md-12 mt-2 mb-3">
-            {{ form.debug_mode.label_tag }} {{ form.debug_mode }}
-            {% if form.debug_mode.errors %}
+          <!-- Continue field -->
+          {{ form.continue_mode.label }}
+          <p class="text-muted">If the job is stopped, should it continue from where it left off?</p>
+          <div class="col-md-12 mb-4">
+            
+            {{ form.continue_mode }}
+            {% if form.continue_mode.errors %}
             <div class="invalid-feedback d-block">
-              {% for error in form.debug_mode.errors %}
+              {% for error in form.continue_mode.errors %}
               {{ error }}
               {% endfor %}
             </div>
             {% endif %}
           </div>
-
-
+                    
 
           <button type="submit" class="btn btn-primary">
             Submit
@@ -347,65 +271,12 @@
 
     const companyField = document.querySelector('select[name="company"]'); // Update if not a select input
     const typeField = document.querySelector('select[name="type"]'); // Update if not a select input
-    const nameField = document.getElementById('id_name');
-
-    function updateUserField() {
-
-      let company = companyField.options[companyField.selectedIndex].text
-      let type = typeField.options[typeField.selectedIndex].text
-
-      if (company != "---------" && type != "---------") {
-
-        company = company.split("-")[1].trim()
-        nameField.value = `${type} ${company}`;
-      }
-      else {
-        nameField.value = '';
-      }
-
-
-    }
-
-    // Listen for changes in the Company and Type fields
-    companyField.addEventListener('change', updateUserField);
-    typeField.addEventListener('change', updateUserField);
-
-
-
-    $('#id_type').change(function () {
-      if ($(this).val() === 'LOAD') {
-        $('#parent-tasks-extract').hide();
-        $('#parent-tasks-transform').show();
-        $('#parent-tasks-load').hide();
-
-        $('#parent-jobs-extract').hide();
-        $('#parent-jobs-transform').show();
-        $('#parent-jobs-load').hide();
-      } else if ($(this).val() === 'TRANSFORM') {
-        $('#parent-tasks-extract').show();
-        $('#parent-tasks-transform').hide();
-        $('#parent-tasks-load').hide();
-
-        $('#parent-jobs-extract').show();
-        $('#parent-jobs-transform').hide();
-        $('#parent-jobs-load').hide();
-      } else {
-        $('#parent-tasks-extract').hide();
-        $('#parent-tasks-transform').hide();
-        $('#parent-tasks-load').hide();
-
-        $('#parent-jobs-extract').hide();
-        $('#parent-jobs-transform').hide();
-        $('#parent-jobs-load').hide();
-      }
-    });
-
-    // Trigger change event on page load if type is pre-selected
-    $('#id_type').change();
-
+    const startingConditionType = document.getElementById('id_starting_condition_type');  
+    const stoppingConditionType = document.getElementById('id_stopping_condition_type');
 
     // Event listener for change in starting_condition_type
     $('#id_starting_condition_type').change(function () {
+      console.log('change');
 
       var selectedType = $('#id_starting_condition_type').find(':selected').text().toLowerCase();
       if (selectedType.includes('time condition')) {
@@ -415,18 +286,19 @@
       }
     });
 
+    // Event listener for change in stopping_condition_type
     $('#id_stopping_condition_type').change(function () {
       var selectedType = $('#id_stopping_condition_type').find(':selected').text().toLowerCase();
       if (selectedType.includes('time condition')) {
         $('#stop-time-condition-form').show();
-        $('#stop-time-max-records-form').hide();
+        $('#stop-threshold-condition-form').hide();
       }
-      else if (selectedType.includes('max records')) {
+      else if (selectedType.includes('threshold')) {
         $('#stop-time-condition-form').hide();
-        $('#stop-time-max-records-form').show();
+        $('#stop-threshold-condition-form').show();
       } else {
         $('#stop-time-condition-form').hide();
-        $('#stop-time-max-records-form').hide();
+        $('#stop-threshold-condition-form').hide();
       }
     });
 

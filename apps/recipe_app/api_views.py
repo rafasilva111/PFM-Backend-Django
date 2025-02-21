@@ -782,13 +782,13 @@ class CommentListView(APIView):
         
         
         # Query building
-        query = Comment.objects.filter ( user = user).order_by("-created_at",)
+        query = Comment.objects.order_by("-created_at",)
         
         if recipe_id:
-            query.filter(recipe= int(recipe_id))
+            query = query.filter(recipe__id= int(recipe_id))
         
         if client_id:
-            query.filter(recipe= int(client_id))
+            query = query.filter(recipe= int(client_id))
 
 
         # Paginate the results
@@ -804,7 +804,6 @@ class CommentListView(APIView):
         return Response(
             ListResponseSerializer.build_(request,page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="comment_list").data,
             status=status.HTTP_200_OK)
-
 
 class CommentLikeView(APIView):
     

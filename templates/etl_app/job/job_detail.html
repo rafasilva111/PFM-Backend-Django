@@ -46,27 +46,57 @@
         </div>
         <div class="card-body task-details">
             <div class="row">
-                <div class="col-md-3">
-                    <h6>User:</h6>
-                    <p class="badge bg-label-primary me-1">{{ record.user }}</p>
+                <div class="col-md-2">
+                    <h6>Company:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.company }}</p>
                 </div>
                 <div class="col-md-2">
                     <h6>Name:</h6>
                     <p class="badge bg-label-primary me-1">{{ record.name }}</p>
                 </div>
+                
                 <div class="col-md-2">
-                    <h6>Recurrency:</h6>
-                    <p class="badge bg-label-primary me-1">{{ record.crontab }}</p>
+                    <h6>Enabled:</h6>
+                    <p class="badge 
+                    {% if record.enabled %}
+                    bg-label-success
+                    {% else %}
+                    bg-label-warning
+                    {% endif %} me-1">
+                        {{ record.enabled }}
+                    </p>
+                </div>
+                {% if record.debug_mode %}
+                <div class="col-md-2">
+                    <h6>Debug Mode:</h6>
+                    <p class="badge bg-label-warning me-1">
+                        {{ record.debug_mode }}
+                    </p>
+                </div>
+                {% endif %}
+
+                
+            </div>
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <h6>Starting Condition:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.starting_condition }}</p>
                 </div>
                 <div class="col-md-3">
-                    <h6>Enabled:</h6>
-                    <p class="badge bg-label-primary me-1">{{ record.periodic_task.enabled }}</p>
+                    <h6>Stopping Condition:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.stopping_condition }}</p>
                 </div>
+                
             </div>
-            <div class="row">
+            <div class="row mt-3">
                 <div class="col-md-3">
                     <h6>Last Run At:</h6>
-                    <p class="badge bg-label-primary  me-1">{{ record.last_run }}</p>
+                
+                    {% if record.last_run %}
+                        <p class="badge bg-label-primary  me-1">{{ record.last_run }}</p>
+                    {% else%}
+                        <p class="badge bg-label-primary  me-1"> It's yet to be run.</p>
+                    {% endif %}
                 </div>
             </div>
         </div>
@@ -82,9 +112,9 @@
         <div class="container-fluid d-flex align-items-center">
             <h5 class="card-header flex-grow-1">Task List</h5>
 
-            <a href="{% url 'recipe_task_create' %}" class="btn btn-primary">
+            <!-- <a href="{% url 'recipe_task_create' %}" class="btn btn-primary">
                 Create ETL Task
-            </a>
+            </a> -->
         </div>
 
         <!-- Filter Form -->

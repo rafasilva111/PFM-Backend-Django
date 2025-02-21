@@ -23,7 +23,6 @@ load_dotenv()  # take environment variables from .env.
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-ETL_LOG_DIR = BASE_DIR / "apps/etl_app/recipe/logs"
 
 
 
@@ -228,6 +227,35 @@ THEME_VARIABLES = THEME_VARIABLES
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+
+# Logging
+# ------------------------------------------------------------------------------
+
+# ETL logging configuration
+ETL_LOG_DIR = BASE_DIR / "apps/etl_app/logs/cars"
+# ETL logging configuration
+JOBS_LOG_DIR = BASE_DIR / "apps/etl_app/logs/jobs"
+
+# Django logging configuration
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'INFO',  # Change DEBUG to INFO to reduce verbosity
+        },
+        'django.utils.autoreload': {
+            'handlers': ['console'],
+            'level': 'WARNING',  # Set this to WARNING or ERROR to silence autoreload logs
+        },
+    },
+}
 
 
 LOGIN_URL = 'login'

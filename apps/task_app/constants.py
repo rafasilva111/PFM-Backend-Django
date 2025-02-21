@@ -7,12 +7,6 @@ from django.db import models
 
 """ Main Dirs """
 
-ETL_EXTRACT_LOG_DIR = settings.ETL_LOG_DIR / "extract"
-ETL_TRANSFORM_LOG_DIR = settings.ETL_LOG_DIR / "transform"
-ETL_LOAD_LOG_DIR = settings.ETL_LOG_DIR / "load"
-ETL_FULL_PROCESS_LOG_DIR = settings.ETL_LOG_DIR / "full_process"
-
-JOBS_LOG_DIR = settings.JOBS_LOG_DIR
 
 
 

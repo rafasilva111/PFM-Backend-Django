@@ -1,0 +1,251 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Perfect Scrollbar - Extended UI{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light"> Jobs / </span> Job {{record.id}} details
+</h4>
+
+
+<!-- Details -->
+<div class="row">
+    <!-- Job Detail Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h5 class="card-header">Job Details</h5>
+                <div>
+                    <a href="{% url 'job_resume' record.id %}" class="btn btn-success py-1">
+                        Resume
+                    </a>
+                    <a href="{% url 'job_pause' record.id %}" class="btn btn-secondary py-1">
+                        Pause
+                    </a>
+                    <a href="{% url 'job_delete' record.id %}" class="btn btn-danger py-1">
+                        Delete
+                    </a>
+                </div>
+            </div>
+            <div class="card-body task-details">
+                <div class="row">
+
+                    <div class="col-md-2">
+                        <h6>Name:</h6>
+                        <p class="badge bg-label-primary me-1">{{ record.name }}</p>
+                    </div>
+
+                    <div class="col-md-2">
+                        <h6>Created By:</h6>
+                        <p class="badge bg-label-primary me-1">{{ record.created_by }}</p>
+                    </div>
+
+                    
+                    <div class="col-md-2">
+                        <h6>Type:</h6>
+                        <p class="badge bg-label-primary me-1">
+                            {{ record.type }}
+                        </p>
+                    </div>
+
+                    <div class="col-md-2">
+                        <h6>Enabled:</h6>
+                        <p class="badge 
+                        {% if record.enabled %}
+                        bg-label-success
+                        {% else %}
+                        bg-label-warning
+                        {% endif %} me-1">
+                            {{ record.enabled }}
+                        </p>
+                    </div>
+
+                    {% if record.debug_mode %}
+                    <div class="col-md-2">
+                        <h6>Debug Mode:</h6>
+                        <p class="badge bg-label-warning me-1">
+                            {{ record.debug_mode }}
+                        </p>
+                    </div>
+                    {% endif %}
+
+
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <h6>Starting Condition:</h6>
+                        <p class="badge bg-label-primary me-1">{{ record.starting_condition }}</p>
+                    </div>
+                    <div class="col-md-3">
+                        <h6>Stopping Condition:</h6>
+                        <p class="badge bg-label-primary me-1">{{ record.stopping_condition }}</p>
+                    </div>
+
+                </div>
+                <div class="row mt-3">
+                    <div class="col-md-3">
+                        <h6>Last Run At:</h6>
+
+                        {% if record.last_run %}
+                        <p class="badge bg-label-primary  me-1">{{ record.last_run }}</p>
+                        {% else%}
+                        <p class="badge bg-label-primary  me-1"> It's yet to be run.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Task Table Card -->
+    <div class="col-12">
+        <div class="card mb-4">
+
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header flex-grow-1">Task List</h5>
+
+                <!-- <a href="{% url 'task_create' %}" class="btn btn-primary">
+                    Create ETL Task
+                </a> -->
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4">
+                <div class="container-fluid d-flex align-items-center">
+
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Type: </label>
+                        {{ filter.form.type}}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Status: </label>
+                        {{ filter.form.status }}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Started At: </label>
+                        {{ filter.form.started_at }}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Finished At: </label>
+                        {{ filter.form.finished_at }}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+
+            </form>
+
+            <!-- Table -->
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Task</th>
+                            <th>Users</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Started At</th>
+                            <th>Finished At</th>
+                            <th>Max Records</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                        {% for task in page_obj %}
+                        <tr>
+                            <td>{{ task.id }}</td>
+                            <td>{{ task.company.name }}</td>
+                            <td>{{ task.get_type_display }}</td>
+                            <td><span class="badge 
+                        {% if task.status == 'STARTING' %}
+                            bg-label-primary
+                        {% elif task.status == 'RUNNING' %}
+                            bg-label-info
+                        {% elif task.status == 'CANCELED' %}
+                            bg-label-warning
+                        {% elif task.status == 'FAILED' %}
+                            bg-label-danger
+                        {% elif task.status == 'FINISHED' %}
+                            bg-label-success
+                        {% else %}
+                            bg-label-secondary
+                        {% endif %}
+                        me-1">{{ task.get_status_display }}</span></td>
+                            <td>{{ task.started_at }}</td>
+                            <td>{{ task.finished_at }}</td>
+                            <td>{{ task.max_records }}</td>
+                            <td>
+                                <div class="dropdown">
+                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
+                                        data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                    <div class="dropdown-menu">
+                                        <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i
+                                                class="bx bx-detail me-1"></i> Details</a>
+                                        <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i
+                                                class="bx bx-trash me-1"></i> Delete</a>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+
+    <!-- Log Card -->
+    <div class="col-12">
+        <div class="card overflow-hidden" style="height: 500px;">
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header">Job Log</h5>
+            </div>
+            <div class="card-body" id="both-scrollbars-example" style="margin-bottom: 20px;">
+                <div id="log-container" style="white-space: pre-wrap; max-height: 400px;">{{ log|safe }}</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<script>
+    // Get elements
+    const logContainer = document.getElementById('log-container');
+    const cardBody = document.getElementById('both-scrollbars-example');
+    console.log("logContainer");
+    // Initialize WebSocket
+    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/job/{{ record.id }}/");
+
+    // Handle incoming messages
+    socket.onmessage = function (event) {
+        const data = JSON.parse(event.data);
+
+        // Handle log line updates
+        if (data.type === 'log_line') {
+            const newLog = document.createTextNode(data.line);
+            logContainer.appendChild(newLog);
+            cardBody.scrollTop = cardBody.scrollHeight;
+        }
+    };
+</script>
+{% endblock %}

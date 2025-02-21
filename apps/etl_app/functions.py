@@ -2,8 +2,7 @@
 import logging
 from os import makedirs,path,rename,listdir, remove
 from celery import shared_task
-from datetime import datetime
-from apps.recipe_app.models import Recipe as DjangoRecipe
+from django.utils import timezone
 from django.conf import settings
 
 # Description: This file contains all the functions used in the project
@@ -19,16 +18,12 @@ import requests
 from firebase_admin import credentials, initialize_app, storage
 from peewee import SqliteDatabase
 
-from apps.etl_app.constants import  main_db
-from apps.etl_app.recipe.transform.models import Recipe, NutritionInformation, IngredientQuantity, Ingredient, Tag
-from .constants import ETL_EXTRACT_LOG_DIR, ETL_TRANSFORM_LOG_DIR,ETL_LOAD_LOG_DIR,ETL_FULL_PROCESS_LOG_DIR
+from apps.etl_app.constants import ETL_EXTRACT_LOG_DIR, ETL_TRANSFORM_LOG_DIR,ETL_LOAD_LOG_DIR,ETL_FULL_PROCESS_LOG_DIR,JOBS_LOG_DIR
+from apps.common.constants import FIREBASE_STORAGE_BASE_BUCKET
 
 
 """ Main Datbase """
 
-main_db = SqliteDatabase(main_db)
-RecipeTagThrough = Recipe.tags.get_through_model()
-models_ = [Recipe, NutritionInformation, IngredientQuantity, RecipeTagThrough, Ingredient, Tag]
 
 
 
@@ -36,7 +31,7 @@ models_ = [Recipe, NutritionInformation, IngredientQuantity, RecipeTagThrough, I
 def start_firebase():
     cred = credentials.Certificate("keys/pfm-firebase-sdk.json")
     initialize_app(cred, {
-        'storageBucket': 'projetofoodmanager.appspot.com'  # Replace with your project's storage bucket URL
+        'storageBucket': FIREBASE_STORAGE_BASE_BUCKET
     })
 
 
@@ -88,30 +83,19 @@ def delete_task_database(task):
                 remove(task.sql_file)
     except FileNotFoundError:
         pass
-
-
-def configure_logging(task):
-    from .models import TaskType
     
-    # Configure the log folder based on the task type
-    if task.type == TaskType.EXTRACT:
-        log_folder = ETL_EXTRACT_LOG_DIR
-    elif task.type == TaskType.TRANSFORM:
-        log_folder = ETL_TRANSFORM_LOG_DIR
-    elif task.type == TaskType.LOAD:
-        log_folder = ETL_LOAD_LOG_DIR 
-    elif task.type == TaskType.FULL_PROCESS:
-        log_folder = ETL_FULL_PROCESS_LOG_DIR 
     
-    log_folder = log_folder / str( task.id)
+    
+def configure_logging(log_folder):
+    
+    # Create the log folder
     makedirs(log_folder , exist_ok=True)
-
+    
     # Define log filenames with the creation date
     date = timezone.now().strftime("%d_%m_%Y__%H_%M")
     info_log_filename = f'{log_folder}/info__{date}.log'
     error_log_filename = f'{log_folder}/errors__{date}.log'
-
-
+    
     # Create different handlers for different log levels
     info_handler = logging.FileHandler(info_log_filename)
     info_handler.setLevel(logging.INFO)
@@ -133,4 +117,35 @@ def configure_logging(task):
     logger.addHandler(error_handler)
     
     return logger, info_log_filename
+
+def configure_job_logging(job):
+    from .models import TaskType
+    
+    
+    log_folder = JOBS_LOG_DIR / str( job.id)
+    
+    # Configure the logging
+    logger, log_info_path = configure_logging(log_folder)
+
+    return logger, log_info_path
+
+def configure_task_logging(task):
+    from .models import TaskType
+    
+    # Define the log folder
+    if task.type == TaskType.EXTRACT:
+        log_folder = ETL_EXTRACT_LOG_DIR
+    elif task.type == TaskType.TRANSFORM:
+        log_folder = ETL_TRANSFORM_LOG_DIR
+    elif task.type == TaskType.LOAD:
+        log_folder = ETL_LOAD_LOG_DIR 
+    elif task.type == TaskType.FULL_PROCESS:
+        log_folder = ETL_FULL_PROCESS_LOG_DIR 
+    
+    log_folder = log_folder / str( task.id)
+    
+    # Configure the logging
+    logger, log_info_path = configure_logging(log_folder)
+
+    return logger, log_info_path
     

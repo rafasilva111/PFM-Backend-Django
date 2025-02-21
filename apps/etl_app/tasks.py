@@ -1,8 +1,10 @@
 from celery import shared_task
 from os import makedirs
 from datetime import datetime
-from apps.etl_app.functions import configure_logging
+from django.utils import timezone
+from apps.etl_app.functions import configure_task_logging,configure_job_logging
 from config.celery import app
+
 
 
 #from apps.etl_app.recipe.extract.continente.main import __extract_continente
@@ -10,7 +12,11 @@ from apps.etl_app.recipe.extract.pingo_doce.main import __extract_pingo_doce
 from apps.etl_app.recipe.transform.main import __transform_recipes
 from apps.etl_app.recipe.load.main import __load_recipes
 
-from apps.common.constants import COMPANY_PINGO_DOCE,COMPANY_CONTINENTE
+from apps.common.constants import COMPANY_PINGO_DOCE
+
+import logging
+
+main_logger = logging.getLogger('django')
 
 ###
 #
@@ -20,20 +26,72 @@ from apps.common.constants import COMPANY_PINGO_DOCE,COMPANY_CONTINENTE
 
 @app.task
 def _init_job(job_id):
-    from .models import Job
+    from .models import Job, MaxRecordsCondition
     from .models import Task
+    
+
+    # Get Job
+    
     try:
         job = Job.objects.get(id = job_id)
     except Job.DoesNotExist:
-        print(job_id)
+        main_logger.error(f'Job {job_id} does not exist')
         return
-    task = Task.objects.create(user = job.user, max_records= job.max_records, type = job.type, parent_task = job.parent_task, job = job )
-    task.save()
     
     job.last_run = timezone.now()
     job.save()
+    
+    job_logger, log_info_path = configure_task_logging(job)
+    job.log_path = log_info_path
+    
+    # Deal with Starting the Tasks
+    # Job should start a new task if none have ever started
+    # Job should continue with an existing task if one has been started
+    
+    job_logger.info(f'Job {job_id} was started.')
+    
+    try:
+        current_task = job.tasks.order_by('-created_at').first()
+        job_logger.info(f'Current Task: {current_task}')
+    except:
+        current_task = None
 
+        
+    
+    
+    if current_task is None:
+        job_logger.info(f'No existing task. Creating new task.')
+        
+    
+    elif current_task.status == Task.Status.FINISHED:
+        job_logger.info(f'Task {current_task.id} has finished. Creating new task.')
+        
+    elif current_task.status == Task.Status.PAUSED:
+        current_task.resume()
+        
+        return
+    else:
+        main_logger.info(f'Job {job_id} was not started because of Task\'s ({current_task.id}) with status {current_task.status}.')
+        
+        return
+    
+    # Check if there is a stopping condition for the job    
+    stopping_condition_max_records = None
+    if isinstance(job.starting_condition, MaxRecordsCondition):
+        stopping_condition_max_records = job.starting_condition.max_records
+        job_logger.info(f'Task has a stopping condition: {stopping_condition_max_records}')
+    
+    task = Task.objects.create(
+            company = job.company, 
+            type = job.type, 
+            parent_task = job.parent_task,
+            job = job, 
+            stopping_condition_max_records = stopping_condition_max_records
+            )
+        
+    job_logger.info(f'Starting task {task.id}')
     task.start()
+    
     
 
 
@@ -124,8 +182,8 @@ def _launch_task(task_id):
     task = Task.objects.get(id = task_id)
 
 
-    logger, log_folder = configure_logging(task)
-    task.log_path = log_folder
+    logger, log_info_path = configure_task_logging(task)
+    task.log_path = log_info_path
 
     task.status = Task.Status.RUNNING
 
@@ -185,3 +243,4 @@ def _launch_task(task_id):
 @app.task
 def test_task():
     print("Test Task Executed")
+

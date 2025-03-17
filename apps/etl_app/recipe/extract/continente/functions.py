@@ -1,27 +1,32 @@
 import logging
 import re
+from apps.etl_app.functions import start_extract_db
 
-from apps.etl_app.constants import extract_recipe_continente_db, extract_recipe_continente
-from apps.etl_app.functions import print_it
+
+#from apps.etl_app.functions import print_it
 from apps.etl_app.recipe.extract.continente.models import Recipe, Tag, NutritionInformation, Ingredient, \
-    Recipe_links
+    Recipe_links, database_proxy
 
 RecipeTagThrough = Recipe.tags.get_through_model()
 
 models_ = [Recipe, Tag, NutritionInformation, Ingredient, RecipeTagThrough, Recipe_links]
 
 
-def start_recipe_extract_db(new_copy=False):
-    print_it("Starting Recipe Extract Database...")
+def start_recipe_extract_db(path, logger, task, reset=False):
+    """
+    Start the recipe extract database.
 
-    if new_copy:
-        # Save old db
-        print_it("Starting a new copy of the database...")
-        save_sql_file(extract_recipe_continente)
+    Args:
+        logger (logging.Logger): The logger object.
+        task (Task): The task object.
+        reset (bool, optional): Whether to reset the database. Defaults to False.
 
-    extract_recipe_continente_db.connect()
-    # db.drop_tables(models)
-    extract_recipe_continente_db.create_tables(models_)
+    Returns:
+        SqliteDatabase: The new database instance.
+    """
+    
+    
+    return start_extract_db(path, logger, task, reset, models_)
 
 
 def persist_recipes_links(link, page, base_search_link):

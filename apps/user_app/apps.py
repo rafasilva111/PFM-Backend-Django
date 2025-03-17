@@ -7,4 +7,4 @@ class UserAppConfig(AppConfig):
     
     def ready(self):
         # this is loading the signals   
-        from apps.user_app.signals import nullify_user_in_outstanding_tokens
+        from apps.user_app.signals import add_user_to_default_group

@@ -7,3 +7,11 @@ class BaseModel(models.Model):
     
     class Meta:
         abstract = True
+        
+# This class must be placed here because its used in user_app.models and etl_app.models
+
+class ProcessType(models.TextChoices):
+
+    INGREDIENTS = 'INGREDIENTS', 'Ingredients'
+    RECIPES = 'RECIPES', 'Recipes'
+    INGREDIENTS_RECIPES = 'INGREDIENTS_RECIPES', 'Ingredients & Recipes'

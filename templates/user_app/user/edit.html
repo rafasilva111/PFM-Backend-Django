@@ -1,0 +1,187 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Basic Tables{% endblock %}
+
+{% block content %}
+
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">User /</span> Edit user {{ record.id }}
+</h4>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Name field -->
+          <div class="form-group">
+            {{ form.name.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.name }}
+              {% if form.name.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.name.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Email field -->
+          <div class="form-group">
+            {{ form.email.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.email }}
+              {% if form.email.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.email.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Sex field -->
+          <div class="form-group">
+            {{ form.sex.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.sex }}
+              {% if form.sex.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.sex.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- User Type field -->
+          <div class="form-group">
+            {{ form.type.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.type }}
+              {% if form.type.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.type.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Submit button -->
+          <button type="submit" class="btn btn-primary">
+            Submit
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $(document).ready(function () {
+
+
+    const companyField = document.querySelector('select[name="company"]'); // Update if not a select input
+    const typeField = document.querySelector('select[name="type"]'); // Update if not a select input
+    const nameField = document.getElementById('id_name');
+
+    function updateUserField() {
+
+      let company = companyField.options[companyField.selectedIndex].text
+      let type = typeField.options[typeField.selectedIndex].text
+
+      if (company != "---------" && type != "---------") {
+
+        company = company.split("-")[1].trim()
+        nameField.value = `${type} ${company}`;
+      }
+      else {
+        nameField.value = '';
+      }
+
+
+    }
+
+    // Listen for changes in the Company and Type fields
+    companyField.addEventListener('change', updateUserField);
+    typeField.addEventListener('change', updateUserField);
+
+
+
+    $('#id_type').change(function () {
+      if ($(this).val() === 'LOAD') {
+        $('#parent-tasks-extract').hide();
+        $('#parent-tasks-transform').show();
+        $('#parent-tasks-load').hide();
+
+        $('#parent-jobs-extract').hide();
+        $('#parent-jobs-transform').show();
+        $('#parent-jobs-load').hide();
+      } else if ($(this).val() === 'TRANSFORM') {
+        $('#parent-tasks-extract').show();
+        $('#parent-tasks-transform').hide();
+        $('#parent-tasks-load').hide();
+
+        $('#parent-jobs-extract').show();
+        $('#parent-jobs-transform').hide();
+        $('#parent-jobs-load').hide();
+      } else {
+        $('#parent-tasks-extract').hide();
+        $('#parent-tasks-transform').hide();
+        $('#parent-tasks-load').hide();
+
+        $('#parent-jobs-extract').hide();
+        $('#parent-jobs-transform').hide();
+        $('#parent-jobs-load').hide();
+      }
+    });
+
+    // Trigger change event on page load if type is pre-selected
+    $('#id_type').change();
+
+
+    // Event listener for change in starting_condition_type
+    $('#id_starting_condition_type').change(function () {
+
+      var selectedType = $('#id_starting_condition_type').find(':selected').text().toLowerCase();
+      if (selectedType.includes('time condition')) {
+        $('#start-time-condition-form').show();
+      } else {
+        $('#start-time-condition-form').hide();
+      }
+    });
+
+    $('#id_stopping_condition_type').change(function () {
+      var selectedType = $('#id_stopping_condition_type').find(':selected').text().toLowerCase();
+      if (selectedType.includes('time condition')) {
+        $('#stop-time-condition-form').show();
+        $('#stop-time-max-records-form').hide();
+      }
+      else if (selectedType.includes('max records')) {
+        $('#stop-time-condition-form').hide();
+        $('#stop-time-max-records-form').show();
+      } else {
+        $('#stop-time-condition-form').hide();
+        $('#stop-time-max-records-form').hide();
+      }
+    });
+
+    // Trigger change event on page load if type is pre-selected
+    $('#id_starting_condition_type').change();
+    $('#id_stopping_condition_type').change();
+  });
+</script>
+{% endblock %}

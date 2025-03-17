@@ -6,6 +6,10 @@ RUN apk update && apk add --no-cache postgresql-dev gcc python3-dev musl-dev
 
 RUN pip install --upgrade pip
 
+# Install Firefox and Dependencies
+RUN apk add --no-cache icu-data-full firefox geckodriver 
+RUN apk add xvfb dbus ttf-freefont mesa-dri-gallium
+
 # Set the working directory in the container
 WORKDIR /app
 

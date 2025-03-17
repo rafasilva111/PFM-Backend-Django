@@ -169,21 +169,15 @@ cython_debug/
 #.idea/
 
 .env.dev
+.env.prod
+.env.staging
 
 .env
-
-env/
 
 .editorconfig
 
 .vscode/
 
-apps/etl_app/recipe/extract/continente/images/
-
 *.sql
 
-.env.prod
-
-.env.staging
-
-projetofoodmanager-firebase.json
+apps/etl_app/ingredient/extract/continente/images/

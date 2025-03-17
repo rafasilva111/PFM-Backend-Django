@@ -7,7 +7,7 @@
 THEME_VARIABLES = {
     "creator_name": "ThemeSelection",
     "creator_url": "https://themeselection.com/",
-    "template_name": "Goodbites",
+    "template_name": "LiveView",
     "template_suffix": "Django Free Admin Template",
     "template_version": "1.0.0",
     "template_free": True,

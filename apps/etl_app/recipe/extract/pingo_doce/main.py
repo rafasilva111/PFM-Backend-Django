@@ -312,7 +312,7 @@ def extract_data_from_link(logger,recipe_link,images_bucket):
     logger.info(f"Added new recipe whit ID: {recipe_db.id}")
 
 
-def pull_pingo_doce_recipes(logger,task):
+def pull_recipes(logger,task):
 
     total_recipes = Recipe.select().count()
     logger.info(f"Found {total_recipes} recipes on DB")
@@ -350,7 +350,7 @@ def check_if_all_recipes_links_on_db(logger):
 
 
 
-def get_all_recipes_links(logger,task):
+def pull_recipe_links(logger,task):
 
     """ Checks if all recipe links are in database """
 
@@ -416,7 +416,7 @@ def __extract_pingo_doce(logger, task):
     """
     
     # Log the start of the extraction process
-    logger.info(f"Extracting all recipes from pingo_doce...")
+    logger.info(f"Extracting all recipes from {task.company}...")
     logger.info("")
     
     # Start the recipe extract database
@@ -425,13 +425,13 @@ def __extract_pingo_doce(logger, task):
     
     # Get all recipes links
     logger.info("Getting all recipes links...")
-    get_all_recipes_links(logger,task)  # If not a new copy, it will continue
+    pull_recipe_links(logger,task)  # If not a new copy, it will continue
     logger.info("")
     
     
     # Pull recipes from above links
     logger.info("Pulling recipes from links...")
-    pull_pingo_doce_recipes(logger,task)
+    pull_recipes(logger,task)
     logger.info("")
 
     # Finish task

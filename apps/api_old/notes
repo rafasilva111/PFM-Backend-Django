@@ -1,0 +1,19 @@
+
+
+
+
+# ----------------------------------------------
+#  Error
+# ----------------------------------------------
+
+
+try:
+    test_error(test_case = self,response_data = response_data, error_type =ERROR_TYPES.ARGS.value)
+    
+except AssertionError as e:
+    print_red("\nFailed\n")
+    self.error +=1
+    print(f"AssertionError: {e}")
+    print(f"Error Type Expected: {response.status_code}")
+    print(f"Response: {response_data}")
+    return

@@ -1,5 +1,5 @@
 from apps.etl_app.recipe.extract.pingo_doce.main import __extract_pingo_doce
-from apps.etl_app.recipe.extract.continete.main import __extract_continente
+from apps.etl_app.recipe.extract.continente.main import __extract_continente
 from apps.etl_app.models import ProcessType
 from apps.common.constants import COMPANY_CONTINENTE, COMPANY_PINGO_DOCE
 

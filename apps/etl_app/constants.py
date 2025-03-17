@@ -7,12 +7,6 @@ from django.db import models
 
 """ Main Dirs """
 
-ETL_EXTRACT_LOG_DIR = settings.ETL_LOG_DIR / "extract"
-ETL_TRANSFORM_LOG_DIR = settings.ETL_LOG_DIR / "transform"
-ETL_LOAD_LOG_DIR = settings.ETL_LOG_DIR / "load"
-ETL_FULL_PROCESS_LOG_DIR = settings.ETL_LOG_DIR / "full_process"
-
-JOBS_LOG_DIR = settings.JOBS_LOG_DIR
 
 
 
@@ -22,17 +16,28 @@ main_db = "./recipe/transform/transform_recipes.db"
 
 """ Secondary Databases """
 
-extract_recipe_pingo_doce = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/pingo_doce/dbs"
 
 
-transform_recipe = f"{settings.BASE_DIR}/apps/etl_app/recipe/transform/dbs"
+""" Extract """
+
+""" Ingredients """
 
 
-extract_ingredient_continente = "./ingredient/extract/continente" \
-                            "/extract_ingredients.db "
 
-extract_ingredient_continente_db = SqliteDatabase(extract_ingredient_continente)
+""" Continente """
 
+extract_continente_ingredients_db = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/dbs"
+continente_images_folder = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/images"
+
+
+""" Recipes """
+
+
+
+""" Pingo Doce """
+
+extract_recipe_pingo_doce = "./recipe/extract/pingo_doce/dbs"
+extract_recipe_pingo_doce_db = SqliteDatabase(extract_recipe_pingo_doce)
 
 
 """ Images Dict """

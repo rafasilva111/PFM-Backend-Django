@@ -21,7 +21,6 @@ class Command(BaseCommand):
             name = COMPANY_PINGO_DOCE
             pingo_doce_company = Company.objects.create(
                 name=COMPANY_PINGO_DOCE,
-                email=f'{lower_and_underescore(name)}@example.com',
                 imgs_bucket=f"{FIREBASE_STORAGE_COMPANY_BUCKET}/{lower_and_underescore(name)}"
                 )
             self.stdout.write(self.style.SUCCESS(f'Successfully created the {COMPANY_PINGO_DOCE} company'))
@@ -33,7 +32,7 @@ class Command(BaseCommand):
             pingo_doce_user, created = User.objects.get_or_create(
                 username=lower_and_underescore(COMPANY_PINGO_DOCE),
                 email=f'{lower_and_underescore(COMPANY_PINGO_DOCE)}@example.com',
-                user_type=User.UserType.COMPANY,
+                type=User.UserType.COMPANY,
                 defaults={
                     'name': COMPANY_PINGO_DOCE,
                     'password': COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD,
@@ -62,7 +61,6 @@ class Command(BaseCommand):
             name = COMPANY_CONTINENTE
             continente_company = Company.objects.create(
                 name='Continente',
-                email=f'{lower_and_underescore(name)}@example.com',
                 imgs_bucket=f"{FIREBASE_STORAGE_COMPANY_BUCKET}/{lower_and_underescore(name)}"
                 )
             self.stdout.write(self.style.SUCCESS('Successfully created the default company'))
@@ -74,7 +72,7 @@ class Command(BaseCommand):
             continente_user, created = User.objects.get_or_create(
                 username=lower_and_underescore(COMPANY_CONTINENTE),
                 email=f'{lower_and_underescore(COMPANY_CONTINENTE)}@example.com',
-                user_type=User.UserType.COMPANY,
+                type=User.UserType.COMPANY,
                 defaults={
                     'name': COMPANY_CONTINENTE,
                     'password': COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD,

@@ -1,0 +1,383 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Basic Tables{% endblock %}
+
+{% block content %}
+
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Job /</span> Create Job
+</h4>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Name field -->
+          {{ form.name.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.name.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Company field -->
+          {{ form.company.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.company }}
+            {% if form.company.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.company.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+
+          <!-- Type field -->
+          {{ form.type.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.type }}
+            {% if form.type.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.type.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Type field -->
+          {{ form.sub_type.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.sub_type }}
+            {% if form.sub_type.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.sub_type.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Tasks Extraction field -->
+          <div id="parent-tasks-extract" class="mt-1 mb-5" style="display: none;">
+            {{ form.parent_task_extract.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.parent_task_extract }}
+              {% if form.parent_task_extract.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.parent_task_extract.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Tasks Transformation field -->
+          <div id="parent-tasks-transform" class="mt-1 mb-5" style="display: none;">
+            {{ form.parent_task_transform.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.parent_task_transform }}
+              {% if form.parent_task_transform.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.parent_task_transform.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Starting Condition field -->
+          {{ form.starting_condition_type.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.starting_condition_type}}
+          </div>
+
+          <!-- Time Condition field -->
+          <div id="start-time-condition-form" class="mt-1 mb-4" style="display: none;">
+            <div class="row d-flex justify-content-center align-items-center">
+          
+              <!-- Minute field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ starting_condition_time_form.minute.id_for_label }}">
+                  {{ starting_condition_time_form.minute.label }}
+                </label>
+                {{ starting_condition_time_form.minute }}
+                {% if starting_condition_time_form.minute.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in starting_condition_time_form.minute.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Hour field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ starting_condition_time_form.hour.id_for_label }}">
+                  {{ starting_condition_time_form.hour.label }}
+                </label>
+                {{ starting_condition_time_form.hour }}
+                {% if starting_condition_time_form.hour.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in starting_condition_time_form.hour.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Day of week field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ starting_condition_time_form.day_of_week.id_for_label }}">
+                  {{ starting_condition_time_form.day_of_week.label }}
+                </label>
+                {{ starting_condition_time_form.day_of_week }}
+                {% if starting_condition_time_form.day_of_week.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in starting_condition_time_form.day_of_week.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Day of month field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ starting_condition_time_form.day_of_month.id_for_label }}">
+                  {{ starting_condition_time_form.day_of_month.label }}
+                </label>
+                {{ starting_condition_time_form.day_of_month }}
+                {% if starting_condition_time_form.day_of_month.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in starting_condition_time_form.day_of_month.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Month of year field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ starting_condition_time_form.month_of_year.id_for_label }}">
+                  {{ starting_condition_time_form.month_of_year.label }}
+                </label>
+                {{ starting_condition_time_form.month_of_year }}
+                {% if starting_condition_time_form.month_of_year.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in starting_condition_time_form.month_of_year.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
+
+          <!-- Stopping Condition field -->
+          {{ form.stopping_condition_type.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.stopping_condition_type}}
+          </div>
+
+          <!-- Time Condition field -->
+          <div id="stop-time-condition-form" class="mt-1 mb-4" style="display: none;">
+            <div class="row d-flex justify-content-center align-items-center">
+          
+              <!-- Minute field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ stopping_condition_time_form.minute.id_for_label }}">
+                  {{ stopping_condition_time_form.minute.label }}
+                </label>
+                {{ stopping_condition_time_form.minute }}
+                {% if stopping_condition_time_form.minute.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in stopping_condition_time_form.minute.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Hour field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ stopping_condition_time_form.hour.id_for_label }}">
+                  {{ stopping_condition_time_form.hour.label }}
+                </label>
+                {{ stopping_condition_time_form.hour }}
+                {% if stopping_condition_time_form.hour.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in stopping_condition_time_form.hour.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Day of week field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ stopping_condition_time_form.day_of_week.id_for_label }}">
+                  {{ stopping_condition_time_form.day_of_week.label }}
+                </label>
+                {{ stopping_condition_time_form.day_of_week }}
+                {% if stopping_condition_time_form.day_of_week.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in stopping_condition_time_form.day_of_week.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Day of month field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ stopping_condition_time_form.day_of_month.id_for_label }}">
+                  {{ stopping_condition_time_form.day_of_month.label }}
+                </label>
+                {{ stopping_condition_time_form.day_of_month }}
+                {% if stopping_condition_time_form.day_of_month.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in stopping_condition_time_form.day_of_month.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+          
+              <!-- Month of year field -->
+              <div class="col-md-2 mt-2 mb-3 d-flex flex-column align-items-start">
+                <label for="{{ stopping_condition_time_form.month_of_year.id_for_label }}">
+                  {{ stopping_condition_time_form.month_of_year.label }}
+                </label>
+                {{ stopping_condition_time_form.month_of_year }}
+                {% if stopping_condition_time_form.month_of_year.errors %}
+                  <div class="invalid-feedback d-block mt-1">
+                    {% for error in stopping_condition_time_form.month_of_year.errors %}
+                      <small class="text-danger">{{ error }}</small>
+                    {% endfor %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Threshold Condition field -->
+          <div id="stop-threshold-condition-form" class="mt-1 mb-4" style="display: none;">
+            <div class="row ml-2">
+                {{ stopping_condition_threshold_form.threshold_value.label_tag }}
+                <div class="col-md-12 mt-2 mb-3">
+                  {{ stopping_condition_threshold_form.threshold_value }}
+                  {% if stopping_condition_threshold_form.threshold_value.errors %}
+                    <div class="invalid-feedback d-block">
+                      {% for error in stopping_condition_threshold_form.threshold_value.errors %}
+                        {{ error }}
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+
+            </div>
+          </div>
+
+          <!-- Continue field -->
+          {{ form.continue_mode.label }}
+          <p class="text-muted">If the job is stopped, should it continue from where it left off?</p>
+          <div class="col-md-12 mb-4">
+            
+            {{ form.continue_mode }}
+            {% if form.continue_mode.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.continue_mode.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+
+          
+
+          </div>
+                    
+
+          <button type="submit" class="btn btn-primary">
+            Submit
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+  $(document).ready(function () {
+
+
+    const companyField = document.querySelector('select[name="company"]'); // Update if not a select input
+    const typeField = document.querySelector('select[name="type"]'); // Update if not a select input
+    const startingConditionType = document.getElementById('id_starting_condition_type');  
+    const stoppingConditionType = document.getElementById('id_stopping_condition_type');
+
+    // Event listener for change in type
+    $('#id_type').change(function() {
+      if ($(this).val() === 'LOAD') {
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').show();
+      } else if ($(this).val() === 'TRANSFORM') {
+        $('#parent-tasks-transform').hide()
+        $('#parent-tasks-extract').show();
+      } else{
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').hide()
+
+      }
+    });
+
+    // Event listener for change in starting_condition_type
+    $('#id_starting_condition_type').change(function () {
+      var selectedType = $('#id_starting_condition_type').find(':selected').text().toLowerCase();
+      if (selectedType.includes('time condition')) {
+        $('#start-time-condition-form').show();
+      } else {
+        $('#start-time-condition-form').hide();
+      }
+    });
+
+    // Event listener for change in stopping_condition_type
+    $('#id_stopping_condition_type').change(function () {
+      var selectedType = $('#id_stopping_condition_type').find(':selected').text().toLowerCase();
+      if (selectedType.includes('time condition')) {
+        $('#stop-time-condition-form').show();
+        $('#stop-threshold-condition-form').hide();
+      }
+      else if (selectedType.includes('threshold')) {
+        $('#stop-time-condition-form').hide();
+        $('#stop-threshold-condition-form').show();
+      } else {
+        $('#stop-time-condition-form').hide();
+        $('#stop-threshold-condition-form').hide();
+      }
+    });
+
+    // Trigger change event on page load if type is pre-selected
+    $('#id_starting_condition_type').change();
+    $('#id_stopping_condition_type').change();
+    $('#id_type').change();
+  });
+</script>
+{% endblock %}

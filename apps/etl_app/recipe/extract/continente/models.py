@@ -4,12 +4,12 @@ from datetime import datetime
 from flask_marshmallow import Marshmallow
 from marshmallow import fields, pre_dump, EXCLUDE
 from peewee import *
+from django.utils import timezone
 
-from apps.etl_app.constants import extract_recipe_continente
-from apps.etl_app.functions import print_it
+#from apps.etl_app.constants import extract_recipe_continente
+#from apps.etl_app.functions import print_it
 
 ma = Marshmallow()
-db = SqliteDatabase(extract_recipe_continente)
 
 
 class IngredientSchema(ma.Schema):
@@ -100,9 +100,11 @@ class RecipeSchema(ma.Schema):
 """ Models """
 
 
+database_proxy = DatabaseProxy()
+
 class BaseModel(Model):
     class Meta:
-        database = db
+        database = database_proxy
 
 
 class NutritionInformation(BaseModel):

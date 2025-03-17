@@ -1,0 +1,115 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Perfect Scrollbar - Extended UI{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light"> Users / </span> User {{record.id}} details
+</h4>
+
+
+<!-- User Details -->
+<div class="col-md-12 col-sm-12">
+    <div class="card overflow-hidden mb-4" style="height: auto;">
+        <div class="container-fluid d-flex align-items-center justify-content-between">
+            <h5 class="card-header">User Details</h5>
+            <div>
+                <a href="{% url 'user_edit' record.id %}" class="btn btn-primary py-1">
+                    Edit
+                </a>
+                <a href="{% url 'user_enable_disable' record.id %}?next={{ request.path }}" class="btn btn-warning py-1">
+                    {% if record.is_active %}
+                        Disable
+                    {% else %}
+                        Enable
+                    {% endif %}
+                </a>
+                <a href="{% url 'user_delete' record.id %}" class="btn btn-danger py-1">
+                    Delete
+                </a>
+                
+            </div>
+        </div>
+        <div class="card-body task-details">
+            <div class="row">
+                <!-- Name -->
+                <div class="col-md-2">
+                    <h6>Name:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.name }}</p>
+                </div>
+                
+                <!-- Email -->
+                <div class="col-md-3">
+                    <h6>Email:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.email }}</p>
+                </div>
+
+
+                <!-- User Type -->
+                <div class="col-md-2">
+                    <h6>User Type:</h6>
+                    <p class="badge bg-label-primary me-1">
+                        {{ record.type }}
+                    </p>
+                </div>
+
+                <!-- Is Active -->
+                <div class="col-md-2">
+                    <h6>Active:</h6>
+                    <span class="badge 
+                    {% if record.is_active %}
+                        bg-label-success
+                    {% else %}
+                        bg-label-danger
+                    {% endif %}
+                    me-1">
+                    {{ record.is_active }}
+                    </span>
+                </div>
+
+                <!-- User Gender -->
+                <div class="col-md-2">
+                    <h6>Gender:</h6>
+                    <p class="badge bg-label-primary me-1">
+                        {{ record.get_sex_display }}
+                    </p>
+                </div>
+
+
+            </div>
+
+            <!-- Creation & Update Date -->
+            <div class="row mt-3">
+                <div class="col-md-3">
+                    <h6>Created At:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.created_at }}</p>
+                </div>
+                <div class="col-md-3">
+                    <h6>Updated At:</h6>
+                    <p class="badge bg-label-primary me-1">{{ record.updated_at }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}

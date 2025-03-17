@@ -1,0 +1,96 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Login - Pages{% endblock %}
+
+{% block page_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static  'vendor/css/pages/page-auth.css' %}">
+{% endblock page_css %}
+
+{% block content %}
+<div class="container-xxl">
+  <div class="authentication-wrapper authentication-basic container-p-y">
+    <div class="authentication-inner">
+      <!-- Login -->
+      <div class="card">
+        <div class="card-body">
+          <!-- Logo -->
+          <div class="app-brand justify-content-center">
+            <a href="{% url 'home' %}" class="app-brand-link gap-2">
+              <span class="app-brand-logo demo">
+                {% include 'partials/logo.html' with width=25 withbg="#696cff" %}
+              </span>
+              <span class="app-brand-text demo text-body fw-bold">{% get_theme_variables 'template_name' %}</span>
+            </a>
+          </div>
+          <!-- /Logo -->
+          <h4 class="mb-2 text-center">Welcome to {% get_theme_variables 'template_name' %}! 👋</h4>
+          <p class="mb-4 text-center">Please sign-in to your account and start the adventure</p>
+
+          <form method="POST">
+            {% csrf_token %}
+            
+            <!-- Email Field -->
+            <div class="mb-3">
+              <label for="email" class="form-label">{{ form.email.label }}</label>
+              {{ form.email }}
+              {% for error in form.email.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+            
+            <!-- Password Field -->
+            <div class="mb-3 form-password-toggle">
+              <div class="d-flex justify-content-between">
+                <label for="password" class="form-label">{{ form.password.label }}</label>
+                <a href="">
+                  
+                </a>
+                <a href="{% url 'password_reset' %}">
+                  <small>Forgot Password?</small>
+                </a>
+              </div>
+              <div class="input-group input-group-merge">
+                {{ form.password }}
+                <span class="input-group-text cursor-pointer"><i class="bx bx-hide"></i></span>
+                {% for error in form.password.errors %}
+                  <div class="invalid-feedback d-block text-center">{{ error }}</div>
+                {% endfor %}
+              </div>
+              
+            </div>
+            
+            <!-- Remember Me Checkbox -->
+            <div class="mb-3">
+              <div class="form-check">
+                {{ form.remember_me }}
+                <label class="form-check-label" for="remember-me">
+                  Remember Me
+                </label>
+              </div>
+            </div>
+            
+            <!-- Submit Button -->
+            <div class="mb-3">
+              <button class="btn btn-primary d-grid w-100" type="submit">Sign in</button>
+            </div>
+          </form>
+
+          <!-- Registration Link -->
+          <!--<p class="text-center">
+            <span>New on our platform?</span>
+            <a href="{% url 'register' %}">
+              <span>Create an account</span>
+            </a>
+          </p> -->
+        </div>
+      </div>
+      <!-- /Login -->
+    </div>
+  </div>
+</div>
+
+{% endblock content %}

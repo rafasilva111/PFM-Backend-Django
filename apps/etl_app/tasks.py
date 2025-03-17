@@ -1,246 +1,315 @@
-from celery import shared_task
-from os import makedirs
-from datetime import datetime
+###
+# General Imports
+##
+
+## Django Utilities
 from django.utils import timezone
-from apps.etl_app.functions import configure_task_logging,configure_job_logging
+
+## Celery App
 from config.celery import app
 
-
-
-#from apps.etl_app.recipe.extract.continente.main import __extract_continente
-from apps.etl_app.recipe.extract.pingo_doce.main import __extract_pingo_doce
-from apps.etl_app.recipe.transform.main import __transform_recipes
-from apps.etl_app.recipe.load.main import __load_recipes
-
-from apps.common.constants import COMPANY_PINGO_DOCE
-
+## Standard Libraries
+import time
 import logging
 
+### App-specific imports
+
+## Functions
+from apps.etl_app.functions import configure_task_logging, configure_job_logging
+from apps.common.models import ProcessType
+from apps.etl_app.recipe.extract.main import _extract_recipes
+#from apps.etl_app.recipe.transform.main import _transform_recipes
+#from apps.etl_app.recipe.load.main import _load_recipes
+
+from apps.etl_app.ingredient.extract.main import _extract_ingredients
+#from apps.etl_app.ingridients.transform.main import _transform_ingridients
+#from apps.etl_app.ingredients.load.main import _load_ingridients
+
+# Set up main logger
 main_logger = logging.getLogger('django')
 
+
 ###
-#
-#   Job
-#
+# Job Task Functions
 ##
 
 @app.task
-def _init_job(job_id):
-    from .models import Job, MaxRecordsCondition
-    from .models import Task
-    
+def _launch_job_task(job_id):
+    """
+    Initializes a job, creating or resuming associated tasks as needed.
 
-    # Get Job
+    - If a job has no associated tasks, it will create a new one.
+    - If the last task is paused, it resumes that task.
+    - If the last task is finished, it creates a new task.
     
+    Args:
+        job_id (int): ID of the Job to initialize.
+    """
+    from apps.etl_app.models import Job, Task
+
     try:
-        job = Job.objects.get(id = job_id)
+        job = Job.objects.get(id=job_id)
     except Job.DoesNotExist:
         main_logger.error(f'Job {job_id} does not exist')
         return
-    
-    job.last_run = timezone.now()
+
+    if not job.enabled:
+        return
+
+    # Configure job-specific logging
+    job_logger, job.log_path = configure_job_logging(job)
     job.save()
-    
-    job_logger, log_info_path = configure_task_logging(job)
-    job.log_path = log_info_path
-    
-    # Deal with Starting the Tasks
-    # Job should start a new task if none have ever started
-    # Job should continue with an existing task if one has been started
-    
-    job_logger.info(f'Job {job_id} was started.')
-    
-    try:
-        current_task = job.tasks.order_by('-created_at').first()
-        job_logger.info(f'Current Task: {current_task}')
-    except:
-        current_task = None
 
-        
+    # Determine the status of the last task
+    job_logger.info(f'')
+    job_logger.info(f'')
+    job_logger.info(f'Job Starting Condition triggered.')
+    job_logger.info(f'')
     
+    # Check if the job is in continue mode, which means resuming the last task if it exists
+    current_task = job.tasks.order_by('-created_at').first()
+    job_logger.info(f'Checking for existing tasks...')
     
-    if current_task is None:
-        job_logger.info(f'No existing task. Creating new task.')
-        
-    
-    elif current_task.status == Task.Status.FINISHED:
-        job_logger.info(f'Task {current_task.id} has finished. Creating new task.')
-        
-    elif current_task.status == Task.Status.PAUSED:
-        current_task.resume()
-        
-        return
+    if job.continue_mode:
+        if current_task is None:
+            job_logger.info(f'No existing task. Creating new task.')
+        elif current_task.status == Task.Status.FINISHED:
+            job_logger.info(f'Task {current_task.id} has finished. Creating new task.')
+        elif current_task.status == Task.Status.PAUSED:
+            job_logger.info(f'Task {current_task.id} has been resumed.')
+            current_task.resume()
+            return
+        else:
+            job_logger.info(f'Job {job_id} was not started due to Task {current_task.id} with status {current_task.status}.')
+            return
     else:
-        main_logger.info(f'Job {job_id} was not started because of Task\'s ({current_task.id}) with status {current_task.status}.')
-        
-        return
-    
-    # Check if there is a stopping condition for the job    
-    stopping_condition_max_records = None
-    if isinstance(job.starting_condition, MaxRecordsCondition):
-        stopping_condition_max_records = job.starting_condition.max_records
-        job_logger.info(f'Task has a stopping condition: {stopping_condition_max_records}')
-    
+        job_logger.info(f'Creating new task.')
+
     task = Task.objects.create(
-            company = job.company, 
-            type = job.type, 
-            parent_task = job.parent_task,
-            job = job, 
-            stopping_condition_max_records = stopping_condition_max_records
-            )
+        type=job.type,
+        job=job,
+    )
+    task.save()
+    
+    # You dont need to call the launch method here, the signal will do it for you
+    job_logger.info(f'')
+    job_logger.info(f'Task {task.id} created.')
+    
         
-    job_logger.info(f'Starting task {task.id}')
-    task.start()
+@app.task
+def _stop_job_task(job_id):
     
-    
+    from apps.etl_app.models import Job, Task
 
+    try:
+        job = Job.objects.get(id=job_id)
+    except Job.DoesNotExist:
+        main_logger.error(f'Job {job_id} does not exist')
+        return
+
+    if not job.enabled:
+        return
+
+    # Configure job-specific logging
+    job_logger, job.log_path = configure_job_logging(job)
+    job.save()
+
+    # Get the current task
+    current_task = job.tasks.order_by('-created_at').first()
+    
+    # Determine the status of the last task
+    job_logger.info(f'')
+    job_logger.info(f'')
+    job_logger.info(f'Job Stopping Condition triggered.')
+    job_logger.info(f'')
+    
+    if job.continue_mode:
+        job_logger.info(f'Pausing current active Task ( {current_task.id} ).')
+        current_task.pause()
+        job_logger.info(f'')
+        job_logger.info(f'Task {current_task.id} Stopped.')
+    else:
+        job_logger.info(F'Stopping current active Task ( {current_task.id} ).')
+        current_task.stop()
+        job_logger.info(f'')
+        job_logger.info(f'Task {current_task.id} Stopped.')
+
+    
 
 ###
-#
-#   ETL
-#
+# Task Functions
 ##
 
-
- 
-###
-#
-#   Recipe ETL
-#
-##       
-        
-"""
 @app.task
-def _extract_recipes(task_id,logger = None):
-    from .models import Task,TaskType
-    
-    task = Task.objects.get(id = task_id)
-    logger, log_folder = configure_logging(task)
-    
-    task.log_path = log_folder
+def _launch_task(task_id, continue_mode=True):
+    """
+    Launches a specific task, running a test task based on the task type.
+
+    - Configures logging and updates task status to RUNNING.
+    - Initiates a test task with varying counts based on task type.
+
+    Args:
+        task_id (int): ID of the Task to launch.
+    """
+    from apps.etl_app.models import Task
+
+    task = Task.objects.get(id=task_id)
+
+    logger, task.log_path = configure_task_logging(task)
     task.status = Task.Status.RUNNING
     task.save()
-"""
+
+    # Determine task behavior based on task type
     
-       
+    logger.info("")
+    if continue_mode:
+        logger.info(f'Resuming {task.type} Task')   
+    else:
+        logger.info(f'Starting {task.type} Task')
+    
+    logger.info("")
+    
+    match task.type:
+        case Task.TaskType.TEST:
+            max_count = 100
+            test_task(logger, task, max_count, continue_mode)
+            
+        case Task.TaskType.EMPTY:
+            max_count = 1
+            test_task(logger, task, max_count, continue_mode)
+            
+        case Task.TaskType.FAILURE:
+            max_count = -1
+            test_task(logger, task, max_count, continue_mode)
         
-"""@app.task
-def _transform_recipes(task_id,logger = None):
-    from .models import Task,TaskType
+        case Task.TaskType.MID_FAILURE:
+            max_count = -10
+            test_task(logger, task, max_count, continue_mode)
+            
+                
+        case Task.TaskType.EXTRACT:
+
+            match task.process:
+                case ProcessType.INGREDIENTS:
+                    _extract_ingredients(logger,task, continue_mode)
+                    pass
+                case ProcessType.RECIPES:
+                    _extract_recipes(logger,task)
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.INGREDIENTS_RECIPES:
+                    logger.info('Yet to be done')
+                    pass
+                
+        case  Task.TaskType.TRANSFORM:
+            
+            logger.info('Starting data Transform')
+            
+            match task.sub_type:
+                case ProcessType.INGREDIENTS:
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.RECIPES:
+                    #__transform_recipes(logger,task)
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.INGREDIENTS_RECIPES:
+                    logger.info('Yet to be done')
+                    pass
     
-    task = Task.objects.get(id = task_id)
-
-    logger, log_folder = configure_logging(task)
-    task.log_path = log_folder
-
-    task.status = Task.Status.RUNNING
-    task.save()
-
-    logger.info('Starting data Transform')
-    
-    __transform_recipes(logger,task)"""
-    
-    
-
-"""@app.task
-def _load_recipes(task_id,logger = None):
-    from .models import Task
-    
-    task = Task.objects.get(id = task_id)
-
-    if not logger:
-        logger, log_folder = configure_logging(task)
-        task.log_path = log_folder
-
-    task.status = Task.Status.RUNNING
-    task.save()
-
-    logger.info('Starting data Load')
-    
-    __load_recipes(logger,task)"""
-
-"""@app.task
-def _full_process(task_id):
-    from .models import Task
-
-    task = Task.objects.get(id = task_id)
-    logger, log_folder = configure_logging(task)
-
-    task.save()
-
-    _extract_recipes(task_id,logger)
-
-    _transform_recipes(task_id,logger)
-
-    _load_recipes(task_id,logger)"""
-
-
-@app.task
-def _launch_task(task_id):
-    from .models import Task, TaskType
-
-    task = Task.objects.get(id = task_id)
-
-
-    logger, log_info_path = configure_task_logging(task)
-    task.log_path = log_info_path
-
-    task.status = Task.Status.RUNNING
-
-    task.save()
-
-    
-
-    if task.type == TaskType.EXTRACT:
-
-        logger.info('Starting data Extract')
-
-        if task.company.name == COMPANY_PINGO_DOCE:
-            __extract_pingo_doce(logger,task)
-
-    elif task.type == TaskType.TRANSFORM:
-
-        logger.info('Starting data Transform')
-    
-        __transform_recipes(logger,task)
-
-    elif task.type == TaskType.LOAD:
-        logger.info('Starting data Load')
-    
-        __load_recipes(logger,task)
-    
-    elif task.type == TaskType.FULL_PROCESS:
-        __extract_pingo_doce(logger,task)
-
-        __transform_recipes(logger,task)
-
-        __load_recipes(logger,task)
+        case Task.TaskType.LOAD:
+            
+            
+            match task.sub_type:
+                case ProcessType.INGREDIENTS:
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.RECIPES:
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.INGREDIENTS_RECIPES:
+                    logger.info('Yet to be done')
+                    pass
+                
+        case Task.TaskType.FULL_PROCESS:
+                    
+            match task.sub_type:
+                case ProcessType.INGREDIENTS:
+                    logger.info('Yet to be done')
+                    pass
+                case ProcessType.RECIPES:
+                    #__extract_recipes(logger,task)
+                    #__transform_recipes(logger,task)
+                    #__load_recipes(logger,task)
+                    logger.info('Yet to be done')
+                    
+                    pass
+                case ProcessType.INGREDIENTS_RECIPES:
+                    logger.info('Full Processing Ingredients and Recipes')
+                    logger.info('Yet to be done')
+                    pass
+                                
 
 
 
 ###
-#
-#   Recipe ETL
-#
+# Helper Functions
 ##
 
-"""def _extract_ingredients(continente=True, new_copy=False):
+def test_task(logger, task, max_count=10000, continue_mode=True):
+    """
+    A helper function to simulate task processing by counting to a max value.
 
-            #Extractce
-            #:param continente: if True, it will extract all recipes from continente
-            #:param new_copy: if True, it will create a new copy of the database, saving the old one
+    - Logs each count increment and the task start/completion.
+    - If max_count == -1, raises an exception to simulate a failure.
 
+    Args:
+        logger (logging.Logger): The logger to use for logging task events.
+        task (Task): The task instance associated with the counting.
+        max_count (int): The maximum count for the test task. Defaults to 10000.
+    
+    Raises:
+        Exception: If max_count is less than 0.
+    """
+    logger.info("")
+    logger.info("Executing Task...")
+    logger.info("")
+    
+    trigger_failure = False
+    
+    if max_count < -1:
+        trigger_failure = True
 
-    print_it(f"Extracting all ingredients...")
-    print_it()
-    print_it()
+    elif max_count < -1:
+        max_count = - max_count
+        trigger_failure = True
+        
 
-    if continente:
-        __extract_ingredients_continente(max_ingredients=-1, continue_mode=True, new_copy=new_copy)"""
+    counter = task.step if continue_mode else 1
 
-
-
-@app.task
-def test_task():
-    print("Test Task Executed")
+    while counter < max_count:
+        logger.info(f"Counting at: {counter} .")
+        time.sleep(1)
+        
+        counter += 1
+        
+        # Save state to avoid losing the counter value in case of failure or pause
+        task.step = counter
+        task.save()
+    
+    # Check if a failure was triggered
+    if trigger_failure:
+        raise Exception("Failure was triggered.")
+    
+    # Log the final count
+    logger.info(f"Counting at: {counter} .")
+    
+    # Update task status to finished
+    task.finished_at = timezone.now()
+    task.status = task.Status.FINISHED
+    task.save()
+    
+    logger.info("")
+    logger.info("Done...")
+    logger.info("")
 

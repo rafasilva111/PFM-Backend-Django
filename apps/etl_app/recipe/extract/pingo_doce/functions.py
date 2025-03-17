@@ -16,7 +16,7 @@ RecipeTagThrough = Recipe.tags.get_through_model()
 models_ = [Recipe, Tag, NutritionInformation, Ingredient,IngredientQuantity, RecipeTagThrough, Recipe_links]
 
 
-def start_recipe_extract_db(logger, task, reset=False):
+def start_recipe_extract_db(path, logger, task, reset=False):
     """
     Start the recipe extract database.
 

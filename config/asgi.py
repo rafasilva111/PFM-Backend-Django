@@ -11,7 +11,7 @@ import os
 from django.core.asgi import get_asgi_application
 from channels.routing import ProtocolTypeRouter, URLRouter
 from channels.auth import AuthMiddlewareStack
-from .websocket.routing import websocket_urlpatterns
+from config.websocket.routing import websocket_urlpatterns
 from django.conf import settings
 
 import sys

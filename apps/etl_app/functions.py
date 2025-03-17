@@ -1,4 +1,3 @@
-
 import logging
 from os import makedirs,path,rename,listdir, remove
 from celery import shared_task
@@ -18,83 +17,40 @@ import requests
 from firebase_admin import credentials, initialize_app, storage
 from peewee import SqliteDatabase
 
-from apps.etl_app.constants import ETL_EXTRACT_LOG_DIR, ETL_TRANSFORM_LOG_DIR,ETL_LOAD_LOG_DIR,ETL_FULL_PROCESS_LOG_DIR,JOBS_LOG_DIR
-from apps.common.constants import FIREBASE_STORAGE_BASE_BUCKET
+
 
 
 """ Main Datbase """
 
 
-
-
-
-def start_firebase():
-    cred = credentials.Certificate("keys/pfm-firebase-sdk.json")
-    initialize_app(cred, {
-        'storageBucket': FIREBASE_STORAGE_BASE_BUCKET
-    })
-
-
-def close_firebase():
-    firebase_admin.delete_app(firebase_admin.get_app())
-
-
-def send_image_to_firebase(image_destination, image_source):
-    # Add your own directory path and file name
-    blob = storage.bucket().blob(image_destination)
-
-    # Check if the file exists
-    if not blob.exists():
-        # Open the file in read mode
-        with open(image_source, 'rb') as my_file:
-            blob.upload_from_file(my_file)
-
-
-
-def generate_image_name():
-    # Generate a unique image name using a timestamp and random component
-    timestamp = int(time.time())
-    random_suffix = str(uuid.uuid4().hex[:6])  # Generate a 6-character random string
-    image_name = f"image_{timestamp}_{random_suffix}.jpg"
-    return image_name
-
     
     
 def delete_task_logs(task):
+    
     if task.log_path:
         directory_path = path.dirname(task.log_path)
         
         if path.exists(directory_path):
             shutil.rmtree(directory_path)
 
-def delete_task_database(task):
-
-    from apps.etl_app.models import TaskType
-
-    try:
-        if task.type == TaskType.FULL_PROCESS:
-            if task.extract_sql_file:
-                remove(task.extract_sql_file)
-
-            if task.transform_sql_file:
-                remove(task.transform_sql_file)
-        else:
-            if task.sql_file:
-                remove(task.sql_file)
-    except FileNotFoundError:
-        pass
     
     
     
 def configure_logging(log_folder):
-    
-    # Create the log folder
-    makedirs(log_folder , exist_ok=True)
+    # Create the log folder if it doesn't exist
+    makedirs(log_folder, exist_ok=True)
     
     # Define log filenames with the creation date
-    date = timezone.now().strftime("%d_%m_%Y__%H_%M")
+    date = timezone.now().strftime("%d_%m_%Y")
     info_log_filename = f'{log_folder}/info__{date}.log'
     error_log_filename = f'{log_folder}/errors__{date}.log'
+    
+    # Get the logger instance
+    logger = logging.getLogger(__name__)
+    
+    # Clear existing handlers to prevent duplication
+    if logger.hasHandlers():
+        logger.handlers.clear()
     
     # Create different handlers for different log levels
     info_handler = logging.FileHandler(info_log_filename)
@@ -108,9 +64,8 @@ def configure_logging(log_folder):
     info_handler.setFormatter(formatter)
     error_handler.setFormatter(formatter)
 
-    # Configure the logging
-    logger = logging.getLogger(__name__)
-    logger.setLevel(logging.DEBUG)  # Set the lowest level to capture all messages
+    # Set the logger level to capture all messages
+    logger.setLevel(logging.DEBUG)
 
     # Add handlers to the logger
     logger.addHandler(info_handler)
@@ -119,10 +74,8 @@ def configure_logging(log_folder):
     return logger, info_log_filename
 
 def configure_job_logging(job):
-    from .models import TaskType
     
-    
-    log_folder = JOBS_LOG_DIR / str( job.id)
+    log_folder = settings.JOBS_LOG_DIR / str( job.id)
     
     # Configure the logging
     logger, log_info_path = configure_logging(log_folder)
@@ -130,22 +83,64 @@ def configure_job_logging(job):
     return logger, log_info_path
 
 def configure_task_logging(task):
-    from .models import TaskType
     
     # Define the log folder
-    if task.type == TaskType.EXTRACT:
-        log_folder = ETL_EXTRACT_LOG_DIR
-    elif task.type == TaskType.TRANSFORM:
-        log_folder = ETL_TRANSFORM_LOG_DIR
-    elif task.type == TaskType.LOAD:
-        log_folder = ETL_LOAD_LOG_DIR 
-    elif task.type == TaskType.FULL_PROCESS:
-        log_folder = ETL_FULL_PROCESS_LOG_DIR 
+
     
-    log_folder = log_folder / str( task.id)
+    log_folder = settings.TASKS_LOG_DIR / str( task.id)
     
     # Configure the logging
     logger, log_info_path = configure_logging(log_folder)
 
     return logger, log_info_path
+
+
+def start_extract_db(logger, task, models, path , database_proxy ,reset=False):
+    """
+    Start the recipe extract database.
+
+    Args:
+        logger (logging.Logger): The logger object.
+        task (Task): The task object.
+        reset (bool, optional): Whether to reset the database. Defaults to False.
+
+    Returns:
+        SqliteDatabase: The new database instance.
+    """
     
+    # Log the start of the recipe extract database
+    logger.info("Starting Recipe Extract Database...")
+    
+    # Save the task with the new sql file name
+    task_sql_file = f"{path}/db_{task.id}.sql"
+
+    from apps.etl_app.models import Task
+    
+    if task.type == Task.TaskType.FULL_PROCESS:
+        task.extract_sql_file = task_sql_file
+    else:
+        task.sql_file = task_sql_file
+
+    task.save()
+
+    # Create a new database instance
+    extract_recipe_pingo_doce_db = SqliteDatabase(task_sql_file)    
+    
+    # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
+    database_proxy.initialize(extract_recipe_pingo_doce_db)
+    
+    # Connect to the database
+    extract_recipe_pingo_doce_db.connect()
+    
+    # If reset is True, drop all tables in the database
+    if reset:
+        logger.info("Reseting Database...")
+        extract_recipe_pingo_doce_db.drop_tables(models)
+    
+    # Create all tables in the database
+    extract_recipe_pingo_doce_db.create_tables(models)
+    
+    logger.info("")
+    # Return the new database instance
+    return extract_recipe_pingo_doce_db
+

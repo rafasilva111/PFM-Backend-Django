@@ -1,6 +1,8 @@
-from django.urls import re_path
-from .consumers import LogConsumer
+from config.websocket.consumers import TaskLogConsumer, JobLogConsumer
+
+from django.urls import path
 
 websocket_urlpatterns = [
-    re_path('ws/logs', LogConsumer.as_asgi()),
+    path('ws/task/<int:task_id>/', TaskLogConsumer.as_asgi()),  
+    path('ws/job/<int:job_id>/', JobLogConsumer.as_asgi()),
 ]

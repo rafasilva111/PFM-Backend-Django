@@ -17,20 +17,25 @@ main_db = "./recipe/transform/transform_recipes.db"
 """ Secondary Databases """
 
 
-
-""" Extract """
+""" 
+    Continente
+    
+"""
 
 """ Ingredients """
 
-
-
-""" Continente """
+""" Extract """
 
 extract_continente_ingredients_db = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/dbs"
-continente_images_folder = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/images"
-
+continente_ingredients_images_folder = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/images"
 
 """ Recipes """
+
+extract_continente_recipes_db = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/continente/dbs"
+continente_recipes_images_folder = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/continente/images"
+
+
+
 
 
 

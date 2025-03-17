@@ -1,4 +1,5 @@
 from apps.etl_app.recipe.extract.pingo_doce.main import __extract_pingo_doce
+from apps.etl_app.recipe.extract.continete.main import __extract_continente
 from apps.etl_app.models import ProcessType
 from apps.common.constants import COMPANY_CONTINENTE, COMPANY_PINGO_DOCE
 
@@ -13,5 +14,7 @@ def _extract_recipes(logger,task):
         
     if task.company.name == COMPANY_PINGO_DOCE:
         __extract_pingo_doce(logger,task)
+    elif task.company.name == COMPANY_CONTINENTE:
+        __extract_continente(logger,task)
     else:
         logger.Error(f"Company of task does not have a Ingredient's process implemented.")

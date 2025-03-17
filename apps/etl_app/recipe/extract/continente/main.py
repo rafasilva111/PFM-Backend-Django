@@ -1,15 +1,21 @@
 import json
 import logging
 import pickle
-
+from django.utils import timezone
 import requests
 import unidecode
 from bs4 import BeautifulSoup
 
+from apps.etl_app.functions import start_extract_db
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.functions import start_recipe_extract_db, persist_recipes_links, \
     separate_unit_title
-from apps.etl_app.recipe.extract.continente.models import Recipe, Recipe_links, NutritionInformation, Ingredient, Tag
+from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, Recipe_links, NutritionInformation, Ingredient, Tag
+from apps.etl_app.constants import extract_continente_recipes_db,continente_recipes_images_folder	
+
+recipeTagThrough = Recipe.tags.get_through_model()
+
+models_ = [Ingredient,Recipe_links, Tag, NutritionInformation, Ingredient, recipeTagThrough]
 
 CONTINENTE_IMAGES_FOLDER = "recipe/extract/continente/images"
 
@@ -191,7 +197,7 @@ def pull_continente_recipes(max_recipes=-1):
         print("All recipes were imported")
 
 
-def get_all_recipes_links(max_recipes=-1, continue_mode=False):
+def pull_all_recipes_links(max_recipes=-1, continue_mode=False):
     # todo check if all recipes links are on db
 
     """ Gets all recipes links from Continente"""
@@ -289,21 +295,49 @@ def get_all_recipes_links(max_recipes=-1, continue_mode=False):
     print("Done")
 
 
-def __extract_continente(max_recipes=-1, continue_mode=True, new_copy=False):
-    print(f"Extracting all recipes from continente")
-    print()
+def __extract_continente(logger, task, continue_mode):
+    
+    # Log the start of the extraction process
+    logger.info(f"Extracting all recipes from {task.company}...")
+    logger.info("")
+    
+    status = 1
+    
     # starts the db
-
-    start_recipe_extract_db(new_copy=new_copy)
-    print()
+    start_extract_db(
+        logger=logger,
+        task=task,
+        models=models_,
+        path=extract_continente_recipes_db,
+        database_proxy=database_proxy
+        )
 
     # get all recipes links
-    get_all_recipes_links(max_recipes=max_recipes, continue_mode=continue_mode)
-    print()
+    pull_links_warnings, pull_links_errors = pull_all_recipes_links(logger, continue_mode=continue_mode)
+
 
     # pulls recipes from above links
-    pull_continente_recipes(max_recipes=max_recipes)
-    print()
+    pull_warnings, pull_errors = pull_continente_recipes(logger)
+    
+    # Log the completion of the extraction process
+    logger.info("Pull links resume:")
+    logger.info(f"Warnings: {pull_links_warnings}")
+    logger.info(f"Errors: {pull_links_errors}")
+    logger.info("")
+    logger.info("Pull recipes resume:")
+    logger.info(f"Warnings: {pull_warnings}")
+    logger.info(f"Errors: {pull_errors}")
+    logger.info("")
+    logger.info("Total resume:")
+    logger.info(f"Warnings: {pull_links_warnings + pull_warnings}")
+    logger.info(f"Errors: {pull_links_errors + pull_errors}")
+    logger.info("")
 
-    print(f"Done")
-    print()
+    # Finish task
+    task.finished_at = timezone.now()
+    task.status = task.Status.FINISHED
+    task.save()
+    
+    # Log the completion of the extraction process
+    logger.info(f"Done...")
+    logger.info("")

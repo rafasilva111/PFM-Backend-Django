@@ -1,4 +1,3 @@
-import logging
 from django.utils import timezone
 import requests
 import unidecode
@@ -9,7 +8,7 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
 from bs4 import BeautifulSoup
 from apps.etl_app.functions import start_extract_db
-from apps.etl_app.constants import extract_continente_ingredients_db,continente_images_folder	
+from apps.etl_app.constants import extract_continente_ingredients_db,continente_ingredients_images_folder	
 from time import sleep	
 from selenium.webdriver.firefox.service import Service
 from apps.etl_app.ingredient.extract.continente.models import Tag, NutritionInformation, Ingredient, database_proxy, IngredientLink
@@ -83,16 +82,20 @@ aditional_information_name_map = {
 
 def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
     
+    # Initialize the warnings and errors counters
+    warnings = 0	
+    errors = 0
+    
     # load page using selenium as the page have javascript
     driver.get(ingredient_link)
-    warnings = 0
+    
     
     # check if page was redirected
     if driver.current_url != ingredient_link:
-        logger.warning(f"Redirected to: {driver.current_url}, skipping this ingredient...")
+        logger.error(f"Redirected to: {driver.current_url}, skipping this ingredient...")
         logger.info("")
-        warnings = warnings + 1
-        return
+        errors = errors + 1
+        return warnings, errors
 
     
     
@@ -106,8 +109,8 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
             # Clica no botão "Permitir todos" para aceitar os cookies
             cookie_popup_button.click()
         except Exception as e:
-            logger.warning(f"An error occurred: {e}")
-            warnings = warnings + 1
+            logger.error(f"An error occurred: {e}")
+            errors = errors + 1
 
     sleep(sleep_time)
     html = BeautifulSoup(driver.page_source, 'html.parser')
@@ -115,10 +118,10 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     # check if page was found
     page_not_found = html.find('p', class_='notfound-title')
     if page_not_found:	
-        logger.warning(f"Page not found: {ingredient_link}, skipping this ingredient...")
+        logger.error(f"Page not found: {ingredient_link}, skipping this ingredient...")
         logger.info("")
-        warnings = warnings + 1	
-        return
+        errors = errors + 1	
+        return warnings, errors
     
     # prepare to deal whit tabs ( check if base_tabs already loaded if not call
     # function again whit more sleep time)
@@ -182,7 +185,7 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
 
     file_storage = unidecode.unidecode(ingredient_db.title).replace(" ", "_")
     image_source_link = html.find('img', class_='ct-product-image')['src']
-    img_source = f'{continente_images_folder}/{file_storage}.png'
+    img_source = f'{continente_ingredients_images_folder}/{file_storage}.png'
     ingredient_db.img = img_source
     try:
         with open(img_source, "wb") as f:
@@ -272,15 +275,24 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
         
     logger.info("")
     ingredient_db.save()
+    
     return warnings, errors
 
 
-def pull_ingredients(logger, task):
+def pull_ingredients(logger):
+    
+    # Initialize the warnings and errors counters
+    warnings = 0
+    errors = 0
+    
     logger.info("")
     logger.info("Starting to pull Recipes")
+    
     total_recipes = Ingredient.select().count()
+    
     logger.info(f"Found {total_recipes} recipes on DB...")
     logger.info("")
+    
     service = Service("/app/bin/geckodriver")
     
     firefox_options = webdriver.FirefoxOptions()
@@ -302,12 +314,19 @@ def pull_ingredients(logger, task):
 
             logger.info(f"Extracting ingredient {ingredient_link.id} from {ingredient_link.link}")
 
-            extract_data_from_link(logger, driver, ingredient_link.link, first_time = counter == 1)
-
-    if counter == 0:
-        logger.info("All recipes were imported")
+            warnigs_, errors_ = extract_data_from_link(logger, driver, ingredient_link.link, first_time = counter == 1)
+            warnings += warnigs_
+            errors += errors_
+            
     
+    logger.info("All Ingredients pulled ...")
     logger.info("")
+    logger.info("Step finished with:")
+    logger.info(f"Warnings: {warnings}")
+    logger.info(f"Errors: {errors}")
+    logger.info("")
+    
+    return warnings, errors
 
 
 def pull_ingredients_links(logger, continue_mode=False):
@@ -324,6 +343,10 @@ def pull_ingredients_links(logger, continue_mode=False):
         Example:
             pull_ingredients_links(max_ingredients=50, continue_mode=True)
     """
+    
+    # Initialize the warnings and errors counters
+    warnings = 0
+    errors = 0
 
     """ Get all recipes links """
 
@@ -409,7 +432,8 @@ def pull_ingredients_links(logger, continue_mode=False):
             max_ingredients = int(
             html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
         except Exception:
-            logger.info("Unable to Extract this category...",log_level=logging.WARNING)
+            warnings += 1
+            logger.warning("Unable to Extract this category...")
             continue
         # todo max recipes
 
@@ -457,7 +481,13 @@ def pull_ingredients_links(logger, continue_mode=False):
             logger.info(f"Added {start} ingredients links from page {start // size}")
             
     logger.info("All links pulled ...")
-    return 0
+    logger.info("")
+    logger.info("Step finished with:")
+    logger.info(f"Warnings: {warnings}")
+    logger.info(f"Errors: {errors}")
+    logger.info("")
+    
+    return warnings, errors
 
 
 
@@ -468,9 +498,7 @@ def __extract_continente_ingredients(logger, task, continue_mode):
     # Log the start of the extraction process
     logger.info(f"Extracting all recipes from {task.company}...")
     logger.info("")
-    
-    status = 1
-    
+        
     # starts the db
     start_extract_db(
         logger=logger,
@@ -481,14 +509,27 @@ def __extract_continente_ingredients(logger, task, continue_mode):
         )
     
 
-    # pull all recipes links
-    #pull_ingredients_links(logger, continue_mode)
+    # pull all ingredients links
+    pull_links_warnings, pull_links_errors = pull_ingredients_links(logger, continue_mode)
     
 
-    # pulls recipes from above links
-    pull_ingredients(logger, task)
+    # pulls ingredient from above links
+    pull_warnings, pull_errors = pull_ingredients(logger)
     
-
+    # Log the completion of the extraction process
+    logger.info("Pull links resume:")
+    logger.info(f"Warnings: {pull_links_warnings}")
+    logger.info(f"Errors: {pull_links_errors}")
+    logger.info("")
+    logger.info("Pull recipes resume:")
+    logger.info(f"Warnings: {pull_warnings}")
+    logger.info(f"Errors: {pull_errors}")
+    logger.info("")
+    logger.info("Total resume:")
+    logger.info(f"Warnings: {pull_links_warnings + pull_warnings}")
+    logger.info(f"Errors: {pull_links_errors + pull_errors}")
+    logger.info("")
+    
     # Finish task
     task.finished_at = timezone.now()
     task.status = task.Status.FINISHED

@@ -14,4 +14,3 @@ class ProcessType(models.TextChoices):
 
     INGREDIENTS = 'INGREDIENTS', 'Ingredients'
     RECIPES = 'RECIPES', 'Recipes'
-    INGREDIENTS_RECIPES = 'INGREDIENTS_RECIPES', 'Ingredients & Recipes'

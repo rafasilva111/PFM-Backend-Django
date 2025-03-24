@@ -154,13 +154,17 @@ class Ingredient(BaseModel):
     section = CharField(null=False, default="main")
     recipe = ForeignKeyField(Recipe, backref='ingredients',on_delete='CASCADE')
 
+class UsefulTool(BaseModel):
+    text = CharField(null=False)
+    recipe = ForeignKeyField(Recipe, backref='useful_tools',on_delete='CASCADE')
+
 
 class Tag(BaseModel):
     title = CharField(null=False, unique=True)
     recipe = ManyToManyField(Recipe, backref='tags')
 
 
-class Recipe_links(BaseModel):
+class RecipeLinks(BaseModel):
     link = CharField()
     page = CharField()
     base_search_link = CharField()

@@ -1,33 +1,38 @@
+"""
+Import necessary modules and libraries
+"""
 from django.utils import timezone
 import requests
 import unidecode
+from bs4 import BeautifulSoup
+from time import sleep	
 
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-from bs4 import BeautifulSoup
+from selenium.webdriver.firefox.service import Service
+
+"""
+Import custom functions and constants
+"""
 from apps.etl_app.functions import start_extract_db
 from apps.etl_app.constants import extract_continente_ingredients_db,continente_ingredients_images_folder	
-from time import sleep	
-from selenium.webdriver.firefox.service import Service
 from apps.etl_app.ingredient.extract.continente.models import Tag, NutritionInformation, Ingredient, database_proxy, IngredientLink
 
+"""
+Define the through model for Ingredient and Tag relationship
+"""
 IngredientTagThrough = Ingredient.tags.get_through_model()
 
+"""
+List of models to be used in the extraction process
+"""
 models_ = [Ingredient, Tag, NutritionInformation, Ingredient, IngredientTagThrough, IngredientLink]
 
-
 """
-        Notes:
-        
-    This scrapper should run more tham one time, extra tabs ( nutritional info, legal info, advises)
-    dont always load (their fault).
-
-
+Define constants for the scraping process
 """
-
-
 BASE_URL = "https://www.continente.pt"
 BASE_HEADERS = {
     "cookie": "realUserVerifier=Verified;",
@@ -80,17 +85,70 @@ aditional_information_name_map = {
 }
 
 
+"""
+        Notes:
+        
+    This scrapper should run more tham one time, extra tabs ( nutritional info, legal info, advises)
+    dont always load (their fault).
+
+
+"""
+
 def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
+    """
+    Extracts ingredient data from a given link using Selenium and BeautifulSoup.
+    This function navigates to the specified ingredient link, handles potential
+    popups (e.g., cookie consent), and extracts various details about the ingredient,
+    such as title, brand, size, price, description, image, characteristics, nutritional
+    information, and legal information. The extracted data is saved into an `Ingredient`
+    model instance.
+
+    The function performs the following tasks:
+        1. Navigates to the ingredient link using Selenium.
+        2. Handles cookie consent popups if present.
+        3. Checks for page redirection or "page not found" errors.
+        4. Extracts general ingredient information (e.g., title, brand, size, price).
+        5. Downloads and saves the ingredient image locally.
+        6. Extracts characteristics and additional information from relevant tabs.
+        7. Extracts nutritional information if available.
+        8. Extracts legal information if available.
+        9. Saves the extracted data into the `Ingredient` model.
+        10. Logs warnings and errors for missing or malformed data.
+
+    Args:
+        logger (logging.Logger): Logger instance for logging warnings, errors, and info.
+        driver (selenium.webdriver): Selenium WebDriver instance for navigating the webpage.
+        ingredient_link (str): URL of the ingredient page to extract data from.
+        sleep_time (int, optional): Time in seconds to wait for the page to load. Defaults to DEFAULT_SLEEP_TIME.
+        first_time (bool, optional): Indicates if this is the first attempt to extract data. Defaults to True.
+
+    Returns:
+        tuple: A tuple containing:
+            - warnings (int): The number of warnings encountered during extraction.
+            - errors (int): The number of errors encountered during extraction.
+
+    Raises:
+        Exception: If any unexpected error occurs during the extraction process.
+
+    Notes:
+        - The function handles redirections and retries with increased sleep time if necessary.
+        - If the page contains a cookie consent popup, it attempts to accept all cookies.
+        - Extracted data includes general information, characteristics, nutritional information,
+          and legal information, if available.
+        - Images are downloaded and saved locally using the ingredient title as the filename.
+        - Logs warnings and errors for missing or malformed data.
+    """
     
-    # Initialize the warnings and errors counters
+    
+    " Initialize the warnings and errors counters "
     warnings = 0	
     errors = 0
     
-    # load page using selenium as the page have javascript
+    " Load page using selenium as the page have javascript "
     driver.get(ingredient_link)
     
     
-    # check if page was redirected
+    " Check if page was redirected "
     if driver.current_url != ingredient_link:
         logger.error(f"Redirected to: {driver.current_url}, skipping this ingredient...")
         logger.info("")
@@ -115,7 +173,7 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     sleep(sleep_time)
     html = BeautifulSoup(driver.page_source, 'html.parser')
 
-    # check if page was found
+    " Check if page was found "
     page_not_found = html.find('p', class_='notfound-title')
     if page_not_found:	
         logger.error(f"Page not found: {ingredient_link}, skipping this ingredient...")
@@ -279,9 +337,34 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     return warnings, errors
 
 
-def pull_ingredients(logger):
+def pull_ingredients(logger, task):
+    """
+    Extracts ingredient data from a list of links and updates task statistics.
+    This function retrieves ingredient links from the database, navigates to each link using a 
+    headless Firefox browser, extracts ingredient data, and updates the task statistics with 
+    the number of items processed, warnings, and errors encountered.
+    Args:
+        logger (logging.Logger): Logger instance for logging information, warnings, and errors.
+        task (Task): Task object used to track the progress and statistics of the extraction process.
+    Workflow:
+        1. Logs the start of the ingredient extraction process.
+        2. Counts the total number of recipes in the database.
+        3. Configures and initializes a headless Firefox browser.
+        4. Iterates over ingredient links from the database that have not been processed.
+        5. Extracts data from each link and updates warnings and errors counters.
+        6. Updates the task statistics with the total items, warnings, and errors.
+        7. Logs the completion of the extraction process and provides a summary.
+    Notes:
+        - The function uses Selenium for web scraping with a headless Firefox browser.
+        - The `max_ingredients` variable can be used to limit the number of ingredients processed.
+        - The `extract_data_from_link` function is assumed to handle the actual data extraction.
+    Raises:
+        Any exceptions raised by Selenium or database operations should be handled appropriately 
+        outside this function.
+    """
     
-    # Initialize the warnings and errors counters
+    
+    " Initialize the warnings and errors counters "
     warnings = 0
     errors = 0
     
@@ -312,55 +395,71 @@ def pull_ingredients(logger):
             else:
                 counter += 1
 
-            logger.info(f"Extracting ingredient {ingredient_link.id} from {ingredient_link.link}")
+            logger.info(f"Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
 
             warnigs_, errors_ = extract_data_from_link(logger, driver, ingredient_link.link, first_time = counter == 1)
             warnings += warnigs_
             errors += errors_
             
     
-    logger.info("All Ingredients pulled ...")
-    logger.info("")
-    logger.info("Step finished with:")
-    logger.info(f"Warnings: {warnings}")
-    logger.info(f"Errors: {errors}")
-    logger.info("")
+    " Update Task Statistics"
+    task.items = Ingredient.select().count()
+    task.items_warnings = warnings
+    task.items_errors = errors
+    task.save()
     
-    return warnings, errors
+    " Log the completion of the extraction process "
+    logger.info("All Recipes pulled ...")
+    logger.info("")
+    logger.info("Pull Recipes summary:")
+    logger.info(f"{task.print_items_summary()}")
+    logger.info("")
 
 
-def pull_ingredients_links(logger, continue_mode=False):
+def pull_ingredients_links(logger, task, continue_mode=False):
     """
-        Pulls links for ingredients from a data source.
-
-        Args:
-            max_ingredients (int): Maximum number of ingredients to retrieve. Set to -1 for no limit.
-            continue_mode (bool): If True, continues from the last pulled ingredient.
-
-        Returns:
-            None: The function does not return a value, but it updates the ingredient links dataset.
-
-        Example:
-            pull_ingredients_links(max_ingredients=50, continue_mode=True)
+    Extracts ingredient links from the Continente website and stores them in the database.
+    This function navigates through the Continente website to retrieve ingredient links 
+    categorized by their respective categories. It handles pagination, filters unnecessary 
+    categories, and adds missing ones. The extracted links are saved in the database, and 
+    the task statistics are updated accordingly.
+    Args:
+        logger (logging.Logger): Logger instance for logging information, warnings, and errors.
+        task (Task): Task object used to track the progress and statistics of the extraction process.
+        continue_mode (bool, optional): If True, resumes the extraction process from where it left off. 
+                                        Defaults to False.
+    Workflow:
+        1. Initializes warnings and errors counters.
+        2. Retrieves the main categories from the Continente homepage.
+        3. Filters out subcategories and unnecessary categories.
+        4. Adds any missing necessary categories.
+        5. Iterates through each category to extract ingredient links:
+            - Handles pagination to retrieve all links.
+            - Saves the links to the database.
+        6. Updates the task statistics with the number of links, warnings, and errors.
+        7. Logs the completion of the extraction process.
+    Notes:
+        - The function assumes the existence of a `BASE_URL` constant for the Continente website.
+        - The `IngredientLink` model is used to store the extracted links in the database.
+        - The function logs warnings for categories or pages that cannot be processed.
+    Raises:
+        Exception: If there are issues with parsing the HTML or extracting data.
     """
-    
-    # Initialize the warnings and errors counters
+
+
+    " Initialize the warnings and errors counters "
     warnings = 0
     errors = 0
 
-    """ Get all recipes links """
-
-    logger.info("Starting to pull Recipes Links")
+    " Gets all Ingredients's Links from Continente "
+    logger.info("Starting to pull Ingredient's Links...")
     logger.info("")
 
-    """ Get Main Search all Pages """
-
+    " Get Main Category's Pages "
     logger.info("Finding Categories...")
-
     base_response = requests.get(BASE_URL)
     html = BeautifulSoup(base_response.content, 'html.parser')
     homepage = html.find('div', class_='container-dropdown-first-column')
-    # Get all categories
     categories = {}
 
     for item in homepage.find_all('li', class_="dropdown-item dropdown"):
@@ -371,16 +470,15 @@ def pull_ingredients_links(logger, continue_mode=False):
 
         category_text = item.find('div', class_='category-info').text.strip()
         url = url['href']
-
+        
         categories.update({category_text: url})
 
-    # Retirar subcategorias
-
+    " Remove Subcategories "
     for key, value in categories.copy().items():
         if value.count('/') != 4:
             categories.pop(key)
 
-    # Remove unneccessary categories
+    " Remove unneccessary categories "
     if "Destaques" in categories:
         categories.pop("Destaques")
 
@@ -408,7 +506,7 @@ def pull_ingredients_links(logger, continue_mode=False):
     if 'Casa, Mobiliário, Decoração' in categories:
         categories.pop('Casa, Mobiliário, Decoração')
 
-    # add neccessary categories
+    " Add neccessary categories "
     if "Frutas e Legumes" not in categories:
         categories["Frutas e Legumes"] = 'https://www.continente.pt/frutas-e-legumes/frutas/'
 
@@ -416,14 +514,13 @@ def pull_ingredients_links(logger, continue_mode=False):
     logger.info(f"Found {len(categories)} categories")
     logger.info("")
 
-    """ Get all ingredients links for each categorie """
-
+    """ Get all Ingredient's Links for each category """
     logger.info("Finding all ingredients links for each category...")
 
     for key, value in categories.items():
         
         logger.info("")
-        logger.info(f"Extracting all ingredients from catgory: {key}")
+        logger.info(f"Extracting Ingredient's Links from category: {key}")
         logger.info("")
 
         category_response = requests.get(value)
@@ -441,7 +538,6 @@ def pull_ingredients_links(logger, continue_mode=False):
             'data-url']
 
         " Prepare base url "
-
         if continue_mode:
             start = IngredientLink.select().where(IngredientLink.category == key).count()
         else:
@@ -466,6 +562,7 @@ def pull_ingredients_links(logger, continue_mode=False):
             
             if not ingredients_link:
                 logger.warning(f"No more ingredients found on link {base_data_url}")
+                warnings += 1
             
             for ingredient_link in ingredients_link:
 
@@ -480,26 +577,30 @@ def pull_ingredients_links(logger, continue_mode=False):
             start += size
             logger.info(f"Added {start} ingredients links from page {start // size}")
             
-    logger.info("All links pulled ...")
+    " Update Task Statistics"
+    task.links = IngredientLink.select().count()
+    task.links_warnings = warnings
+    task.links_errors = errors
+    task.save()
+    
+    " Log the completion of the extraction process "
+    logger.info("All Ingredient's Links pulled ...")
     logger.info("")
-    logger.info("Step finished with:")
-    logger.info(f"Warnings: {warnings}")
-    logger.info(f"Errors: {errors}")
+    logger.info("Pull Ingredient's Links summary:")
+    logger.info(f"{task.print_links_summary()}")
     logger.info("")
     
-    return warnings, errors
 
 
 
 
 def __extract_continente_ingredients(logger, task, continue_mode):
-    
-    
-    # Log the start of the extraction process
+       
+    " Log the start of the extraction process "
     logger.info(f"Extracting all recipes from {task.company}...")
     logger.info("")
         
-    # starts the db
+    " Starts the db "
     start_extract_db(
         logger=logger,
         task=task,
@@ -509,33 +610,39 @@ def __extract_continente_ingredients(logger, task, continue_mode):
         )
     
 
-    # pull all ingredients links
-    pull_links_warnings, pull_links_errors = pull_ingredients_links(logger, continue_mode)
+    " Pull all ingredients links "
+    pull_ingredients_links(logger, task, continue_mode)
     
 
-    # pulls ingredient from above links
-    pull_warnings, pull_errors = pull_ingredients(logger)
+    " Pulls ingredient from above links "
+    pull_ingredients(logger, task)
     
-    # Log the completion of the extraction process
-    logger.info("Pull links resume:")
-    logger.info(f"Warnings: {pull_links_warnings}")
-    logger.info(f"Errors: {pull_links_errors}")
-    logger.info("")
-    logger.info("Pull recipes resume:")
-    logger.info(f"Warnings: {pull_warnings}")
-    logger.info(f"Errors: {pull_errors}")
-    logger.info("")
-    logger.info("Total resume:")
-    logger.info(f"Warnings: {pull_links_warnings + pull_warnings}")
-    logger.info(f"Errors: {pull_links_errors + pull_errors}")
-    logger.info("")
-    
-    # Finish task
-    task.finished_at = timezone.now()
-    task.status = task.Status.FINISHED
+    " Calculate total summary "
+    task.warnings = task.links_warnings + task.items_warnings
+    task.errors = task.links_errors + task.items_errors
     task.save()
     
-    # Log the completion of the extraction process
+    
+    " Log the completion of the extraction process "
+    logger.info("Pull links summary:")
+    logger.info(f"{task.print_links_summary()}")
+    logger.info("")
+    
+    logger.info("Pull recipes summary:")
+    logger.info(f"{task.print_items_summary()}")
+    logger.info("")
+    
+    logger.info("")
+    logger.info("Total summary:")
+    logger.info(f"{task.print_total_summary()}")
+    logger.info("")
+    
+    
+    " Finish task "
+    task.finish(kill_celery_task=False)
+    
+    
+    " Log the completion of the extraction process "
     logger.info(f"Done...")
     logger.info("")
     

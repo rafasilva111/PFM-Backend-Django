@@ -63,7 +63,7 @@
                 <div class="row pb-3">
                     <div class="col-md-2">
                         <h6>Type:</h6>
-                        <p class="badge bg-label-primary me-1">{{ task.type }}</p>
+                        <p class="badge bg-label-primary me-1">{{ task.get_type_process_display }}</p>
                     </div>
                     <div class="col-md-2">
                         <h6>Company:</h6>
@@ -111,6 +111,16 @@
     </div>
     <!--/ Vertical Scrollbar -->
 
+    {% if messages %}
+    <div class="col-12">
+        <div class="alert alert-danger">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Vertical & Horizontal Scrollbars -->
     <div class="col-12">
         <div class="card overflow-hidden" style="height: 500px;">
@@ -119,6 +129,7 @@
             <div class="container-fluid d-flex align-items-center justify-content-between">
                 <h5 class="card-header">Log</h5>
                 <div>
+                    <a href="{% url 'task_db_download' task.id %}" class="btn btn-success" role="button">Download DB</a>
                     <a href="{% url 'task_log_download' task.id %}" class="btn btn-success" role="button">Download Log</a>
                 </div>
             </div>

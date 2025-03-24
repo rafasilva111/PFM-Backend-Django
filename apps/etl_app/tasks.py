@@ -192,14 +192,8 @@ def _launch_task(task_id, continue_mode=True):
             match task.process:
                 case ProcessType.INGREDIENTS:
                     _extract_ingredients(logger,task, continue_mode)
-                    pass
                 case ProcessType.RECIPES:
-                    _extract_recipes(logger,task)
-                    logger.info('Yet to be done')
-                    pass
-                case ProcessType.INGREDIENTS_RECIPES:
-                    logger.info('Yet to be done')
-                    pass
+                    _extract_recipes(logger, task, continue_mode)
                 
         case  Task.TaskType.TRANSFORM:
             
@@ -213,9 +207,6 @@ def _launch_task(task_id, continue_mode=True):
                     #__transform_recipes(logger,task)
                     logger.info('Yet to be done')
                     pass
-                case ProcessType.INGREDIENTS_RECIPES:
-                    logger.info('Yet to be done')
-                    pass
     
         case Task.TaskType.LOAD:
             
@@ -225,9 +216,6 @@ def _launch_task(task_id, continue_mode=True):
                     logger.info('Yet to be done')
                     pass
                 case ProcessType.RECIPES:
-                    logger.info('Yet to be done')
-                    pass
-                case ProcessType.INGREDIENTS_RECIPES:
                     logger.info('Yet to be done')
                     pass
                 
@@ -243,10 +231,6 @@ def _launch_task(task_id, continue_mode=True):
                     #__load_recipes(logger,task)
                     logger.info('Yet to be done')
                     
-                    pass
-                case ProcessType.INGREDIENTS_RECIPES:
-                    logger.info('Full Processing Ingredients and Recipes')
-                    logger.info('Yet to be done')
                     pass
                                 
 
@@ -277,7 +261,7 @@ def test_task(logger, task, max_count=10000, continue_mode=True):
     
     trigger_failure = False
     
-    if max_count < -1:
+    if max_count == -1:
         trigger_failure = True
 
     elif max_count < -1:

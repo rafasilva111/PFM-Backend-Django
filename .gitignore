@@ -180,4 +180,6 @@ cython_debug/
 
 *.sql
 
-apps/etl_app/ingredient/extract/continente/images/
+apps/etl_app/recipe/extract/continente/images/*.png
+
+apps/etl_app/ingredient/extract/continente/images/*.png

@@ -29,11 +29,6 @@ def start_recipe_extract_db(path, logger, task, reset=False):
     return start_extract_db(path, logger, task, reset, models_)
 
 
-def persist_recipes_links(link, page, base_search_link):
-    if link != "https://feed.continente.pt":
-        data_point = Recipe_links(link=link, page=page, base_search_link=base_search_link)
-        data_point.save()
-
 # Regular expression pattern for separating quantity, unit, and ingredient
 pattern = re.compile(r'(\d+)\s*(c\. [a-zA-Z]+|c\. sopa|c\. chá|ml|g)?\s*(.*)')
 

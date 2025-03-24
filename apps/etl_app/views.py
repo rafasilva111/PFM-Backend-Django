@@ -13,7 +13,6 @@ from web_project import TemplateLayout
 #   Django
 #
 
-
 from django.shortcuts import render, redirect, get_object_or_404
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required
@@ -25,6 +24,7 @@ from django.contrib.auth.mixins import PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied
 from django.utils.safestring import mark_safe
 from django.http import HttpResponse
+from django.contrib import messages
 
 ##
 #   Api Swagger
@@ -1116,12 +1116,36 @@ def task_resume(request, id):
 def download_log(request, id):
     task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
 
+    if task.status in [task.Status.RUNNING, task.Status.STARTING]:
+        messages.error(request, 'Task is still running. Please wait until it finishes.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
+
     if path.exists(task.log_path):
-        # Open the log file in binary mode
         with open(task.log_path, 'rb') as log_file:
             response = HttpResponse(log_file.read(), content_type='text/plain')
-            # Set the Content-Disposition header to indicate a file download
             response['Content-Disposition'] = f'attachment; filename="task_{id}_log.txt"'
             return response
     else:
-        return HttpResponse('Log file not found.', status=404)
+        messages.error(request, 'Log file not found.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+    
+    
+@login_required
+@require_GET
+def download_db(request, id):
+    task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
+    
+    if task.status == task.Status.RUNNING or task.status == task.Status.STARTING:
+        messages.error(request, 'Task is still running. Please wait until it finishes.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
+    
+    if path.exists(task.sql_file):
+        # Open the log file in binary mode
+        with open(task.sql_file, 'rb') as sql_file:
+            response = HttpResponse(sql_file.read(), content_type='text/plain')
+            # Set the Content-Disposition header to indicate a file download
+            response['Content-Disposition'] = f'attachment; filename="task_{id}_db.sql"'
+            return response
+    else:
+        messages.error(request, 'Log file not found.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))

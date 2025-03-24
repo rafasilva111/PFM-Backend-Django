@@ -1,38 +1,62 @@
+" Import necessary libraries and modules "
 import json
-import logging
 import pickle
-from django.utils import timezone
 import requests
 import unidecode
 from bs4 import BeautifulSoup
 
+" Import custom functions and constants "
 from apps.etl_app.functions import start_extract_db
 from apps.etl_app.recipe.extract.continente.constants import *
-from apps.etl_app.recipe.extract.continente.functions import start_recipe_extract_db, persist_recipes_links, \
-    separate_unit_title
-from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, Recipe_links, NutritionInformation, Ingredient, Tag
-from apps.etl_app.constants import extract_continente_recipes_db,continente_recipes_images_folder	
+from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
+from apps.etl_app.constants import extract_continente_recipes_db, continente_recipes_images_folder
 
+
+" Define the through model for Recipe and Tag relationship "
 recipeTagThrough = Recipe.tags.get_through_model()
 
-models_ = [Ingredient,Recipe_links, Tag, NutritionInformation, Ingredient, recipeTagThrough]
+" Define the list of models to be used in the extraction process "
+models_ = [Ingredient, Recipe, RecipeLinks, Tag, NutritionInformation, Ingredient, UsefulTool, recipeTagThrough]
 
-CONTINENTE_IMAGES_FOLDER = "recipe/extract/continente/images"
-
+" Define constants for the scraping process "
 BASE_URL = "https://feed.continente.pt"
+BASE_GRAPHQL_URL = "https://feed.continente.pt/umbraco/api/GraphQL/Post"
 BASE_HEADERS = {
     "cookie": "realUserVerifier=Verified;",
 }
 COMPANY_NAME = "continente"
+OFFSET = 24
+DEFAULT_SLEEP_TIME = 2
 
-
-def extract_data_from_link(recipe_link):
+def extract_data_from_link(logger, recipe_link):
+    """
+    Extracts recipe data from a given recipe link and saves it to the database.
+    
+    The function performs the following tasks:
+        - Extracts the HTML content of the recipe page.
+        - Parses and saves the recipe's title, company, time, difficulty, portions, description, and image.
+        - Extracts and saves preparation steps, nutritional information, useful tools, ingredients, and tags.
+        - Handles missing or dynamically loaded data gracefully, logging warnings and errors as needed.
+        
+    Args:
+        logger (logging.Logger): Logger instance for logging warnings and errors.
+        recipe_link (str): URL of the recipe to extract data from.
+        
+    Returns:
+        tuple: A tuple containing:
+            - warnings (int): Number of warnings encountered during extraction.
+            - errors (int): Number of errors encountered during extraction.
+    """
+    
+    
+    " Initialize variables "
+    warnings = 0
+    errors = 0
+    recipe_db = Recipe()
+    
+    " Extract html response from the recipe link "
     base_response = requests.get(recipe_link, headers=BASE_HEADERS)
     html = BeautifulSoup(base_response.content, 'html.parser')
-
-    """ General info """
-
-    recipe_db = Recipe()
 
     " Source Link "
     recipe_db.link = recipe_link
@@ -73,14 +97,15 @@ def extract_data_from_link(recipe_link):
     file_storage = unidecode.unidecode(recipe_db.title).replace(" ", "_")
     recipe_steps_raw = html.find('img', class_='image')
     
-    image_source_link = Recipe_links.get(Recipe_links.link == recipe_link).image_link
-    img_source = f'{CONTINENTE_IMAGES_FOLDER}/{file_storage}.png'
+    image_source_link = RecipeLinks.get(RecipeLinks.link == recipe_link).image_link
+    img_source = f'{continente_recipes_images_folder}/{file_storage}.png'
     recipe_db.img = img_source
     try:
         with open(img_source, "wb") as f:
             f.write(requests.get(image_source_link).content)
     except Exception as e:
-        print(e)
+        logger.error(f"Error extracting preparation steps: {e}")
+        errors += 1
 
     " Preparation "
 
@@ -103,8 +128,10 @@ def extract_data_from_link(recipe_link):
 
         recipe_db.preparation = pickle.dumps(preparation)
     except Exception as e:
-        print(e, logging.ERROR)
-
+        logger.error(f"Error extracting preparation steps: {e}")
+        errors += 1
+        
+    
     " Nutrition Information "
 
     nutritional_table_raw = html.find('div', class_='recipeNutricionalTable__table')
@@ -142,8 +169,21 @@ def extract_data_from_link(recipe_link):
         recipe_db.nutrition_information = nutrition_information.id
 
     else:
-        print("No nutritional information found", logging.WARNING)
+        logger.warning("No nutritional information found")
+        warnings += 1
     recipe_db.save()
+    
+    " Useful tools "
+    
+    useful_tools = html.find('ul', class_='textFormat__list')
+    
+    if useful_tools:
+        list_items = useful_tools.find_all('li')
+        for li_element in list_items:
+            useful_tool_text = li_element.text.strip()
+            useful_tool = UsefulTool(text=useful_tool_text)
+            useful_tool.recipe = recipe_db.id
+            useful_tool.save()
 
     " Ingredients "
 
@@ -173,137 +213,198 @@ def extract_data_from_link(recipe_link):
             tag.save()
             recipe_db.tags.add(tag)
 
+    logger.info("")
     recipe_db.save()
+    
+    return warnings, errors
 
 
-def pull_continente_recipes(max_recipes=-1):
-    print("Starting to pull Recipes")
-
+def pull_recipes(logger,task, max_recipes=-1):
+    """
+    Extracts recipe data from the Continente website and updates the task statistics.
+    This function iterates through recipe links stored in the database, extracts data
+    from each link, and updates the task statistics with the number of items processed,
+    warnings, and errors encountered during the extraction process.
+    Args:
+        logger (logging.Logger): Logger instance for logging information, warnings, and errors.
+        task (Task): Task object used to track the progress and statistics of the extraction process.
+        max_recipes (int, optional): Maximum number of recipes to extract. Defaults to -1, which means no limit.
+    Returns:
+        None
+    """
+    
+    
+    " Initialize the warnings and errors counters "
+    warnings = 0
+    errors = 0
+    
+    logger.info("")
+    logger.info("Starting to pull Recipes")
+    
     total_recipes = Recipe.select().count()
-    print(f"Found {total_recipes} recipes on DB...")
+    
+    logger.info(f"Found {total_recipes} recipes on DB...")
+    logger.info("")
+    
 
-    print("")
+    max_ingredients = -1
+
+
     counter = 0
-    for recipe_link in Recipe_links.select().where(Recipe_links.id > total_recipes):
-        if max_recipes != -1 and counter == max_recipes:
+    for ingredient_link in RecipeLinks.select().where(RecipeLinks.id > total_recipes):
+        if max_ingredients != -1 and counter == max_ingredients:
             break
         else:
             counter += 1
 
-        print(f"Extracting recipe {counter} from {recipe_link.link}")
-        extract_data_from_link(recipe_link.link)
+        logger.info(f"Extracting Recipe {ingredient_link.id} from {ingredient_link.link}")
 
-    if counter == 0:
-        print("All recipes were imported")
+        warnigs_, errors_ = extract_data_from_link(logger, ingredient_link.link)
+        warnings += warnigs_
+        errors += errors_
+    
+    " Update Task Statistics"
+    task.items = Recipe.select().count()
+    task.items_warnings = warnings
+    task.items_errors = errors
+    task.save()
+    
+    " Log the completion of the extraction process "
+    logger.info("All Recipes pulled ...")
+    logger.info("")
+    logger.info("Pull Recipes summary:")
+    logger.info(f"{task.print_items_summary()}")
+    logger.info("")
+    
 
+def pull_all_recipes_links(logger, task, continue_mode=False):
+    """
+    Extracts all recipe links from the Continente website using a GraphQL API.
+    This function retrieves recipe links in a paginated manner and stores them in the database.
+    It also updates the task statistics and logs the progress and summary of the extraction process.
+    Args:
+        logger (logging.Logger): Logger instance for logging information and progress.
+        task (Task): Task object to track the progress and statistics of the extraction process.
+        continue_mode (bool, optional): If True, resumes from the last processed page. Defaults to False.
+    Raises:
+        requests.exceptions.RequestException: If there is an issue with the HTTP request.
+        KeyError: If the expected keys are missing in the API response.
+    Notes:
+        - The function uses a GraphQL query to fetch recipe data.
+        - The `OFFSET` constant determines the number of recipes fetched per page.
+        - The `BASE_HEADERS` and `BASE_URL` constants are used for API requests and constructing recipe links.
+        - The function logs warnings and errors encountered during the process.
+    Workflow:
+        1. Initializes warnings and errors counters.
+        2. Logs the start of the extraction process.
+        3. Constructs the GraphQL query and sends paginated requests to the API.
+        4. Parses the response and saves recipe links to the database.
+        5. Updates task statistics and logs the summary of the extraction process.
+    """
+    
+    
+    " Initialize the warnings and errors "
+    warnings = 0
+    errors = 0
+    
 
-def pull_all_recipes_links(max_recipes=-1, continue_mode=False):
-    # todo check if all recipes links are on db
-
-    """ Gets all recipes links from Continente"""
-
-    print("Starting to get all recipes links...")
-    print()
+    " Gets all Recipe's Links from Continente "
+    logger.info("Starting to get all Recipe's Links...")
+    logger.info("")
 
     " Base data "
-
-    url = "https://feed.continente.pt/umbraco/api/GraphQL/Post"
-
     headers = BASE_HEADERS
     headers.update({
         "content-type": "application/json",
-    }
-    )
+    })
     page = 1
+    
 
     " Get data "
-
     if continue_mode:
-        page = Recipe_links.select().count() // 18 + 1
+        page = RecipeLinks.select().count() // OFFSET + 1
 
     while True:
 
-        print(f"Added {page * 18} recipe links from page {page}")
+        logger.info(f"Added {page * OFFSET} recipe links from page {page}")
 
         data = {
             "query": """
-            query genericRecipesBy(
-                $cost: String,
-                $difficulty: String,
-                $preparationTime: String,
-                $specialNeeds: String,
-                $geographicalOrigin: String,
-                $category: String,
-                $cookingType: String,
-                $sort: Int,
-                $take: Int,
-                $skip: Int,
-                $showOnlyYammiRecipes: String
-            ) {
-                genericRecipesBy(
-                    cost: $cost,
-                    difficulty: $difficulty,
-                    preparationTime: $preparationTime,
-                    specialNeeds: $specialNeeds,
-                    geographicalOrigin: $geographicalOrigin,
-                    category: $category,
-                    cookingType: $cookingType,
-                    sort: $sort,
-                    take: $take,
-                    skip: $skip,
-                    showOnlyYammiRecipes: $showOnlyYammiRecipes
-                ) {
-                    alias,
-                    id,
-                    authorOrChef { authorName, image },
-                    category,
-                    cookingType,
-                    pageVertical,
-                    geographicalOrigin,
-                    contentName,
-                    imageOrVideo,
-                    image,
-                    preparationTime,
-                    introduction,
-                    numberOfPortions,
-                    difficulty,
-                    pageUrl
-                }
-            }
+            query genericRecipesBy($showOnlyVideo: String, $preparationType: String, $category: String, $ratingAverage: String, $preparationTime: String, $difficulty: String, $cost: String, $cookingType: String, $authorName: String, $specialNeeds: String, $geographicalOrigin: String, $sort: Int, $take: Int, $skip: Int,
+                      ) {
+                          genericRecipesBy(
+                            showOnlyVideo: $showOnlyVideo, preparationType: $preparationType, category: $category, ratingAverage: $ratingAverage, preparationTime: $preparationTime, difficulty: $difficulty, cost: $cost, cookingType: $cookingType, authorName: $authorName, specialNeeds: $specialNeeds, geographicalOrigin: $geographicalOrigin, sort: $sort, take: $take, skip: $skip,
+
+                            ) {
+                                totalCount,
+                                recipes{
+                                  alias,
+                                  id,
+                                  authorOrChef {authorName, image},
+                                  category,
+                                  cookingType,
+                                  pageVertical,
+                                  geographicalOrigin,
+                                  contentName,
+                                  imageOrVideo,
+                                  image,
+                                  preparationTime,
+                                  introduction,
+                                  numberOfPortions,
+                                  difficulty,
+                                  pageUrl 
+                                }
+                              }
+                        }
         """,
             "variables": {
-                "sort": 0,
-                "take": 18,
-                "skip": 18 * (page - 1),
+                "take": OFFSET,
+                "skip": OFFSET * (page - 1),
             }
         }
 
-        response = requests.post(url, json=data, headers=headers)
+        response = requests.post(BASE_GRAPHQL_URL, json=data, headers=headers)
 
         data_json = json.loads(response.content)
         # check if there are more recipes
-        if len(data_json['data']['genericRecipesBy']) == 0:
+        if len(data_json['data']['genericRecipesBy']['recipes']) == 0:
             break
 
-        for item in data_json['data']['genericRecipesBy']:
-            persist_recipes_links(BASE_URL + item['pageUrl'], page, url, item['image'])
+        for item in data_json['data']['genericRecipesBy']['recipes']:
 
-        if max_recipes != -1 and page * 18 > max_recipes:
-            break
+            data_point = RecipeLinks(
+                link = f"{BASE_URL}{item['pageUrl']}",
+                image_link = item['image'],
+                base_search_link = BASE_GRAPHQL_URL,
+                page = page,
+                category = item['category'],
+            )
+            data_point.save()
+
         page += 1
 
-    print("Done")
-
-
-def __extract_continente(logger, task, continue_mode):
+    " Update Task Statistics"
+    task.links = RecipeLinks.select().count()
+    task.links_warnings = warnings
+    task.links_errors = errors
+    task.save()
     
-    # Log the start of the extraction process
+    " Log the completion of the extraction process "
+    logger.info("All Recipe's Links pulled ...")
+    logger.info("")
+    logger.info("Pull Recipe's Links summary:")
+    logger.info(f"{task.print_links_summary()}")
+    logger.info("")
+    
+
+def __extract_continente_recipes(logger, task, continue_mode):
+    
+    " Log the start of the extraction process"
     logger.info(f"Extracting all recipes from {task.company}...")
     logger.info("")
     
-    status = 1
-    
-    # starts the db
+
+    " Starts the db "
     start_extract_db(
         logger=logger,
         task=task,
@@ -311,33 +412,41 @@ def __extract_continente(logger, task, continue_mode):
         path=extract_continente_recipes_db,
         database_proxy=database_proxy
         )
-
-    # get all recipes links
-    pull_links_warnings, pull_links_errors = pull_all_recipes_links(logger, continue_mode=continue_mode)
-
-
-    # pulls recipes from above links
-    pull_warnings, pull_errors = pull_continente_recipes(logger)
     
-    # Log the completion of the extraction process
-    logger.info("Pull links resume:")
-    logger.info(f"Warnings: {pull_links_warnings}")
-    logger.info(f"Errors: {pull_links_errors}")
-    logger.info("")
-    logger.info("Pull recipes resume:")
-    logger.info(f"Warnings: {pull_warnings}")
-    logger.info(f"Errors: {pull_errors}")
-    logger.info("")
-    logger.info("Total resume:")
-    logger.info(f"Warnings: {pull_links_warnings + pull_warnings}")
-    logger.info(f"Errors: {pull_links_errors + pull_errors}")
-    logger.info("")
+    
+    " Get all recipes links "
+    pull_all_recipes_links(logger, task, continue_mode=continue_mode)
+    
 
-    # Finish task
-    task.finished_at = timezone.now()
-    task.status = task.Status.FINISHED
+    " Pulls recipes from above links "
+    pull_recipes(logger, task)
+    
+    
+    " Calculate total summary "
+    task.warnings = task.links_warnings + task.items_warnings
+    task.errors = task.links_errors + task.items_errors
     task.save()
     
-    # Log the completion of the extraction process
+    
+    " Log the completion of the extraction process "
+    logger.info("Pull links summary:")
+    logger.info(f"{task.print_links_summary()}")
+    logger.info("")
+    
+    logger.info("Pull recipes summary:")
+    logger.info(f"{task.print_items_summary()}")
+    logger.info("")
+    
+    logger.info("")
+    logger.info("Total summary:")
+    logger.info(f"{task.print_total_summary()}")
+    logger.info("")
+    
+    
+    " Finish task "
+    task.finish(kill_celery_task=False)
+    
+    
+    " Log the completion of the extraction process "
     logger.info(f"Done...")
     logger.info("")

@@ -144,3 +144,4 @@ def start_extract_db(logger, task, models, path , database_proxy ,reset=False):
     # Return the new database instance
     return extract_recipe_pingo_doce_db
 
+

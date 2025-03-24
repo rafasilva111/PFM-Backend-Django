@@ -268,6 +268,19 @@ class Task(BaseTask):
     debug_mode = models.BooleanField(default=False)
     step = models.IntegerField(default=1)
     
+    # Statistics
+    
+    links = models.IntegerField(default=None, null=True, blank=True)
+    links_warnings = models.IntegerField(default=None, null=True, blank=True)
+    links_errors = models.IntegerField(default=None, null=True, blank=True)
+    
+    items = models.IntegerField(default=None, null=True, blank=True)
+    items_warnings = models.IntegerField(default=None, null=True, blank=True)
+    item_errors = models.IntegerField(default=None, null=True, blank=True)
+    
+    total_warnings = models.IntegerField(default=None, null=True, blank=True)
+    total_errors = models.IntegerField(default=None, null=True, blank=True)
+    
     class Status(models.TextChoices):
         STARTING = 'STARTING', 'Starting'
         PAUSED = 'PAUSED', 'Paused'
@@ -411,10 +424,11 @@ class Task(BaseTask):
             self.fail()
         
     
-    def finish(self):
+    def finish(self, kill_celery_task=True):
         self.finished_at = timezone.now()
         self.status = Task.Status.FINISHED
-        self.kill_current_celery_task()
+        if kill_celery_task:
+            self.kill_current_celery_task()
         self.save()
     
     def fail(self):
@@ -432,8 +446,18 @@ class Task(BaseTask):
         result.revoke(terminate=True)
         
     
+    def print_links_summary(self):
+        return f"Links: {self.links} - Warnings: {self.links_warnings} - Errors: {self.links_errors}"
     
-            
+    def print_items_summary(self):
+        return f"Items: {self.items} - Warnings: {self.items_warnings} - Errors: {self.item_errors}"
+    
+    def print_total_summary(self):
+        return f"Warnings: {self.total_warnings} - Errors: {self.total_errors}"
+    
+    def get_type_process_display(self):
+        return f"{self.type} - {self.process}"
+    
 class CeleryTask(models.Model):
     """
     Celery task ID model.

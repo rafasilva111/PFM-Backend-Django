@@ -4,7 +4,7 @@ from apps.etl_app.ingredient.extract.continente.main import __extract_continente
 from apps.etl_app.models import ProcessType
 
 
-def _extract_ingredients(logger,task, continue_mode):
+def _extract_ingredients(logger, task, continue_mode):
     """
             Extract ingredients
             :param task: task object

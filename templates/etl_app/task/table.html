@@ -33,6 +33,10 @@
         {{ filter.form.type}}
       </div>
       <div class="col-md-2 pe-md-1">
+        <label class="form-label">Process: </label>
+        {{ filter.form.process}}
+      </div>
+      <div class="col-md-2 pe-md-1">
         <label class="form-label">Status: </label>
         {{ filter.form.status }}
       </div>
@@ -44,7 +48,7 @@
         <label class="form-label">Finished At: </label>
         {{ filter.form.finished_at }}
       </div>
-      <div class="col-md-4 text-end">
+      <div class="col-md-2 text-end">
         <button type="submit" class="btn btn-primary">Filter</button>
       </div>
     </div>
@@ -70,7 +74,7 @@
         <tr >
           <td>{{ task.id }}</td>
           <td>{{ task.company.name }}</td>
-          <td>{{ task.get_type_display }}</td>
+          <td>{{ task.get_type_process_display }}</td>
           <td><span class="badge 
             {% if task.status == 'STARTING' %}
                 bg-label-primary

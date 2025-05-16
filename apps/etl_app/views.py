@@ -747,7 +747,7 @@ def job_force_start(request, id):
 
     instance.force_start()   
     
-    return redirect(reverse("job_detail", args=[instance.id]))
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 @login_required
@@ -1185,7 +1185,7 @@ def task_delete(request, id):
 
     instance = get_object_or_404(Task, id=id)
     instance.delete()
-    return redirect("tasks")
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 @login_required

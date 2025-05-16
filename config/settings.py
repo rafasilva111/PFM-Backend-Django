@@ -53,7 +53,7 @@ elif ENVIRONMENT == "staging":
     
 else:
     DEBUG = False
-    ALLOWED_HOSTS = [os.environ.get("ALLOWED_HOSTS")]
+    ALLOWED_HOSTS = [os.environ.get("ALLOWED_HOST"), os.environ.get("ALLOWED_URL")]
 
 
 

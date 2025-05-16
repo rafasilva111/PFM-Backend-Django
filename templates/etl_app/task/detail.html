@@ -270,7 +270,7 @@
     const statusElement = document.getElementById('status');
 
     // Initialize WebSocket
-    const socket = new WebSocket("ws://127.0.0.1:8000/ws/task/{{ task.id }}/");
+    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/task/{{ task.id }}/");
 
     // Handle incoming messages
     socket.onmessage = function (event) {

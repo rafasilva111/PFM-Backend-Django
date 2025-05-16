@@ -79,7 +79,7 @@ class Command(BaseCommand):
                     'password': COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD,
                     'verified': True,
                     'birth_date': timezone.now(),
-                    'comany': continente_company,
+                    'company': continente_company,
                 }
             )
             

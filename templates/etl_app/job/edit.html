@@ -11,12 +11,53 @@
   <span class="text-muted fw-light">Job /</span> Edit Job 
 </h4>
 
+<!-- Error Messages Container -->
+{% if messages %}
+<div class="row justify-content-center">
+  <div class="col-8">
+      <div class="alert alert-danger">
+          {% for message in messages %}
+              <p>{{ message }}</p>
+          {% endfor %}
+      </div>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- Form Container -->
 <div class="row justify-content-center">
   <div class="col-md-8">
     <div class="card">
       <div class="card-body">
         <form method="post">
           {% csrf_token %}
+
+          <!-- Name field -->
+          {{ form.name.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.name }}
+            {% if form.name.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.name.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Company field -->
+          {{ form.company.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.company }}
+            {% if form.company.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.company.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
 
           <!-- Type field -->
           {{ form.type.label_tag }}
@@ -31,19 +72,51 @@
             {% endif %}
           </div>
 
-
-          <!-- Name field -->
-          {{ form.name.label }}
-          <div class="col-md-12 mt-2 mb-3">
-            {{ form.name }}
-            {% if form.name.errors %}
-            <div class="invalid-feedback d-block">
-              {% for error in form.name.errors %}
-              {{ error }}
-              {% endfor %}
+          <!-- Tasks Extraction field -->
+          <div id="parent-tasks-extract" class="mt-1 mb-5" style="display: none;">
+            {{ form.parent_task_extract.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.parent_task_extract }}
+              {% if form.parent_task_extract.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.parent_task_extract.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
             </div>
-            {% endif %}
           </div>
+
+          <!-- Tasks Transformation field -->
+          <div id="parent-tasks-transform" style="display: none;">
+            {{ form.parent_task_transform.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.parent_task_transform }}
+              {% if form.parent_task_transform.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.parent_task_transform.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Process field -->
+          <div id="parent-process" style="display: none;">
+            {{ form.process.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.process }}
+              {% if form.process.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.process.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+          
 
           <!-- Starting Condition field -->
           {{ form.starting_condition_type.label }}
@@ -268,21 +341,43 @@
 <script>
   $(document).ready(function () {
 
-
-    const companyField = document.querySelector('select[name="company"]'); // Update if not a select input
-    const typeField = document.querySelector('select[name="type"]'); // Update if not a select input
-    const startingConditionType = document.getElementById('id_starting_condition_type');  
-    const stoppingConditionType = document.getElementById('id_stopping_condition_type');
+    // Event listener for change in Type
+    $('#id_type').change(function() {
+      if ($(this).val() === 'EXTRACT'){
+        $('#parent-process').show()
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').hide()
+      } else if ($(this).val() === 'LOAD') {
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').show();
+        $('#parent-process').show()
+      } else if ($(this).val() === 'TRANSFORM') {
+        $('#parent-tasks-transform').hide()
+        $('#parent-tasks-extract').show();
+        $('#parent-process').show()
+      } else{
+        $('#parent-tasks-extract').hide()
+        $('#parent-tasks-transform').hide()
+        $('#parent-process').hide()
+      }
+    });
 
     // Event listener for change in starting_condition_type
     $('#id_starting_condition_type').change(function () {
-      console.log('change');
-
       var selectedType = $('#id_starting_condition_type').find(':selected').text().toLowerCase();
-      if (selectedType.includes('time condition')) {
-        $('#start-time-condition-form').show();
-      } else {
+      
+      if (selectedType.includes('task status condition')) {
+        console.log($('#start-task-status-condition-form'));
         $('#start-time-condition-form').hide();
+        $('#start-task-status-condition-form').show();
+      }
+      else if (selectedType.includes('time condition')) {
+        $('#start-time-condition-form').show();
+        $('#start-task-status-condition-form').hide();
+      }
+      else {
+        $('#start-time-condition-form').hide();
+        $('#start-task-status-condition-form').hide();
       }
     });
 
@@ -305,6 +400,7 @@
     // Trigger change event on page load if type is pre-selected
     $('#id_starting_condition_type').change();
     $('#id_stopping_condition_type').change();
+    $('#id_type').change();
   });
 </script>
 {% endblock %}

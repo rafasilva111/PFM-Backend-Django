@@ -1,0 +1,587 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Perfect Scrollbar - Extended UI{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Recipe / </span> Recipe {{instance.id}} Details
+</h4>
+<style>
+    .masonry-layout {
+      column-count: 3;
+      column-gap: 1rem;
+    }
+    
+    .masonry-item {
+      break-inside: avoid;
+      margin-bottom: 1rem;
+    }
+    </style>
+<div class="row">
+    <!-- Task Detail Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h4 class="card-header">Recipe Details</h4>
+                <div>
+                    <!-- Top Options -->
+                    {% if can_delete_recipe %}
+                    <a href="{% url 'recipe_delete' recipe.id %}" class="btn btn-danger py-1">
+                        Delete
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body recipe-details">
+                <div class="row pb-3">
+
+                    <!-- Title -->
+                    <div class="col-md-4">
+                        <h6>Title:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.title }}</p>
+                    </div>
+
+                    <!-- Verified -->
+                    <div class="col-md-4">
+                        <h6>Verified:</h6>
+                        <span class="badge 
+                        {% if instance.verified %}
+                            bg-label-success
+                        {% else %}
+                            bg-label-danger
+                        {% endif %}
+                        me-1">{{ instance.verified }}</span>
+                    </div>
+
+                </div>
+                
+                <div class="row pb-3">
+                    <!-- Description -->
+                    <div class="col-md-12">
+                        <h6>Description:</h6>
+                        <p >{{ instance.description }}</p>
+                    </div>
+                </div>
+
+                <div class="row pb-3">
+
+                    <!-- Portion -->
+                    <div class="col-md-2">
+                        <h6>Portion:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.portion_lower }} - {{ instance.portion_upper }} {{ recipe.portion_units }}</p>
+                    </div>
+
+                    <!-- Time -->
+                    <div class="col-md-2">
+                        <h6>Time:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.time }} {{ instance.time_units }}</p>
+                    </div>
+
+                    
+                </div>
+
+                <div class="row pb-3">
+
+                    <!-- Created By -->
+                    <div class="col-md-2">
+                        <h6>Created By:</h6>
+                        <a href="{% url 'user_detail' instance.created_by.id %}" class="badge bg-label-primary me-1">{{ instance.created_by.username }}</a>
+                    </div>
+
+                    <!-- Rating -->
+                    <div class="col-md-2">
+                        <h6>Rating:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.rating }}</p>
+                    </div>
+
+                    <!-- Likes -->
+                    <div class="col-md-2">
+                        <h6>Likes:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.likes }}</p>
+                    </div>
+
+                    <!-- Saves -->
+                    <div class="col-md-2">
+                        <h6>Saves:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.saves }}</p>
+                    </div>
+                </div>
+
+                <div class="row pb-3">
+
+                    <!-- Image -->
+                    {% if instance.image %}
+                    <div class="col-md-6">
+                        <h6>Image:</h6>
+                        <img src="{{ instance.image }}" alt="Recipe Image" class="img-fluid">
+                    </div>
+                    {% endif %}
+
+                    <!-- Video -->
+                    {% if instance.video %}
+                    <div class="col-md-6">
+                        <h6>Video:</h6>
+                        <video controls class="img-fluid">
+                            <source src="{{ instance.video }}" type="video/mp4">
+                            Your browser does not support the video tag.
+                        </video>
+                    </div>
+                    {% endif %}
+                </div>
+
+                <div class="row pb-3">
+
+                    <!-- Source Link -->
+                    {% if instance.source_link %}
+                    <div class="col-md-6">
+                        <h6>Source Link:</h6>
+                        <a href="{{ instance.source_link }}" target="_blank">{{ instance.source_link }}</a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Source Rating -->
+                    {% if instance.source_rating %}
+                    <div class="col-md-6">
+                        <h6>Source Rating:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.source_rating }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            
+        </div>
+    </div>
+
+    <!-- Recipe Details Cards -->
+    <div class="masonry-layout mb-4">
+
+        <!-- Nutrition Card -->
+        <div class="card masonry-item">
+            <div class="card overflow-hidden mb-4" style="height: auto;">
+                <div class="card-header">
+                    <h6>Nutrition:</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% if instance.nutrition_information %}
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Energy (kcal)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.energy_kcal }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Energy (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.energy_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Fat (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.fat_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Fat (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.fat_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Saturates (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.saturates_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Saturates (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.saturates_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Carbohydrates (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.carbohydrates_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Carbohydrates (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.carbohydrates_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Sugars (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.sugars_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Sugars (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.sugars_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Fiber (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.fiber_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Protein (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.protein_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Protein (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.protein_perc }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Salt (g)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.salt_g }}</span>
+                            </li>
+                            <li class="list-group-item d-flex justify-content-between align-items-center">
+                                Salt (%)
+                                <span class="badge bg-label-primary">{{ instance.nutrition_information.salt_perc }}</span>
+                            </li>
+                        {% else %}
+                            <li class="list-group-item">No nutrition table found.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Ingredients Card -->
+        <div class="card masonry-item">
+            <div class="card overflow-hidden mb-4" style="height: auto;">
+                <div class="card-header">
+                    <h6>Ingredients:</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group list-group-flush">
+                        {% if instance.ingredients.exists %}
+                            {% for ingredient_quantity in instance.ingredients.all %}
+                                <li class="list-group-item">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <div>
+                                            <h6 class="mb-3">
+                                                <span class="badge bg-label-primary me-1">
+                                                    {{ ingredient_quantity.ingredient.name }}
+                                                </span>
+                                                <span class="badge bg-label-secondary me-1">
+                                                    {{ ingredient_quantity.quantity_original }}
+                                                </span>
+                                            </h6>
+                                            <small class="text-muted">
+                                                {% if ingredient_quantity.extra_quantity and ingredient_quantity.extra_units %}
+                                                    + {{ ingredient_quantity.extra_quantity }} {{ ingredient_quantity.extra_units }}
+                                                {% endif %}
+                                            </small>
+                                        </div>
+                                        <div class="text-end">
+                                            <span class="badge bg-label-primary me-1 mb-3">
+                                                {% if ingredient_quantity.quantity_normalized %}
+                                                    {{ ingredient_quantity.quantity_normalized }}
+                                                {% endif %} {{ ingredient_quantity.units_normalized }}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item text-center text-muted">No ingredients found.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preparation Card -->
+        <div class="card masonry-item">
+            <div class="card overflow-hidden mb-4" style="height: auto;">
+                <div class="card-header">
+                    <h6>Preparation:</h6>
+                </div>
+                <div class="card-body">
+                    <ol class="list-group">
+                        {% if instance.preparation.exists %}
+                            {% for preparation in instance.preparation.all %}
+                                <li class="list-group-item">
+                                    <h6 class="d-flex justify-content-between">
+                                        <span>Step {{ preparation.step }}</span>
+                                        <span class="text-muted">({{ preparation.section }})</span>
+                                    </h6>
+
+                                    <p>{{ preparation.description }}</p>
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item">No preparation found.</li>
+                        {% endif %}
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Useful Tools Card -->
+        <div class="card masonry-item">
+            <div class="card overflow-hidden mb-4" style="height: auto;">
+                <div class="card-header">
+                    <h6>Useful Tools:</h6>
+                </div>
+                <div class="card-body">
+                    <ul class="list-group">
+                        {% if instance.tools.exists %}
+                            {% for tool in instance.tools.all %}
+                                <li class="list-group-item">
+                                    <span class="badge bg-label-primary me-1">{{ tool.name }}</span>
+                                    <small class="text-muted">{{ tool.description }}</small>
+                                </li>
+                            {% endfor %}
+                        {% else %}
+                            <li class="list-group-item text-center text-muted">No tools found.</li>
+                        {% endif %}
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Error Messages Container -->
+    {% if messages %}
+    <div class="col-12">
+        <div class="alert alert-danger">
+            {% for message in messages %}
+                <p>{{ message }}</p>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+
+    <!-- Audit Log Status Updates Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h4 class="card-header">Audit Log Status Updates</h4>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4">    
+                <div class="container-fluid d-flex justify-content-start align-items-center">
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Type: </label>
+                        {{ audit_log_filter.form.type}}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Accepted: </label>
+                        {{ audit_log_filter.form.accepted}}
+                    </div>
+                    <div class="col-md-2 text-end ms-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                        <th class="text-center">ID</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Description</th>
+                        <th class="text-center">Field</th>
+                        <th class="text-center">Accepted</th>
+                        <th class="text-center">Reviewed</th>
+                        <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for audit_log_instance in audit_log_page_obj %}
+                        <tr>
+                            <td class="text-center">{{ audit_log_instance.id }}</td>
+                            <td class="text-center">{{ audit_log_instance.type }}</td>
+                            <td class="text-center">{{ audit_log_instance.description }}</td>
+                            <td class="text-center">{{ audit_log_instance.field }}</td>
+                            <td class="text-center">
+                                <span class="badge 
+                                {% if audit_log_instance.accepted %}
+                                    bg-label-success
+                                {% else %}
+                                    bg-label-danger
+                                {% endif %}
+                                me-1">{{ audit_log_instance.accepted }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge 
+                                {% if audit_log_instance.reviewed %}
+                                    bg-label-success
+                                {% else %}
+                                    bg-label-danger
+                                {% endif %}
+                                me-1">{{ audit_log_instance.reviewed }}</span>
+                            </td>
+                            <td class="text-center">
+                                
+                                <div class="dropdown">
+                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                    <div class="dropdown-menu">
+                        
+                                        <!-- Details -->
+                                        {% if can_view_audit_log %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_detail' audit_log_instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                                        {% endif %}
+                                        
+                                        <!-- Accept -->
+                                        {% if can_accept_audit_log and not audit_log_instance.accepted %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_accept' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Accept </a>
+                                        {% endif %}
+
+                                        {% if can_accept_audit_log and audit_log_instance.accepted %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_unaccept' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Unaccept </a>
+                                        {% endif %}
+
+                                        <!-- Review -->
+                                        {% if can_accept_audit_log and not audit_log_instance.reviewed %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_review' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Review </a>
+                                        {% endif %}
+                                        
+                                        {% if can_accept_audit_log and audit_log_instance.reviewed %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_unreview' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Unreview </a>
+                                        {% endif %}
+                                        
+                                        <!-- Delete -->
+                                        {% if can_delete_audit_log %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_delete' audit_log_instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                                        {% endif %}
+                                    </div>
+                                    </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No status changes available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+
+    <!-- Reports Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h4 class="card-header">Audit Log Status Updates</h4>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4">    
+                <div class="container-fluid d-flex justify-content-start align-items-center">
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Type: </label>
+                        {{ audit_log_filter.form.type}}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Accepted: </label>
+                        {{ audit_log_filter.form.accepted}}
+                    </div>
+                    <div class="col-md-2 text-end ms-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                        <th class="text-center">ID</th>
+                        <th class="text-center">Type</th>
+                        <th class="text-center">Description</th>
+                        <th class="text-center">Field</th>
+                        <th class="text-center">Accepted</th>
+                        <th class="text-center">Reviewed</th>
+                        <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for audit_log_instance in audit_log_page_obj %}
+                        <tr>
+                            <td class="text-center">{{ audit_log_instance.id }}</td>
+                            <td class="text-center">{{ audit_log_instance.type }}</td>
+                            <td class="text-center">{{ audit_log_instance.description }}</td>
+                            <td class="text-center">{{ audit_log_instance.field }}</td>
+                            <td class="text-center">
+                                <span class="badge 
+                                {% if audit_log_instance.accepted %}
+                                    bg-label-success
+                                {% else %}
+                                    bg-label-danger
+                                {% endif %}
+                                me-1">{{ audit_log_instance.accepted }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge 
+                                {% if audit_log_instance.reviewed %}
+                                    bg-label-success
+                                {% else %}
+                                    bg-label-danger
+                                {% endif %}
+                                me-1">{{ audit_log_instance.reviewed }}</span>
+                            </td>
+                            <td class="text-center">
+                                
+                                <div class="dropdown">
+                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                                    <div class="dropdown-menu">
+                        
+                                        <!-- Details -->
+                                        {% if can_view_audit_log %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_detail' audit_log_instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                                        {% endif %}
+                                        
+                                        <!-- Accept -->
+                                        {% if can_accept_audit_log and not audit_log_instance.accepted %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_accept' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Accept </a>
+                                        {% endif %}
+
+                                        {% if can_accept_audit_log and audit_log_instance.accepted %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_unaccept' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Unaccept </a>
+                                        {% endif %}
+
+                                        <!-- Review -->
+                                        {% if can_accept_audit_log and not audit_log_instance.reviewed %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_review' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Review </a>
+                                        {% endif %}
+                                        
+                                        {% if can_accept_audit_log and audit_log_instance.reviewed %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_unreview' audit_log_instance.id %}"><i class="bx bx-edit me-1"></i> Unreview </a>
+                                        {% endif %}
+                                        
+                                        <!-- Delete -->
+                                        {% if can_delete_audit_log %}
+                                        <a class="dropdown-item" href="{% url 'audit_log_delete' audit_log_instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                                        {% endif %}
+                                    </div>
+                                    </div>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No status changes available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+    
+</div>
+{% endblock %}

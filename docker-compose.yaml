@@ -53,7 +53,7 @@ services:
     depends_on:
       - rabbitmq
       - postgresql
-    command: celery -A config.celery worker --loglevel=INFO
+    command: celery -A config.celery worker --loglevel=INFO --concurrency=4
     networks:
       - develop-net
     volumes:
@@ -64,7 +64,7 @@ services:
   flower:
     build: 
       context: .
-      dockerfile: Dockerfile  # Assuming Flower is part of your main Dockerfile setup
+      dockerfile: Dockerfile 
     container_name: flower
     depends_on:
       - rabbitmq
@@ -82,7 +82,7 @@ services:
   celery-beat:
     build: 
       context: .
-      dockerfile: Dockerfile  # Assuming Celery beat is part of your main Dockerfile setup
+      dockerfile: Dockerfile  
     container_name: celery-beat
     depends_on:
       - rabbitmq

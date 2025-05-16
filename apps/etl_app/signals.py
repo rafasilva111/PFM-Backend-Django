@@ -11,25 +11,8 @@ from django.utils import timezone
 from celery.signals import task_failure
 
 ## Models
-from apps.etl_app.models import Task, CeleryTask
+from apps.etl_app.models import Task
 from apps.etl_app.functions import configure_task_logging
-
-@receiver(post_save, sender=Task)
-def post_create_task_handler(sender, instance, created, **kwargs):
-    """
-    Signal handler triggered after a Task instance is saved.
-
-    - If the instance is newly created, it will automatically launch the task.
-
-    Args:
-        sender (Model): The model class that sent the signal (Task).
-        instance (Task): The instance of the model that was saved.
-        created (bool): A boolean indicating if a new instance was created.
-        kwargs (dict): Additional keyword arguments.
-    """
-    if created:
-        instance.launch()
-
 
 @receiver(post_delete, sender=Task)
 def post_delete_task_handler(sender, instance, **kwargs):
@@ -65,8 +48,7 @@ def task_failure_handler(sender=None, task_id=None, exception=None, args=None, k
     """
     print(f'Failure: {task_id}')
     if task_id:
-        celeryTask = CeleryTask.objects.get(celery_task_id=task_id)
-        task = celeryTask.task
+        task = Task.objects.get(celery_task_id=task_id)
         task.finished_at = timezone.now()
         task.status = Task.Status.FAILED
         task.save()
@@ -88,19 +70,6 @@ def task_failure_handler(sender=None, task_id=None, exception=None, args=None, k
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 
-# Your signal handler
-async def send_chat_message(task_id, message):
-    channel_layer = get_channel_layer()
-    group_name = f"teste"
-
-    # Send message to the WebSocket group
-    await channel_layer.group_send(
-        group_name,
-        {
-            'type': 'chat_message',
-            'message': message
-        }
-    )
 
 from celery.signals import task_success
 from asgiref.sync import async_to_sync
@@ -110,11 +79,11 @@ from channels.layers import get_channel_layer
 @task_success.connect
 def task_success_handler(sender, result, **kwargs):
     
-    #celery_task_id = sender.request.id  
-
+    #celery_task_id = sender.request.id
+    print(f'Success: {sender.request.id}')
     try:
-        task = CeleryTask.objects.get(celery_task_id=sender.request.id).task
-    except CeleryTask.DoesNotExist: # This might happen when Job is triggered
+        task = Task.objects.get(celery_task_id=sender.request.id)
+    except Task.DoesNotExist: # This might happen when Job is triggered
         return
 
     # Send the message to the appropriate WebSocket group (task-specific group)
@@ -124,9 +93,22 @@ def task_success_handler(sender, result, **kwargs):
             f"task_{task.id}",  # Room group name
             {
                 'type': 'celery_task_update',  # The name of the method in the consumer to call
-                'status': task.status,
-                'finished_at': task.finished_at.strftime('%d de %B de %Y às %H:%M')
+                'task': task.status,
             }
         )
     
+    " Trigger all the tasks that depend on this task "
+    dependent_task_awaiter_triggered = task.dependent_tasks_awaiter.all()
+    for dependent_task_awaiter in task.dependent_tasks_awaiter.all():
+        if dependent_task_awaiter.dependent_task.status == Task.Status.WAITING:
+            dependent_task_awaiter.dependent_task.launch()
+            dependent_task_awaiter_triggered.filter(dependent_task=dependent_task_awaiter.dependent_task).delete()
+            
+        elif dependent_task_awaiter.dependent_task.status == Task.Status.PAUSED:
+            dependent_task_awaiter.dependent_task.resume()
+            dependent_task_awaiter.delete()
+            dependent_task_awaiter_triggered.filter(dependent_task=dependent_task_awaiter.dependent_task).delete()
+        else:
+            print(f"Task {dependent_task_awaiter.dependent_task.id} is not in a state to be launched or resumed.")
+        
     

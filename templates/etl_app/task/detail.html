@@ -25,6 +25,17 @@
     <span class="text-muted fw-light">Task / </span> Task {{task.id}} Details
 </h4>
 
+<!-- Error Messages Container -->
+{% if messages %}
+<div class="col-12">
+    <div class="alert alert-danger">
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <!-- Task Detail Card -->
     <div class="col-md-12 col-sm-12">
@@ -32,22 +43,24 @@
             <div class="container-fluid d-flex align-items-center justify-content-between">
                 <h4 class="card-header">Task Details</h4>
                 <div>
-                    {% if can_cancel_task %}
+
+                    <!-- Top Options -->
+                    {% if can_cancel_task  and task.status == 'RUNNING' %}
                     <a href="{% url 'task_cancel' task.id %}" class="btn btn-warning py-1">
                         Cancel
                     </a>
                     {% endif %}
-                    {% if can_restart_task %}
+                    {% if can_restart_task and task.status != 'RUNNING' %}
                     <a href="{% url 'task_restart' task.id %}" class="btn btn-info py-1">
                         Restart
                     </a>
                     {% endif %}
-                    {% if can_pause_task %}
+                    {% if can_pause_task and task.status == 'RUNNING' %}
                     <a href="{% url 'task_pause' task.id %}" class="btn btn-secondary py-1">
                         Pause
                     </a>
                     {% endif %}
-                    {% if can_resume_task %}
+                    {% if can_resume_task and task.status == 'PAUSED' %}
                     <a href="{% url 'task_resume' task.id %}" class="btn btn-success py-1">
                         Resume
                     </a>
@@ -61,19 +74,25 @@
             </div>
             <div class="card-body task-details">
                 <div class="row pb-3">
+
+                    <!-- Type -->
                     <div class="col-md-2">
                         <h6>Type:</h6>
                         <p class="badge bg-label-primary me-1">{{ task.get_type_process_display }}</p>
                     </div>
+
+                    <!-- Company -->
                     <div class="col-md-2">
                         <h6>Company:</h6>
                         <p class="badge bg-label-primary me-1">{{ task.company }}</p>
                     </div>
-                    <div class="col-md-2">
+
+                    <!-- Status --> 
+                    <div class="col-md-1">
                         <h6>Status:</h6>
                         <span id="status" class="
                         badge 
-                        {% if task.status == 'STARTING' %}
+                        {% if task.status == 'WAITING' %}
                             bg-label-primary
                         {% elif task.status == 'RUNNING' %}
                             bg-label-info
@@ -88,57 +107,159 @@
                         {% endif %}
                         me-1">{{ task.get_status_display }}</span>
                     </div>
+
+                    <!-- Status --> 
+                    {% if task.step != 0 %}
+                    <div class="col-md-2">
+                        <h6>Step:</h6>
+                        <span id="status" class="badge bg-label-primary me-1">{{ task.step }}</span>
+                    </div>
+                    {% endif %}
+
+                    <!-- Status --> 
+                    {% if task.debug %}
+                    <div class="col-md-2">
+                        <h6>Debug mode:</h6>
+                        <span id="status" class="badge bg-label-info me-1">{{ task.debug }}</span>
+                    </div>
+                    {% endif %}
                 </div>
+
+                <!-- Task timings -->
                 <div class="row">
+
+                    <!-- Started at -->
                     <div class="col-md-3">
                         <h6>Started At:</h6>
                         <p class="badge bg-label-primary  me-1">{{ task.started_at }}</p>
                     </div>
+
+                    <!-- Finished at -->
+                    {% if task.finished_at %}
                     <div class="col-md-3">
                         <h6>Finished At:</h6>
                         <p id="finished-at" class="badge bg-label-primary me-1">{{ task.finished_at }}</p>
                     </div>
+                    {% endif %}
+
+                    <!-- Duration -->
+                    {% if task.duration %}
+                    <div class="col-md-3">
+                        <h6>Duration:</h6>
+                        <p class="badge bg-label-primary  me-1">{{ task.duration }}</p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <!-- Parent Task -->
+                <div class="row">
+                    <!-- Parent Task -->
+                    {% if task.parent_task %}
+                    <div class="col-md-3 pb-3">
+                        <h6>Parent Task:</h6>
+                        <a href="{% url 'task_detail' task.parent_task.id %}" class="badge bg-label-primary me-1">{{ task.parent_task }}</a>
+                    </div>
+                    {% endif %}
                 </div>
 
+                <!-- File Paths -->
                 <div class="row">
+
+                    <!-- Log Path -->
+                    <div class="col-md-4">
+                        <h6>Log Path:</h6>
+                        <p class="badge bg-label-primary  me-1">{{ task.log_path }}</p>
+                    </div>
+                    
+                    <!-- SQL File -->
                     <div class="col-md-3">
                         <h6>Log Path:</h6>
                         <p class="badge bg-label-primary  me-1">{{ task.log_path }}</p>
                     </div>
                 </div>
+                
+                <!-- Task Statistics -->
+                {% if task.status != "RUNNING" %}
+                <div>
+                    <h4 class="card-header">Task Statistics</h4>
+                    <div class="row pb-3">
+                        
+                        <!-- Links -->
+                        {% if task.type == "EXTRACT" %}
+                        <div class="col-md-3">
+                            <h6>Links:</h6>
+                            
+                            <p class="badge bg-label-primary me-1">{{ task.links }}</p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Items Expected  -->
+                        {% if task.type == "TRANSFORM" or task.type == "LOAD" %}
+                        <div class="col-md-3">
+                            <h6>Items Expected:</h6>
+                            <p class="badge bg-label-primary me-1">{{ task.items_expected }} </p>
+                        </div>
+                        {% endif %}
+
+                        <!-- Items Processed  -->
+                        <div class="col-md-3">
+                            <h6>Items Processed:</h6>
+                            <p class="badge bg-label-primary me-1">{{ task.items_processed }} </p>
+                        </div>
+
+                        
+                        
+                    </div>
+                    <div class="row pb-3">
+
+                        <!-- Total Errors -->
+                        <div class="col-md-3">
+                            <h6>Errors:</h6>
+                            <p class="badge bg-label-primary me-1">{{ task.errors }}</p>
+                        </div>
+
+                        <!-- Items Errors -->
+                        <div class="col-md-3">
+                            <h6>Warnings</h6>
+                            <p class="badge bg-label-primary me-1">{{ task.warnings }}</p>
+                        </div>
+
+
+                    </div>
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
-    <!--/ Vertical Scrollbar -->
+    
 
-    {% if messages %}
+    <!-- Log Container -->
     <div class="col-12">
-        <div class="alert alert-danger">
-            {% for message in messages %}
-                <p>{{ message }}</p>
-            {% endfor %}
-        </div>
-    </div>
-    {% endif %}
+        <div class="card overflow-hidden" style="height: 550px;">
 
-    <!-- Vertical & Horizontal Scrollbars -->
-    <div class="col-12">
-        <div class="card overflow-hidden" style="height: 500px;">
-                        <!-- Buttons for filtering log levels -->
-            
+            <!-- Container Header -->
             <div class="container-fluid d-flex align-items-center justify-content-between">
-                <h5 class="card-header">Log</h5>
+                <h4 class="card-header">Log</h4>
+                
+                <!-- Log Options -->  
+                {% if task.status != "RUNNING" %}
                 <div>
+                    {% if task.sql_file %}
                     <a href="{% url 'task_db_download' task.id %}" class="btn btn-success" role="button">Download DB</a>
+                    {% endif %}
+                    
                     <a href="{% url 'task_log_download' task.id %}" class="btn btn-success" role="button">Download Log</a>
                 </div>
+                {% endif %}
             </div>
+
+            <!-- Container Body -->
             <div class="card-body" id="both-scrollbars-example" style="margin-bottom: 20px;">
                 <div id="log-container" style="white-space: pre-wrap; max-height: 400px;">{{ log|safe }}</div>
             </div>
         </div>
     </div>
-    <!--/ Vertical & Horizontal Scrollbars -->
+
 </div>
 
 <script>
@@ -149,7 +270,7 @@
     const statusElement = document.getElementById('status');
 
     // Initialize WebSocket
-    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/task/{{ task.id }}/");
+    const socket = new WebSocket("ws://127.0.0.1:8000/ws/task/{{ task.id }}/");
 
     // Handle incoming messages
     socket.onmessage = function (event) {
@@ -208,31 +329,8 @@
 
         // Handle task updates
         else if (data.type === 'task_update') {
-            finishedAtElement.textContent = data.data.finished_at;
-            statusElement.textContent = data.data.status;
-            statusElement.className = 'badge me-1';
-
-            // Update status badge class
-            switch (data.data.status) {
-                case 'STARTING':
-                    statusElement.classList.add('bg-label-primary');
-                    break;
-                case 'RUNNING':
-                    statusElement.classList.add('bg-label-info');
-                    break;
-                case 'CANCELED':
-                    statusElement.classList.add('bg-label-warning');
-                    break;
-                case 'FAILED':
-                    statusElement.classList.add('bg-label-danger');
-                    break;
-                case 'FINISHED':
-                    statusElement.classList.add('bg-label-success');
-                    break;
-                default:
-                    statusElement.classList.add('bg-label-secondary');
-                    break;
-            }
+            // Refresh the task by reloading the page
+            location.reload();
         }
     };
 </script>

@@ -33,19 +33,12 @@ def start_recipe_extract_db(path, logger, task, reset=False):
     logger.info("Starting Recipe Extract Database...")
     
     # Save the task with the new sql file name
-    task_sql_file = f"{extract_recipe_pingo_doce}/db_{task.id}.sql"
-
-    from apps.etl_app.models import TaskType
-    
-    if task.type == TaskType.FULL_PROCESS:
-        task.extract_sql_file = task_sql_file
-    else:
-        task.sql_file = task_sql_file
+    task.sql_file = f"{extract_recipe_pingo_doce}/db_{task.id}.sql"
 
     task.save()
 
     # Create a new database instance
-    extract_recipe_pingo_doce_db = SqliteDatabase(task_sql_file)    
+    extract_recipe_pingo_doce_db = SqliteDatabase(task.sql_file)    
     
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     database_proxy.initialize(extract_recipe_pingo_doce_db)

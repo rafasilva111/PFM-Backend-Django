@@ -39,6 +39,7 @@ class Command(BaseCommand):
                     'img_source':"images/company/pingo_doce/profile_img.png",
                     'verified': True,
                     'birth_date': timezone.now(),
+                    'company': pingo_doce_company,
                 }
             )
             
@@ -78,6 +79,7 @@ class Command(BaseCommand):
                     'password': COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD,
                     'verified': True,
                     'birth_date': timezone.now(),
+                    'comany': continente_company,
                 }
             )
             

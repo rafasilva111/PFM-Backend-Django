@@ -197,14 +197,13 @@ class UserRegisterByInviteForm(UserCreationForm):
                 "class": "form-control"
             }
         ))
-       
     
     email = forms.CharField(
         label="Email:",
         widget=forms.EmailInput(
             attrs={
                 "class": "form-control",
-                 "readonly": "readonly"
+                "readonly": "readonly"
             }
         ))
     

@@ -172,7 +172,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     weight = models.FloatField(default=-1)
     is_admin = models.BooleanField(default=False)
     verified = models.BooleanField(default=False)
-
+    company = models.ForeignKey(Company, related_name='user', on_delete=models.CASCADE, null=True, blank=True)
     
     follows_c = models.IntegerField(default=0)
     followers_c = models.IntegerField(default=0)
@@ -215,9 +215,6 @@ class User(AbstractBaseUser, PermissionsMixin):
     )
     
 
-    company = models.ForeignKey(Company, related_name='user', on_delete=models.CASCADE, null=True, blank=True)
-
-   
     class UserType(models.TextChoices):
         COMPANY = "Company", "Company"
         NORMAL = "Normal", "Normal"

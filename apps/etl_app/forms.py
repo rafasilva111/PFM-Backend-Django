@@ -46,6 +46,13 @@ DAY_OF_MONTH_CHOICES = [('*', '*')] + [(str(i), str(i)) for i in range(1, 32)]
 MONTH_OF_YEAR_CHOICES = [('*', '*')] + [(str(i), str(i)) for i in range(1, 13)]
 
 
+###
+#
+#   Conditions
+#
+##
+
+
 class TimeConditionForm(forms.ModelForm):
     
     minute = forms.ChoiceField(
@@ -124,26 +131,20 @@ class TimeConditionForm(forms.ModelForm):
         )
         
         if starting_condition:
-            task= 'apps.etl_app.tasks._launch_job_task'
+            task= 'apps.etl_app.tasks._launch_job'
         else:
-            task= 'apps.etl_app.tasks._stop_job_task'
+            task= 'apps.etl_app.tasks._stop_job'
             
         
-        
-        instance.periodic_task, created = PeriodicTask.objects.get_or_create(
-                name=name,
-                defaults={
-                    'crontab': crontab,
-                    'task': task,
-                    'args': json.dumps([job_id]),
-                    'enabled': True,
-                }
-            )
-        
-                
-        if not created:
-            instance.periodic_task.crontab = crontab
-            instance.periodic_task.save()
+        instance.periodic_task, created = PeriodicTask.objects.update_or_create(
+            name=name,
+            task=task,
+            defaults={
+            'crontab': crontab,
+            'args': json.dumps([str(job_id)]),
+            'enabled': True,
+            }
+        )
 
         instance.save()
         
@@ -173,6 +174,15 @@ class ThresholdConditionForm(forms.ModelForm):
 
 
         return cleaned_data
+
+
+
+###
+#
+#   Tasks
+#
+##
+
 
 class TaskForm(forms.ModelForm):
     
@@ -204,10 +214,28 @@ class TaskForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean()
         
+        # Enforce Process required for EXTRACT, TRANSFORM, LOAD
         company = cleaned_data.get('company')
         if cleaned_data.get('type') in [Task.TaskType.EXTRACT, Task.TaskType.TRANSFORM, Task.TaskType.LOAD]:
             if cleaned_data.get('process') not in company.processes:
                 self.add_error('process', 'Process not found in company')
+        
+        # Enforce parent task or job required for TRANSFORM, LOAD
+        parent_task = None
+        if cleaned_data.get('type') == Task.TaskType.TRANSFORM:
+            parent_task = cleaned_data.get('parent_tasks_extract')
+            if not parent_task:
+                self.add_error('parent_tasks_extract', 'Please choose a Parent Task.')
+        
+        if cleaned_data.get('type') == Task.TaskType.LOAD:
+            parent_task = cleaned_data.get('parent_tasks_transform')
+            if not parent_task:
+                self.add_error('parent_tasks_transform', 'Please choose a Parent Task.')
+        
+        # Enforce parent task to be PAUSED or STOPPED
+        if parent_task and parent_task.status not in [Task.Status.PAUSED, Task.Status.STOPPED]:
+            self.add_error('parent_tasks_extract', 'Parent task must be PAUSED or STOPPED.')
+        
         
         return cleaned_data
     
@@ -216,8 +244,17 @@ class TaskForm(forms.ModelForm):
         if instance.type not in [Task.TaskType.EXTRACT, Task.TaskType.TRANSFORM, Task.TaskType.LOAD]:
             instance.process = None
         
+        if self.cleaned_data['parent_tasks_extract']:
+            instance.parent_task = self.cleaned_data['parent_tasks_extract']
+            
+        elif self.cleaned_data['parent_tasks_transform']:
+            instance.parent_task = self.cleaned_data['parent_tasks_transform']
+        
         instance.save()
+        " Launch the task "
+        instance.launch()
         return instance
+
 
 class TaskEditForm(forms.ModelForm):
     
@@ -257,7 +294,7 @@ class TaskEditForm(forms.ModelForm):
     def clean(self):
         cleaned_data = super().clean() 
 
-        if self.instance.status in [Task.Status.STARTING, Task.Status.RUNNING]:
+        if self.instance.status in [Task.Status.WAITING, Task.Status.RUNNING]:
             if self.instance.debug_mode != cleaned_data.get('debug_mode'):
                 self.add_error('debug_mode', "Cannot change debug_mode if current status is STARTING or RUNNING. Please change it to STOPPED first.")
             
@@ -278,7 +315,7 @@ class TaskEditForm(forms.ModelForm):
         instance = super(TaskEditForm, self).save(commit=False)
         
         # Check if the status is STARTING or RUNNING
-        if old_instance.status in [Task.Status.STARTING, Task.Status.RUNNING]:
+        if old_instance.status in [Task.Status.WAITING, Task.Status.RUNNING]:
             
             if old_instance.debug_mode != self.cleaned_data['debug_mode']:
                 self.add_error('debug_mode', "Cannot change debug_mode if status is STARTING or RUNNING.")
@@ -305,6 +342,13 @@ class TaskEditForm(forms.ModelForm):
         return instance
 
 
+###
+#
+#   Jobs
+#
+##
+
+
 class JobForm(forms.ModelForm):
     
     company = forms.ModelChoiceField(
@@ -315,7 +359,7 @@ class JobForm(forms.ModelForm):
     
     starting_condition_type = forms.ModelChoiceField(
         queryset=ContentType.objects.filter(
-            Q(app_label='etl_app', model='timecondition')
+            Q(app_label='etl_app', model='timecondition') | Q(app_label='etl_app', model='taskstatuscondition')
         ),
         required=False,
         label='Starting Condition Type',
@@ -339,34 +383,77 @@ class JobForm(forms.ModelForm):
     parent_task_transform = forms.ModelChoiceField(label='Transform Tasks', queryset=Task.objects.filter(type=Task.TaskType.TRANSFORM).order_by('-created_at'),
                                                     required=False, widget=forms.Select(attrs={'class': 'form-select form-select-lg'}))
     
-    parent_task_load = forms.ModelChoiceField(label='Load Tasks', queryset=Task.objects.filter(type=Task.TaskType.LOAD).order_by('-created_at'),
+    parent_job_extract = forms.ModelChoiceField(label='Extract Jobs', queryset=Job.objects.filter(type=Job.TaskType.EXTRACT).order_by('-created_at'),
+                                                    required=False, widget=forms.Select(attrs={'class': 'form-select form-select-lg'}))
+    parent_job_transform = forms.ModelChoiceField(label='Transform Jobs', queryset=Job.objects.filter(type=Job.TaskType.TRANSFORM).order_by('-created_at'),
                                                     required=False, widget=forms.Select(attrs={'class': 'form-select form-select-lg'}))
 
     class Meta:
         model = Job
         fields = [
-            'name', 'type','continue_mode', 'company',
-            'parent_task_extract', 'parent_task_transform', 'parent_task_load',
+            'name', 'type','company','process',
+            'parent_task_extract', 'parent_task_transform',
+            'parent_job_extract', 'parent_job_transform',
             'starting_condition_type', 'stopping_condition_type',
         ]
         widgets = {
+            'process': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter the name of the job'}),
             'type': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'parent_task': forms.Select(attrs={'class': 'form-select form-select-lg'}),
-            'continue_mode': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }
         
-
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        # Enforce parent task or job required for TRANSFORM, LOAD
+        if cleaned_data.get('type') == Job.TaskType.TRANSFORM:
+            parent_task = cleaned_data.get('parent_task_extract')
+            parent_job = cleaned_data.get('parent_job_extract')
+            
+            if not parent_task and not parent_job:
+                self.add_error('parent_task_extract', 'Please choose either a Parent Task or Job.')
+            elif parent_task and parent_job:
+                self.add_error('parent_task_extract', 'Please choose only one: either a Parent Task or Job.')
+            
+        if cleaned_data.get('type') == Job.TaskType.LOAD:
+            parent_task = cleaned_data.get('parent_task_transform')
+            parent_job = cleaned_data.get('parent_job_transform')
+            
+            if not parent_task and not parent_job:
+                self.add_error('parent_task_extract', 'Please choose either a Parent Task or Job.')
+            elif parent_task and parent_job:
+                self.add_error('parent_task_extract', 'Please choose only one: either a Parent Task or Job.')
+                
+        # Enforce process required for EXTRACT, TRANSFORM, LOAD
+        if cleaned_data.get('type') in [Job.TaskType.EXTRACT, Job.TaskType.TRANSFORM, Job.TaskType.LOAD]:
+            if cleaned_data.get('process') not in cleaned_data.get('company').processes:
+                self.add_error('process', 'Process not found in company')
+        
+        return cleaned_data
     
     def save(self,starting_condition_form = None,stopping_condition_form = None, created_by = None, *args, **kwargs):
         
         try:
             # Create or update the Job instance
             with transaction.atomic():
-                # We need to save the Job instance first to get the id
+                
+                # Save the job instance
                 job = super().save(commit=False)
+                
                 if created_by:
                     job.created_by = created_by
+                
+                # We need to set the parent task or job ( we dont need to validate the Type here, because we already did it in the clean method )
+                if self.cleaned_data['parent_task_extract']:
+                    job.parent_task = self.cleaned_data['parent_task_extract']
+                elif self.cleaned_data['parent_task_transform']:
+                    job.parent_task = self.cleaned_data['parent_task_transform']
+                elif self.cleaned_data['parent_job_extract']:
+                    job.parent_job = self.cleaned_data['parent_job_extract']
+                elif self.cleaned_data['parent_job_transform']:
+                    job.parent_job = self.cleaned_data['parent_job_transform']
+                
                 job.save()
                 
                 if starting_condition_form:
@@ -394,8 +481,8 @@ class JobForm(forms.ModelForm):
             # Handle any exceptions (rollback will occur automatically)
             print(f"An error occurred: {e}")
             raise
-    
-    
+
+
 class JobEditForm(forms.ModelForm):
     
     starting_condition_type = forms.ModelChoiceField(
@@ -420,12 +507,11 @@ class JobEditForm(forms.ModelForm):
 
     class Meta:
         model = Job
-        fields = ['name', 'type',  'starting_condition_type', 'stopping_condition_type','continue_mode']
+        fields = ['name', 'type',  'starting_condition_type', 'stopping_condition_type']
         widgets = {
             'name': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Enter the name of the job'}),
             'type': forms.Select(attrs={'class': 'form-select form-select-lg'}),
             'parent_task': forms.Select(attrs={'class': 'form-select form-select-lg'}),
-            'continue_mode': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
         }           
     
 

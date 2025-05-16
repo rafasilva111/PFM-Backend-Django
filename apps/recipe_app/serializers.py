@@ -1,6 +1,6 @@
 from rest_framework import serializers
 from django.db import transaction
-from .models import Recipe, RecipeRating, RecipeBackground, Tag, Ingredient, RecipeIngredientQuantity, Comment, RecipeReport,NutritionInformation,Preparation
+from .models import Recipe, RecipeRating, Tag, Ingredient, IngredientQuantity, Comment, RecipeReport,NutritionInformation,Preparation
 from apps.user_app.serializers import UserSimpleSerializer
 from apps.user_app.models import User
 
@@ -13,27 +13,28 @@ class NutritionInformationSerializer(serializers.ModelSerializer):
         model = NutritionInformation
         fields = '__all__'
         
-class PrepationSerializer(serializers.ModelSerializer):
+class PreparationSerializer(serializers.ModelSerializer):
     class Meta:
-        fields = ['step','description']
         model = Preparation
+        fields = '__all__'
+        
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = ['title']
+        fields = '__all__'
         
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = '__all__'
-           
-class RecipeIngredientQuantitySerializer(serializers.ModelSerializer):
+
+class IngredientQuantitySerializer(serializers.ModelSerializer):
     
     ingredient = IngredientSerializer()
     
     class Meta:
-        model = RecipeIngredientQuantity
+        model = IngredientQuantity
         fields = '__all__'
         read_only_fields = [ 'user','recipe']
 
@@ -42,8 +43,8 @@ class RecipeSerializer(serializers.ModelSerializer):
 
     nutrition_information = NutritionInformationSerializer(required = False)
     created_by = UserSimpleSerializer(required = False)
-    preparation = PrepationSerializer(many = True,required = False)
-    ingredients = RecipeIngredientQuantitySerializer(many = True,required = False)
+    preparation = PreparationSerializer(many = True,required = False)
+    ingredients = IngredientQuantitySerializer(many = True,required = False)
     tags = TagSerializer(many = True,required = False)
     
     likes = serializers.SerializerMethodField()
@@ -56,7 +57,12 @@ class RecipeSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Recipe
-        fields = ['id','title','description','img_source','verified','difficulty','ingredients','tags','portion','preparation','time','likes','saves','views','nutrition_information','rating','source_rating','source_link','created_at', 'updated_at','saved','liked','created_by']  # Include all fields
+        fields = ['id','title','description','image', 'video','verified','difficulty',\
+            'portion_lower', 'portion_upper', 'portion_units', 'ingredients','tags',\
+            'preparation','time','time_units','likes','saves','views','nutrition_information',\
+            'rating','source_rating','source_link','created_at', 'updated_at','saved','liked',\
+            'created_by']  # Include all fields
+        
         read_only_fields = ['id', 'created_at', 'updated_at','created_by','ingredients','preparation','tags','nutrition_information','saved','liked']
         
         
@@ -82,11 +88,11 @@ class RecipeSerializer(serializers.ModelSerializer):
         for prep_data in preparation_data:
             Preparation.objects.create(recipe=recipe_instance, **prep_data)
         
-        # Create RecipeIngredientQuantity instances and link them to the Recipe
+        # Create IngredientQuantity instances and link them to the Recipe
         for ing_data in ingredients_data:
             ingredient_data = ing_data.pop('ingredient')
             ingredient_intance, created = Ingredient.objects.get_or_create(**ingredient_data)
-            RecipeIngredientQuantity.objects.create(recipe= recipe_instance, ingredient=ingredient_intance, **ing_data)
+            IngredientQuantity.objects.create(recipe= recipe_instance, ingredient=ingredient_intance, **ing_data)
         
         # Create Tags instances and link them to the Recipe
         for tag_data in tags_data:

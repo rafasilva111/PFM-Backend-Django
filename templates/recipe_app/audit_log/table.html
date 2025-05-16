@@ -1,0 +1,165 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Table - Tasks{% endblock %}
+
+{% block content %}
+<style>
+  .tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+  }
+  
+  .tooltip .tooltiptext {
+    visibility: hidden;
+    background-color: #f9f9f9;
+    color: #333;
+    padding: 10px;
+    border-radius: 6px;
+    position: absolute;
+    z-index: 10;
+    width: 300px;
+    top: 100%;  /* Show below the element */
+    left: 0;
+    white-space: pre-wrap;
+    box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out;
+  }
+  
+  .tooltip:hover .tooltiptext {
+    visibility: visible;
+    opacity: 1;
+  }
+  </style>
+
+
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Tables / Recipe /</span> Audit Logs
+</h4>
+
+<!-- Error Messages Container -->
+{% if messages %}
+<div class="col-12">
+    <div class="alert alert-danger">
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Basic Bootstrap Table -->
+<div class="card">
+  
+  <div class="container-fluid d-flex align-items-center">
+    <h5 class="card-header flex-grow-1">Recipe's Audit Logs Table</h5>
+  </div>
+  
+  <!-- Filter Form -->
+  <form method="get" class="card py-3 mb-4">    
+    <div class="container-fluid d-flex justify-content-start align-items-center">
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Type: </label>
+        {{ filter.form.type}}
+      </div>
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Accepted: </label>
+        {{ filter.form.accepted}}
+      </div>
+      <div class="col-md-2 text-end ms-auto">
+      <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </div>
+  </form>
+  
+  <!-- Table -->
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>Id</th>
+          <th>Recipe</th>
+          <th>Type</th>
+          <th>Description</th>
+          <th>Field</th>
+          <th>Accepted</th>
+          <th>Reviewed</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody class="table-border-bottom-0">
+        {% for instance in page_obj %}
+        <tr >
+          <td>{{ instance.id }}</td>
+          <td>{{ instance.recipe }}</td>
+          <td>{{ instance.type }}</td>
+          <td>{{ instance.description }}</td>
+          <td>{{ instance.field }}</td>
+          <td>
+            <span class="badge 
+            {% if instance.accepted %}
+                bg-label-success
+            {% else %}
+                bg-label-danger
+            {% endif %}
+            me-1">{{ instance.accepted }}</span>
+          </td>
+          <td>
+            <span class="badge 
+            {% if instance.reviewed %}
+                bg-label-success
+            {% else %}
+                bg-label-danger
+            {% endif %}
+            me-1">{{ instance.reviewed }}</span>
+          </td>
+          <td>
+            
+            <div class="dropdown">
+              <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+              <div class="dropdown-menu">
+
+                <!-- Audit Log Details -->
+                {% if can_view_audit_log %}
+                <a class="dropdown-item" href="{% url 'audit_log_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                {% endif %}
+                
+                <!-- Accept Audit Log -->
+                {% if can_accept_audit_log and not instance.accepted %}
+                  <a class="dropdown-item" href="{% url 'audit_log_accept' instance.id %}"><i class="bx bx-edit me-1"></i> Accept </a>
+                {% endif %}
+
+                {% if can_accept_audit_log and instance.accepted %}
+                  <a class="dropdown-item" href="{% url 'audit_log_unaccept' instance.id %}"><i class="bx bx-edit me-1"></i> Unaccept </a>
+                {% endif %}
+                <!-- Review Audit Log -->
+                {% if can_accept_audit_log and not instance.reviewed %}
+                  <a class="dropdown-item" href="{% url 'audit_log_review' instance.id %}"><i class="bx bx-edit me-1"></i> Review </a>
+                {% endif %}
+
+                {% if can_accept_audit_log and instance.reviewed %}
+                  <a class="dropdown-item" href="{% url 'audit_log_unreview' instance.id %}"><i class="bx bx-edit me-1"></i> Unreview </a>
+                {% endif %}
+
+
+                <!-- Delete Audit Log -->
+                {% if can_delete_audit_log %}
+                  <a class="dropdown-item" href="{% url 'audit_log_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                {% endif %}
+              </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  <!-- Pagination -->
+  {% include "common/default/pagination.html" %}
+</div>
+{% endblock %}

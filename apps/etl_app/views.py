@@ -71,6 +71,8 @@ from apps.etl_app.filters import JobFilter, TaskFilter
 #   Functions
 #
 
+from apps.etl_app.tasks import _launch_job
+
 
 ##
 #   Contants
@@ -132,7 +134,7 @@ class JobTableView(PermissionRequiredMixin, TemplateView):
         # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
 
-        # Retrieve and order all jobs
+        # Retrieve and order all Instances
         records = Job.objects.all().order_by("-id")
         
         # Apply filtering based on request parameters
@@ -140,15 +142,17 @@ class JobTableView(PermissionRequiredMixin, TemplateView):
         filtered_records = filter.qs
         
         # Implement pagination
-        page_size = int(self.request.GET.get("page_size", self.page_size))
-        paginator = Paginator(filtered_records, page_size) 
-        page_number = self.request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
 
-        # Add create job permission check
+        # Created context
         context.update(
             {
                 "filter": filter,
+                "total_count": paginator.count,
                 "page_obj": page_obj,
                 "can_create_job": self.request.user.has_perm(
                     "task_app.can_create_job"
@@ -158,6 +162,12 @@ class JobTableView(PermissionRequiredMixin, TemplateView):
                 ),
                 "can_view_job": self.request.user.has_perm(
                     "task_app.can_view_job"
+                ),
+                "can_enable_job": self.request.user.has_perm(
+                    "task_app.can_enable_job"
+                ),
+                "can_disable_job": self.request.user.has_perm(
+                    "task_app.can_disable_job"
                 ),
                 "can_delete_job": self.request.user.has_perm(
                     "task_app.can_delete_job"
@@ -216,42 +226,80 @@ class JobDetailView(PermissionRequiredMixin, TemplateView):
         # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         
-        # Retrieve the Job by ID
-        context["record"] = Job.objects.get(id=kwargs["id"])
+        # Retrieve Instances
+        instance = Job.objects.get(id=kwargs["id"])
 
         # Retrieve the Job's Tasks
-        records = context["record"].tasks.all().order_by("-started_at")
+        tasks_records = instance.tasks.all().order_by("-started_at")
+        trigger_history_records = instance.trigger_history.all().order_by("-created_at")
         
         # Apply filtering based on request parameters
-        filter = TaskFilter(self.request.GET, queryset=records)
-        filtered_records = filter.qs
+        tasks_filter = TaskFilter(self.request.GET, queryset=tasks_records)
+        tasks_filtered_records = tasks_filter.qs
         
-        # Implement pagination
-        page_size = int(self.request.GET.get("page_size", self.page_size))
-        paginator = Paginator(filtered_records, page_size)
-        page_number = self.request.GET.get("page")
-        page_obj = paginator.get_page(page_number)
+        trigger_history_filter = TaskFilter(self.request.GET, queryset=trigger_history_records)
+        trigger_history_filtered_records = trigger_history_filter.qs
+        
+        # Implement Pagination
+        paginator = Paginator(
+            tasks_filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        tasks_page_obj = paginator.get_page(self.request.GET.get("page"))
+        
+        
+        trigger_history_paginator = Paginator(
+            trigger_history_filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        trigger_history_page_obj = trigger_history_paginator.get_page(self.request.GET.get("page"))
         
         # Read the job's log file if it exists
-        log_path = context["record"].log_path
+        log_path = instance.log_path
         if log_path and path.isfile(log_path):
             with open(log_path, "r") as log_file:
-                context["log"] = log_file.read()
+                log_content = log_file.read()
+                
+                # Add color coding
+                # Add color coding only to the log level, not the date or the rest of the message
+                log_content = re.sub(r'(\[(INFO)\])', r'<span style="color: #4A90E2; font-weight: bold;">\1</span>', log_content)
+                log_content = re.sub(r'(\[(WARNING)\])', r'<span style="color: #FDD835; font-weight: bold;">\1</span>', log_content)
+                log_content = re.sub(r'(\[(ERROR)\])', r'<span style="color: #E57373; font-weight: bold;">\1</span>', log_content)
+
+                context["log"] = mark_safe(log_content)
                 
         # Create context
         context.update(
             {
+                "instance": instance,
                 "WEBSOCKET_HOST": WEBSOCKET_HOST,
-                "filter": filter,
-                "page_obj": page_obj,
-                "can_stop_job": self.request.user.has_perm(
-                    "task_app.can_stop_job"
+                "task_filter": tasks_filter,
+                "tasks_page_obj": tasks_page_obj,
+                "can_force_start_job": self.request.user.has_perm(
+                    "task_app.can_force_start_job"
                 ),
-                "can_resume_job": self.request.user.has_perm(
-                    "task_app.can_resume_job"
+                "can_enable_job": self.request.user.has_perm(
+                    "task_app.can_enable_job"
+                ),
+                "can_disable_job": self.request.user.has_perm(
+                    "task_app.can_disable_job"
+                ),
+                "can_edit_job": self.request.user.has_perm(
+                    "task_app.can_edit_job"
                 ),
                 "can_delete_job": self.request.user.has_perm(
                     "task_app.can_delete_job"
+                ),
+                "trigger_history_page_obj": trigger_history_page_obj,
+                "trigger_history_filter": trigger_history_filter,
+                "can_edit_task": self.request.user.has_perm(
+                    "task_app.can_edit_task"
+                ),
+                "can_view_task": self.request.user.has_perm(
+                    "task_app.can_view_task"
+                ),
+                "can_delete_task": self.request.user.has_perm(
+                    "task_app.can_delete_task"
                 ),
             }
         )
@@ -297,17 +345,23 @@ class JobCreateView(PermissionRequiredMixin, TemplateView):
                 - starting_condition_time_form: TimeConditionForm instance for starting condition.
                 - stopping_condition_time_form: TimeConditionForm instance for stopping condition.
         """
+        # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context["form"] = self.form_class()
-        context["starting_condition_time_form"] = TimeConditionForm(
-            prefix="starting_condition_time_form"
-        )
-        context["stopping_condition_time_form"] = TimeConditionForm(
-            prefix="stopping_condition_time_form"
-        )
-        context["stopping_condition_threshold_form"] = ThresholdConditionForm(
-            prefix="stopping_threshold_condition_form"
-        )
+        
+        # Create context
+        context.update({
+            "form": self.form_class(),
+            "starting_condition_time_form": TimeConditionForm(
+                prefix="starting_condition_time_form"
+            ),
+            "stopping_condition_time_form": TimeConditionForm(
+                prefix="stopping_condition_time_form"
+            ),
+            "stopping_condition_threshold_form": ThresholdConditionForm(
+                prefix="stopping_condition_threshold_form"
+            ),
+        })
+        
         return context
 
     def post(self, request, *args, **kwargs):
@@ -333,14 +387,14 @@ class JobCreateView(PermissionRequiredMixin, TemplateView):
             request.POST, prefix="stopping_condition_time_form"
         )
         stopping_condition_threshold_form = ThresholdConditionForm(
-            request.POST, prefix="stopping_threshold_condition_form"
+            request.POST, prefix="stopping_condition_threshold_form"
         )
         
         
         if job_form.is_valid():
             starting_condition_form = None
             stopping_condition_form = None
-
+            
             # Save the starting condition
             if job_form.instance.starting_condition_type:
                 if job_form.instance.starting_condition_type.name == "time condition":
@@ -396,7 +450,11 @@ class JobCreateView(PermissionRequiredMixin, TemplateView):
                         ) 
                         return self.render_to_response(context)
 
-            job = job_form.save(starting_condition_form, stopping_condition_form, request.user)
+            job = job_form.save(
+                starting_condition_form,
+                stopping_condition_form,
+                created_by = request.user
+            )
             return redirect(reverse("job_detail", args=[job.id]))
 
         # Create context
@@ -410,6 +468,7 @@ class JobCreateView(PermissionRequiredMixin, TemplateView):
             }
         )        
         return self.render_to_response(context)
+
 
 @method_decorator(login_required, name='dispatch')
 class JobEditView(PermissionRequiredMixin, TemplateView):
@@ -454,13 +513,6 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
     permission_required = 'auth.change_job'
     form_class = JobForm
 
-    def get_object(self):
-        """
-        Retrieve the User object or raise a 404 error.
-        """
-        instance_id = self.kwargs.get('id')
-        return get_object_or_404(Job, id=instance_id)
-
     
     def get_context_data(self, **kwargs):
         """
@@ -474,23 +526,29 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
                 - starting_condition_time_form: TimeConditionForm instance for starting condition.
                 - stopping_condition_time_form: TimeConditionForm instance for stopping condition.
         """
+        # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        instance = self.get_object()
-        context["form"] = self.form_class(instance=instance)
         
-        context["starting_condition_time_form"] = TimeConditionForm(
+        # Retrieve Instances
+        instance = Job.objects.get(id=kwargs["id"])
+        
+        # Create context
+        context.update({
+            "form": self.form_class(instance=instance),
+            "starting_condition_time_form": TimeConditionForm(
             prefix="starting_condition_time_form",
             instance=instance.starting_condition if instance.starting_condition_type and instance.starting_condition_type.name == "time condition" else None
-        )
-        context["stopping_condition_time_form"] = TimeConditionForm(
+        ),
+            "stopping_condition_time_form": TimeConditionForm(
             prefix="stopping_condition_time_form",
             instance=instance.stopping_condition if instance.stopping_condition_type and instance.stopping_condition_type.name == "time condition" else None
-        )
-        context["stopping_condition_threshold_form"] = ThresholdConditionForm(
-            prefix="stopping_condition_threshold_form",
-            instance=instance.stopping_condition if instance.stopping_condition_type and instance.stopping_condition_type.name == "threshold condition" else None
-        )
-    
+        ), 
+            "stopping_condition_threshold_form": ThresholdConditionForm(
+                prefix="stopping_condition_threshold_form",
+                instance=instance.stopping_condition if instance.stopping_condition_type and instance.stopping_condition_type.name == "threshold condition" else None
+            ),
+        })
+        
         return context
 
     def post(self, request, *args, **kwargs):
@@ -506,24 +564,46 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
             HttpResponseRedirect: Redirects to job detail view on success.
             HttpResponse: Re-renders form with errors on failure.
         """
-        job_form = self.form_class(request.POST, instance=self.get_object())
         
+        # Retrieve Instances
+        instance = Job.objects.get(id=kwargs["id"])
+        
+        # Create job form
+        job_form = self.form_class(request.POST, instance=instance)
+        
+
+        # Create Starting forms
+        starting_time_condition_form = TimeConditionForm(
+            request.POST,
+            prefix="starting_condition_time_form",
+            instance=instance.starting_condition if instance.starting_condition_type and instance.starting_condition_type.name == "time condition" else None
+        )
+        
+        # Stopping condition forms
+        stopping_time_condition_form = TimeConditionForm(
+            request.POST,
+            prefix="stopping_condition_time_form",
+            instance=instance.stopping_condition if instance.stopping_condition_type and instance.stopping_condition_type.name == "time condition" else None
+        )
+        stopping_condition_threshold_form = ThresholdConditionForm(
+            request.POST,
+            prefix="stopping_condition_threshold_form",
+            instance=instance.stopping_condition if instance.stopping_condition_type and instance.stopping_condition_type.name == "threshold condition" else None
+        )
+        
+        # Validate Job form
         if job_form.is_valid():
+            starting_condition_form = None
+            stopping_condition_form = None
 
-            
-            
-
-            # Save the starting condition
+            # Check if Starting Condition
             if job_form.instance.starting_condition_type:
+                # Check if Starting Condition is Time Condition
                 if job_form.instance.starting_condition_type.name == "time condition":
-                
-                    starting_time_condition_form = TimeConditionForm(
-                        request.POST, prefix="starting_condition_time_form", instance = job_form.instance.starting_condition
-                    )
                     
+                    # Validate Starting Time Condition form
                     if starting_time_condition_form.is_valid():
                         starting_condition_form = starting_time_condition_form
-                        
                     else:
                         # Collect all errors if any form is invalid
                         context = self.get_context_data()
@@ -531,53 +611,58 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
                             {
                                 "form": job_form,
                                 "starting_condition_time_form": starting_time_condition_form,
-                            }
-                        ) 
-                        return self.render_to_response(context)
-                    
-
-            # Save the stopping time condition
-            if job_form.instance.stopping_condition_type:
-                if job_form.instance.stopping_condition_type.name == "time condition":
-                    stopping_time_condition_form = TimeConditionForm(
-                        request.POST, prefix="stopping_condition_time_form", instance = job_form.instance.stopping_condition
-                    )
-                    
-                    if stopping_time_condition_form.is_valid():
-                        stopping_condition_form = stopping_time_condition_form
-                        
-                    else:
-                        # Collect all errors if any form is invalid
-                        context = self.get_context_data()
-                        context.update(
-                            {
-                                "form": job_form,
                                 "stopping_condition_time_form": stopping_time_condition_form,
                             }
                         ) 
                         return self.render_to_response(context)
+
+            # Check if Stopping Condition
+            if job_form.instance.stopping_condition_type:
                 
-                if job_form.instance.stopping_condition_type.name == "threshold condition":
-                    
-                    stopping_condition_threshold_form = ThresholdConditionForm(
-                        request.POST, prefix="stopping_condition_threshold_form", instance = job_form.instance.stopping_condition
-                    )
-                    if stopping_condition_threshold_form.is_valid():
-                        stopping_condition_form = stopping_condition_threshold_form
-                        
+                # Check if Stopping Condition is Time Condition
+                if job_form.instance.stopping_condition_type.name == "time condition":
+                    # Validate Stopping Time Condition form
+                    if stopping_time_condition_form.is_valid():
+                        stopping_condition_form = stopping_time_condition_form
                     else:
                         # Collect all errors if any form is invalid
                         context = self.get_context_data()
                         context.update(
                             {
                                 "form": job_form,
+                                "starting_condition_time_form": starting_time_condition_form,
+                                "stopping_condition_time_form": stopping_time_condition_form,
                                 "stopping_condition_threshold_form": stopping_condition_threshold_form,
                             }
                         ) 
-                        return self.render_to_response(context)                    
-                        
-            job_form.save(starting_condition_form = starting_condition_form, stopping_condition_form = stopping_condition_form)
-            return redirect(reverse("job_detail", args=[job_form.instance.id]))
+                        return self.render_to_response(context)
+                    
+                # Check if Stopping Condition is Threshold Condition
+                if job_form.instance.stopping_condition_type.name == "threshold condition":
+                    # Validate Stopping Threshold Condition form
+                    if stopping_condition_threshold_form.is_valid():
+                        stopping_condition_form = stopping_condition_threshold_form
+                    else:
+                        # Collect all errors if any form is invalid
+                        context = self.get_context_data()
+                        context.update(
+                            {
+                                "form": job_form,
+                                "starting_condition_time_form": starting_time_condition_form,
+                                "stopping_condition_time_form": stopping_time_condition_form,
+                                "stopping_condition_threshold_form": stopping_condition_threshold_form,
+                            }
+                        ) 
+                        return self.render_to_response(context)
+                    
+            # Save the Job
+            job = job_form.save(
+                starting_condition_form,
+                stopping_condition_form,
+                created_by = request.user
+            )
+            
+            return redirect(reverse("job_detail", args=[job.id]))
         
         # Create context
         context = self.get_context_data()
@@ -586,7 +671,7 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
                 "form": job_form,
                 "starting_condition_time_form": starting_time_condition_form,
                 "stopping_condition_time_form": stopping_time_condition_form,
-                "stopping_threshold_condition_form": stopping_condition_threshold_form,
+                "stopping_condition_threshold_form": stopping_condition_threshold_form,
             }
         )        
         return self.render_to_response(context)
@@ -597,10 +682,10 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
 #
 #   Actions
 #
-##
 
+@login_required
 @require_GET
-def job_resume(request, id):
+def job_disable(request, id):
     """
     Resume a job instance and redirect to job detail page.
     This view requires user authentication and 'can_resume_job' permission.
@@ -623,12 +708,12 @@ def job_resume(request, id):
         - User must have 'task_app.can_resume_job' permission.
     """
     job = get_object_or_404(Job, id=id)
-    job.resume()
-    return redirect(reverse("job_detail", args=[job.id]))
+    job.disable()
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
-
+@login_required
 @require_GET
-def job_pause(request, id):
+def job_enable(request, id):
     """
     Pause a job instance and redirect to job detail page.
     This view requires user authentication and 'can_pause_job' permission.
@@ -651,8 +736,18 @@ def job_pause(request, id):
         - User must have 'task_app.can_pause_job' permission.
     """
     job = get_object_or_404(Job, id=id)
-    job.pause()
-    return redirect(reverse("job_detail", args=[job.id]))
+    job.enable()
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+@require_GET
+def job_force_start(request, id):
+    instance = get_object_or_404(Job, id=id)  # Assuming you have a Task model
+
+    instance.force_start()   
+    
+    return redirect(reverse("job_detail", args=[instance.id]))
 
 
 @login_required
@@ -679,6 +774,7 @@ def job_delete(request, id):
     instance.delete()
     return redirect("jobs")
 
+
 @login_required
 @require_GET
 def job_log_download(request, id):
@@ -693,6 +789,8 @@ def job_log_download(request, id):
             return response
     else:
         return HttpResponse('Log file not found.', status=404)
+
+
 
 ###
 #
@@ -756,15 +854,17 @@ class TaskTableView(PermissionRequiredMixin, TemplateView):
         filtered_records = filter.qs
         
         # Implement pagination
-        page_size = int(self.request.GET.get('page_size', self.page_size))
-        paginator = Paginator(filtered_records, page_size)
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
         
-        # Add create task permission check
+        # Create context
         context.update(
             {
                 "filter": filter,
+                "total_count": paginator.count,
                 "page_obj": page_obj,
                 "can_create_task": self.request.user.has_perm(
                     "task_app.can_create_task"
@@ -782,6 +882,7 @@ class TaskTableView(PermissionRequiredMixin, TemplateView):
         )
         
         return context
+
 
 @method_decorator(login_required, name="dispatch")
 class TaskDetailView(PermissionRequiredMixin,TemplateView):
@@ -998,7 +1099,7 @@ class TaskEditView(PermissionRequiredMixin, TemplateView):
 #
 #   Actions
 #
-##
+
 
 
 @login_required
@@ -1030,7 +1131,7 @@ def task_restart(request, id):
 
     
     return redirect(reverse("task_detail", args=[instance.id]))
-    
+
 
 @login_required
 @require_GET
@@ -1060,7 +1161,7 @@ def task_cancel(request, id):
     instance.cancel()
     
     return redirect(reverse("task_detail", args=[instance.id]))
-    
+
 
 @login_required
 @require_GET
@@ -1087,7 +1188,6 @@ def task_delete(request, id):
     return redirect("tasks")
 
 
-
 @login_required
 @require_GET
 def task_pause(request, id):
@@ -1098,6 +1198,7 @@ def task_pause(request, id):
     instance = get_object_or_404(Task, id=id)
     instance.pause()
     return redirect(reverse("task_detail", args=[instance.id]))
+
 
 @login_required
 @require_GET
@@ -1116,7 +1217,7 @@ def task_resume(request, id):
 def download_log(request, id):
     task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
 
-    if task.status in [task.Status.RUNNING, task.Status.STARTING]:
+    if task.status in [task.Status.RUNNING, Task.Status.WAITING]:
         messages.error(request, 'Task is still running. Please wait until it finishes.')
         return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
 
@@ -1128,18 +1229,18 @@ def download_log(request, id):
     else:
         messages.error(request, 'Log file not found.')
         return redirect(request.META.get('HTTP_REFERER', '/'))
-    
-    
+
+
 @login_required
 @require_GET
 def download_db(request, id):
     task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
     
-    if task.status == task.Status.RUNNING or task.status == task.Status.STARTING:
+    if task.status == task.Status.RUNNING or task.status == Task.Status.WAITING:
         messages.error(request, 'Task is still running. Please wait until it finishes.')
         return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
     
-    if path.exists(task.sql_file):
+    if task.sql_file and path.exists(task.sql_file):
         # Open the log file in binary mode
         with open(task.sql_file, 'rb') as sql_file:
             response = HttpResponse(sql_file.read(), content_type='text/plain')
@@ -1147,5 +1248,5 @@ def download_db(request, id):
             response['Content-Disposition'] = f'attachment; filename="task_{id}_db.sql"'
             return response
     else:
-        messages.error(request, 'Log file not found.')
+        messages.error(request, 'Database file not found.')
         return redirect(request.META.get('HTTP_REFERER', '/'))

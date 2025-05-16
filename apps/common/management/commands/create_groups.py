@@ -61,7 +61,11 @@ class Command(BaseCommand):
                 # Task permissions
                 "can_view_task","can_view_tasks",
                 # Job permissions
-                "can_view_job","can_view_jobs"
+                "can_view_job","can_view_jobs",
+                # Recipe permissions
+                "can_view_recipe","can_view_recipes"
+                # Recipe Audit Log permissions
+                "can_view_audit_log", "can_view_audit_logs"
             ],
             User.UserType.STAFF: [
                 # User permissions
@@ -70,6 +74,10 @@ class Command(BaseCommand):
                 "can_view_task","can_view_tasks","can_restart_task", "can_cancel_task", "can_pause_task", "can_resume_task",
                 # Job permissions
                 "can_view_job","can_view_jobs", "can_pause_job", "can_resume_job" 
+                # Recipe permissions
+                "can_view_recipe","can_view_recipes", "can_edit_recipe", "can_delete_recipe", "can_verify_recipe"
+                # Recipe Audit Log permissions
+                "can_view_audit_log", "can_view_audit_logs", "can_accept_audit_log"
             ],
             User.UserType.SUPERUSER: [
                 # User permissions
@@ -78,6 +86,10 @@ class Command(BaseCommand):
                 "can_view_task","can_view_tasks","can_restart_task", "can_cancel_task", "can_create_task","can_edit_task","can_delete_task", "can_pause_task", "can_resume_task",
                 # Job permissions
                 "can_view_job","can_view_jobs", "can_create_job","can_edit_job","can_delete_job", "can_pause_job", "can_resume_job"
+                # Recipe permissions
+                "can_view_recipe","can_view_recipes", "can_edit_recipe", "can_delete_recipe", "can_verify_recipe"
+                # Recipe Audit Log permissions
+                "can_view_audit_log", "can_view_audit_logs", "can_delete_audit_log", "can_accept_audit_log"
             ]
         }
 

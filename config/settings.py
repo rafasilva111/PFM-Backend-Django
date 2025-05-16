@@ -43,9 +43,14 @@ ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-if ENVIRONMENT == "local":
+if ENVIRONMENT == "dev":
     DEBUG = True
     ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0"]
+    
+elif ENVIRONMENT == "staging":
+    DEBUG = True
+    ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0"]
+    
 else:
     DEBUG = False
     ALLOWED_HOSTS = [os.environ.get("ALLOWED_HOSTS")]
@@ -70,6 +75,7 @@ INSTALLED_APPS = [
     "apps.common",
     "apps.user_app",
     "apps.etl_app",
+    "apps.recipe_app",
     "apps.api",
     
 ]
@@ -86,7 +92,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "config.urls"
+ROOT_URLCONF = "apps.common.urls"
 
 TEMPLATES = [
     {
@@ -228,8 +234,8 @@ THEME_VARIABLES = THEME_VARIABLES
 # ------------------------------------------------------------------------------
 
 # ETL logging configuration
-JOBS_LOG_DIR = BASE_DIR / "apps/etl_app/logs/jobs"
-TASKS_LOG_DIR = BASE_DIR / "apps/etl_app/logs/tasks"
+JOBS_LOG_DIR = "apps/etl_app/logs/jobs"
+TASKS_LOG_DIR = "apps/etl_app/logs/tasks"
 
 # Django logging configuration
 LOGGING = {
@@ -275,10 +281,9 @@ AUTH_USER_MODEL = "user_app.User"
 # Celery
 # ------------------------------------------------------------------------------
 
-CELERY_BROKER_HOST = os.environ.get("RABBITMQ_BROKER_HOST", "0.0.0.0")
+REDIS_BROKER_URL = os.environ.get("REDIS_BROKER_URL", "0.0.0.0")
 
-CELERY_BROKER_URL = "redis://redis:6379/0"
-#CELERY_BROKER_URL = f"pyamqp://{CELERY_BROKER_HOST}:5672"
+CELERY_BROKER_URL = f"redis://{REDIS_BROKER_URL}/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -289,13 +294,13 @@ CELERY_TIMEZONE = "UTC"
 
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 
-"""from celery.schedules import crontab
+from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
-    "run-etl-every-night": {
-        "task": "etl_app.tasks.run_etl",
-        "schedule": crontab(hour=0, minute=0),  # Runs every night at midnight
+    "reap-zombie-tasks-every-10-minutes": {
+        "task": "etl_app.tasks.reap_zombie_tasks",
+        "schedule": crontab(minute="*/10"),  # Runs every 10 minutes
     },
-}"""
+}
 
 
 
@@ -308,7 +313,7 @@ CHANNEL_LAYERS = {
     'default': {
         'BACKEND': 'channels_redis.core.RedisChannelLayer',
         'CONFIG': {
-            "hosts": [("redis://redis:6379/0")],  # Redis host and port (default is 6379)
+            "hosts": [(f"redis://{REDIS_BROKER_URL}/0")],  # Redis host and port (default is 6379)
         },
     },
 }

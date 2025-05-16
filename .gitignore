@@ -183,3 +183,11 @@ cython_debug/
 apps/etl_app/recipe/extract/continente/images/*.png
 
 apps/etl_app/ingredient/extract/continente/images/*.png
+
+apps/common/secrets/
+
+apps/etl_app/migrations/
+
+*.sql-journal
+
+apps/recipe_app/migrations/

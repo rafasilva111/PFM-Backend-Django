@@ -46,7 +46,7 @@ from collections import defaultdict
 #
 
 from apps.calendar_app.models import CalendarEntry
-from apps.recipe_app.models import Recipe, RecipeIngredientQuantity
+from apps.recipe_app.models import Recipe, IngredientQuantity
 from apps.user_app.models import User
 
 ##
@@ -544,9 +544,9 @@ class CalendarIngredientsListView(APIView):
         response_holder = {}
         from django.db.models import Q
 
-        # Filter RecipeIngredientQuantity based on CalendarEntry's user and realization_date range
+        # Filter IngredientQuantity based on CalendarEntry's user and realization_date range
         # Assuming user_logged_id is an integer and from_date, to_date are datetime objects
-        query = (RecipeIngredientQuantity.objects
+        query = (IngredientQuantity.objects
                 .filter(
                     recipe__calendar_entries__user=user,
                     recipe__calendar_entries__realization_date__range=(from_date, to_date)

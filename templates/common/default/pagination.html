@@ -6,6 +6,11 @@
 <div class="pagination card py-3 mb-4 mt-4">
   <div class="container-fluid d-flex justify-content-between align-items-center">
     <div class="d-flex align-items-center">
+      <span class="current me-2">
+        {{total_count}} Results.
+      </span>
+
+
       {% if page_obj.has_previous %}
       {% with request.GET.urlencode as query_string %}
       <a class="btn btn-outline-primary me-2" href="?{% querystring page=1 %}">&laquo; First</a>

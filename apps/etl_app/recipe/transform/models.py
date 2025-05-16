@@ -1,13 +1,12 @@
-from datetime import datetime
+from peewee import *
+from django.utils import timezone
 
-from peewee import  Model, CharField, BooleanField, IntegerField, BlobField, ForeignKeyField, FloatField, \
-    DateTimeField, ManyToManyField,DatabaseProxy
 
-from apps.etl_app.constants import main_db
+
+""" Models """
 
 
 database_proxy = DatabaseProxy()
-
 
 class BaseModel(Model):
     class Meta:
@@ -15,74 +14,64 @@ class BaseModel(Model):
 
 
 class NutritionInformation(BaseModel):
-    energia = CharField(null = True)
-    energia_perc = CharField(null = True)
-    gordura = CharField(null = True)
-    gordura_perc = CharField(null = True)
-    gordura_saturada = CharField(null = True)
-    gordura_saturada_perc = CharField(null = True)
-    hidratos_carbonos = CharField(null = True)
-    hidratos_carbonos_perc = CharField(null = True)
-    hidratos_carbonos_acucares = CharField(null = True)
-    hidratos_carbonos_acucares_perc = CharField(null = True)
-    fibra = CharField(null = True)
-    fibra_perc = CharField(null = True)
-    proteina = CharField(null = True)
-    proteina_perc = CharField(null = True)
+    energy_kcal = CharField()
+    energy_perc = CharField()
+
+    fat_g = CharField()
+    fat_perc = CharField()
+
+    saturates_g = CharField()
+    saturates_perc = CharField()
+
+    carbohydrates_g = CharField()
+    carbohydrates_perc = CharField()
+
+    sugars_g = CharField()
+    sugars_perc = CharField()
+
+    fiber_g = CharField()
+
+    protein_g = CharField()
+    protein_perc = CharField()
+
+    salt_g = CharField()
+    salt_perc = CharField()
 
     class Meta:
         db_table = 'nutrition_information'
 
 
-class Ingredient(BaseModel):
-    name = CharField(null=False, unique=True)
-
-
-
-
-
 class Recipe(BaseModel):
+    company = CharField()
     title = CharField(null=False)
     description = CharField(null=False)
-    img_source = CharField(null=True)
-    verified = BooleanField(default=True)
+    image = CharField(null=True)
+    video = CharField(null=True)
 
     difficulty = CharField(null=True)
-    portion = CharField(null=True)
+    portion_lower = CharField(null=True)
+    portion_upper = CharField(null=True)
+    portion_units = CharField(null=True)
     time = CharField(null=True)
+    time_units = CharField(null=True)
 
-    
-
+    preparation = BlobField(null=False)
     nutrition_information = ForeignKeyField(NutritionInformation, backref='recipe', null=True, on_delete='CASCADE')
 
     source_rating = FloatField(null=True)
     source_link = CharField(null=True)
 
-    is_valid = BooleanField(default=True)
-
-    company = CharField(null=False)
-    created_date = DateTimeField(default=datetime.now(), null=False)
-    updated_date = DateTimeField(default=datetime.now(), null=False)
+    created_date = DateTimeField(default=timezone.now())
+    updated_date = DateTimeField(default=timezone.now())
 
 
-class Preparation(BaseModel):
-    
-    step = CharField()
-    description = CharField()
-    recipe = ForeignKeyField(Recipe, backref='preparation', null=True, on_delete='CASCADE')
-
-
-    class Meta:
-        db_table = 'preparation'
-
-class Tag(BaseModel):
-    title = CharField(null=False, unique=True)
-    recipes = ManyToManyField(Recipe, backref='tags')
-
+class Ingredient(BaseModel):
+    name = CharField(null=True)
 
 class IngredientQuantity(BaseModel):
     
     quantity_original = CharField(null=False)
+    quantity_tempered = CharField(null=False)
 
     quantity_normalized = FloatField(null=True)
     units_normalized = CharField(null=True)
@@ -90,84 +79,27 @@ class IngredientQuantity(BaseModel):
     extra_units = CharField(null=True)
 
     ingredient = ForeignKeyField(Ingredient, backref='ingredient_base')
-    recipe = ForeignKeyField(Recipe, backref='ingredients', on_delete='CASCADE', null=False)
+    recipe = ForeignKeyField(Recipe, backref='ingredients', on_delete='CASCADE')
 
     class Meta:
         db_table = 'ingredient_quantity'
+class UsefulTool(BaseModel):
+    text = CharField(null=False)
+    recipe = ForeignKeyField(Recipe, backref='useful_tools',on_delete='CASCADE')
+    
+    class Meta:
+        db_table = 'useful_tool'
+
+class Tag(BaseModel):
+    text = CharField(null=False, unique=True)
+    recipe = ManyToManyField(Recipe, backref='tags')
 
 
-from marshmallow import Schema, fields, EXCLUDE, pre_dump
-from datetime import datetime
-import pickle
-
-# Assuming NutritionInformationSchema is defined somewhere
-# from yourmodule import NutritionInformationSchema
-
-class NutritionInformationSchema(Schema):
-    energia = fields.Float(required=True,null = True)
-    energia_perc = fields.Float(null = True)
-    gordura = fields.Float(required=True,null = True)
-    gordura_perc = fields.Float(null = True)
-    gordura_saturada = fields.Float(required=True,null = True)
-    gordura_saturada_perc = fields.Float(null = True)
-    hidratos_carbonos = fields.Float(required=True)
-    hidratos_carbonos_perc = fields.Float(null = True)
-    hidratos_carbonos_acucares = fields.Float(required=True,null = True)
-    hidratos_carbonos_acucares_perc = fields.Float(null = True)
-    fibra = fields.Float(required=True,null = True)
-    fibra_perc = fields.Float(null = True)
-    proteina = fields.Float(required=True,null = True)
-    proteina_perc = fields.Float(null = False)
+class RecipeLinks(BaseModel):
+    link = CharField()
+    page = CharField()
+    base_search_link = CharField()
+    image_link = CharField(null=True)
 
     class Meta:
-        unknown = EXCLUDE
-
-class PreparationSchema(Schema):
-    step = fields.Integer(required=True)
-    description = fields.String(required=True)
-
-    class Meta:
-        unknown = EXCLUDE
-
-class TagSchema(Schema):
-    title = fields.String(required=True)
-
-class IngredientServerSchema(Schema):
-    name = fields.String(required=True)
-
-
-class IngredientQuantityServerSchema(Schema):
-    ingredient = fields.Nested(IngredientServerSchema, required=True)
-    quantity_original = fields.String(required=True)
-    quantity_normalized = fields.Float(required=False, default=None)
-    units_normalized = fields.String(required=True)
-
-class RecipeSchema(Schema):
-    title = fields.String(required=True)
-    description = fields.String(required=True)
-    img_source = fields.String(allow_none=True)
-    verified = fields.Boolean(missing=True)
-
-    difficulty = fields.String(allow_none=True)
-    portion = fields.String(allow_none=True)
-    time = fields.String(allow_none=True)
-
-    ingredients = fields.Nested(IngredientQuantityServerSchema, required=True, many=True)
-    preparation = fields.Nested(PreparationSchema, required=True, many=True)
-    nutrition_information = fields.Nested(NutritionInformationSchema, null=True)
-    tags = fields.Nested(TagSchema, many=True)
-
-    rating = fields.Float(missing=0.0)
-    source_rating = fields.Float(allow_none=True)
-    source_link = fields.String(allow_none=True)
-
-    is_valid = fields.Boolean(missing=True)
-
-    company = fields.String(required=True)
-    created_date = fields.DateTime(default=datetime.now, required=True)
-    updated_date = fields.DateTime(default=datetime.now, required=True)
-
-    class Meta:
-        ordered = True
-        unknown = EXCLUDE
-
+        db_table = 'recipe_links'

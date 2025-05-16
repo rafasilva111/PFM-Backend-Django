@@ -8,7 +8,7 @@ from django.contrib import admin
 ### App-specific imports
 
 ## Models
-from apps.etl_app.models import Task, Job, TimeCondition, CeleryTask  # Add this import
+from apps.etl_app.models import Task, Job, TimeCondition, TaskStatusConditionAwaiter  
 
 # Register your models here.
 
@@ -57,18 +57,10 @@ class JobAdmin(admin.ModelAdmin):
         list_filter (tuple): Fields to filter by in the list view.
         readonly_fields (tuple): Fields to set as read-only.
     """
-    list_display = ('name', 'type', 'enabled', 'continue_mode', 'starting_condition', 'stopping_condition', 'log_path')
+    list_display = ('name', 'type', 'enabled',  'log_path')
     search_fields = ('name', 'type','enabled')
-    list_filter = ('continue_mode', 'type')
-    readonly_fields = ('starting_condition', 'stopping_condition')
-    fieldsets = (
-        (None, {
-            'fields': ('name', 'type', 'continue_mode', 'log_path')
-        }),
-        ('Conditions', {
-            'fields': ('starting_condition', 'stopping_condition')
-        }),
-    )
+    list_filter = ( 'type',)
+    
 
 
 
@@ -86,18 +78,17 @@ class TimeConditionAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'periodic_task')
 
-
-@admin.register(CeleryTask)
-class CeleryTaskAdmin(admin.ModelAdmin):
+@admin.register(TaskStatusConditionAwaiter)
+class TaskStatusConditionAwaiterAdmin(admin.ModelAdmin):
     """
-    Admin configuration for the CeleryTask model.
+    Admin configuration for the TaskStatusConditionAwaiter model.
 
-    - Displays task ID, status, and result information.
-    - Allows searching by task ID and status.
+    - Displays task status and related information.
+    - Allows searching by task status or related fields.
 
     Attributes:
         list_display (tuple): Fields to display in the list view.
         search_fields (tuple): Fields to search by in the list view.
     """
-    list_display = ('task_id', )
-    search_fields = ('task_id',)
+    list_display = ('id', 'dependent_task','owner_task', 'triggered', 'created_at', 'updated_at')
+

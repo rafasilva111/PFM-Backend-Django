@@ -18,14 +18,13 @@ from channels.generic.websocket import JsonWebsocketConsumer
 ### App-specific imports
 
 ## Models
-from apps.etl_app.models import Task, Job
+from django.conf import settings
 
 import os
 import json
 import asyncio
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import async_to_sync
-from apps.etl_app.models import Task
 
 
 class TaskLogConsumer(AsyncJsonWebsocketConsumer):
@@ -48,6 +47,9 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
         Returns:
             Task: The Task instance if found, or None if not found.
         """
+        
+        from apps.etl_app.models import Task
+        
         try:
             task = await Task.objects.aget(id=task_id)
             return task
@@ -76,12 +78,9 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
 
         self.task_group_name = f"task_{task.id}"
         self.log_file_path = task.log_path
-
         if self.log_file_path and os.path.isfile(self.log_file_path):
             
-            print(f"Connecting to channel {self.task_group_name}...")
             await self.channel_layer.group_add(self.task_group_name, self.channel_name)
-            
             await self.accept()
 
             self.log_file = open(self.log_file_path, 'r')
@@ -106,7 +105,6 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
                 else:
                     await asyncio.sleep(1)
         except Exception as e:
-            print(f"Error in stream_log_data: {e}")
             await self.close()
 
     async def disconnect(self, close_code):
@@ -138,6 +136,7 @@ class JobLogConsumer(AsyncJsonWebsocketConsumer):
         Returns:
             Job: The Job instance if found, or None if not found.
         """
+        from apps.etl_app.models import  Job
         try:
             job = await Job.objects.aget(id=job_id)
             return job
@@ -155,7 +154,7 @@ class JobLogConsumer(AsyncJsonWebsocketConsumer):
             return
 
         self.log_file_path = job.log_path
-
+        
         if self.log_file_path and os.path.isfile(self.log_file_path):
             await self.accept()
             self.log_file = open(self.log_file_path, 'r')

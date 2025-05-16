@@ -1,105 +1,114 @@
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
   <!-- ! Hide app brand if navbar-full -->
   {% if not navbar_full %}
-  <div class="app-brand demo">
-    <a href="{% url 'home' %}" class="app-brand-link">
-      <span class="app-brand-logo demo">
-        {% include 'partials/logo.html' with width=25 withbg="#696cff" %}
-      </span>
-      <span class="app-brand-text demo menu-text fw-bold ms-2">{% get_theme_variables 'template_name' %}</span>
-    </a>
-
-    <a href="javascript:void(0);" class="layout-menu-toggle menu-link text-large ms-auto d-block d-xl-none">
-      <i class="bx bx-chevron-left bx-sm align-middle"></i>
-    </a>
-  </div>
+    <div class="app-brand demo">
+      <a href="{% url 'home' %}" class="app-brand-link">
+        <span class="app-brand-logo demo">{% include 'layout/partials/logo.html' with width=25 withbg='#696cff' %}</span>
+        <span class="app-brand-text demo menu-text fw-bold ms-2">{% get_theme_variables 'template_name' %}</span>
+      </a>
+    </div>
   {% endif %}
-
 
   <div class="menu-inner-shadow"></div>
 
   <ul class="menu-inner py-1">
     <!-- Dashboard -->
-    <li class="menu-item {% if 'home' == request.resolver_match.url_name %}active open{% endif %}" >
+    <li class="menu-item {% if 'home' in request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'home' %}" class="menu-link">
         <i class="menu-icon tf-icons bx bx-home-circle"></i>
-        <div class="text-truncate" data-i18n="Analytics">Dashboard</div>
+        <div class="text-truncate" >Dashboard</div>
       </a>
     </li>
 
     <!-- Users -->
-    <li class="menu-item {% if 'user' == request.resolver_match.url_name %}active open{% endif %}" >
+    <li class="menu-item {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'users' %}" class="menu-link">
         <i class="menu-icon tf-icons bx bx-male"></i>
-        <div class="text-truncate" data-i18n="Analytics">Users</div>
+        <div class="text-truncate" >Users</div>
       </a>
     </li>
 
     <!-- Jobs -->
-    <li class="menu-item {% if 'job' == request.resolver_match.url_name %}active open{% endif %}" >
+    <li class="menu-item {% if 'job' in request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'jobs' %}" class="menu-link">
         <i class="menu-icon tf-icons bx bxs-hourglass-bottom"></i>
-        <div class="text-truncate" data-i18n="Analytics">Jobs</div>
+        <div class="text-truncate" >Jobs</div>
       </a>
     </li>
 
-    <!-- Jobs -->
-    <li class="menu-item {% if 'task' == request.resolver_match.url_name %}active open{% endif %}" >
+    <!-- Tasks -->
+    <li class="menu-item {% if 'task' in request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'tasks' %}" class="menu-link">
         <i class="menu-icon tf-icons bx bx-task"></i>
-        <div class="text-truncate" data-i18n="Analytics">Tasks</div>
+        <div class="text-truncate" >Tasks</div>
       </a>
     </li>
 
+    <!-- Recipe App -->
+    <li class="menu-item {% if 'recipe' in request.resolver_match.url_name or 'audit_log' in request.resolver_match.url_name %}active open{% endif %}">
+      <a class="menu-link menu-toggle">
+        <i class="menu-icon tf-icons bx bx-receipt"></i>
+        <div class="text-truncate" >Recipe</div>
+      </a>
 
+      <ul class="menu-sub">
+        <!-- Recipes -->
+        <li class="menu-item {% if 'recipe' in request.resolver_match.url_name %}active{% endif %}">
+          <a href="{% url 'recipes' %}" class="menu-link">
+            <div class="text-truncate">Recipes</div>
+          </a>
+        </li>
+
+        <!-- Audit Log -->
+        <li class="menu-item {% if 'audit_log' in request.resolver_match.url_name %}active{% endif %}">
+          <a href="{% url 'audit_logs' %}" class="menu-link">
+            <div class="text-truncate">Audit Logs</div>
+            <!-- <div class="badge bg-danger rounded-pill ms-auto">5</div> -->
+          </a>
+        </li>
+      </ul>
+    </li>
 
     <!-- Misc -->
     <li class="menu-header small text-uppercase">
       <span class="menu-header-text">Misc</span>
     </li>
-    
+
     <li class="menu-item">
       <a href="https://demos.themeselection.com/sneat-bootstrap-html-admin-template/documentation/django-introduction.html" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Documentation">Sneat documentation</div>
       </a>
     </li>
-    <li class="menu-item {% if 'readme' == request.resolver_match.url_name %}active{% endif %}"> 
+    <li class="menu-item {% if 'readme' == request.resolver_match.url_name %}active{% endif %}">
       <a href="{% url 'readme' %}" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Documentation">Read Me</div>
       </a>
     </li>
 
-
-
-    <li class="menu-item {% if 'schema-swagger-ui' == request.resolver_match.url_name %}active{% endif %}"> 
-      <a href="{% url 'schema-swagger-ui' %}" class="menu-link" target="_blank">
+    <li class="menu-item {% if 'schema-swagger-ui' == request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'home' %}" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Swagger )</div>
       </a>
     </li>
-    
-    <li class="menu-item {% if 'schema-redoc' == request.resolver_match.url_name %}active{% endif %}"> 
-      <a href="{% url 'schema-redoc' %}" class="menu-link" target="_blank">
+
+    <li class="menu-item {% if 'schema-redoc' == request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'home' %}" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Redoc )</div>
       </a>
     </li>
-    
-    
-
   </ul>
-  
-  <li class="menu-item mb-4 me-2 ms-4"> 
+
+  <li class="menu-item mb-4 me-2 ms-4">
     <form action="{% url 'logout' %}" method="POST" class="d-inline">
-        {% csrf_token %}
-        <button type="submit" class="menu-link btn btn-link p-0" style="border: none; background: none;">
-            <i class="menu-icon tf-icons bx bx-log-out"></i>
-            <div class="text-truncate" data-i18n="Logout">Logout</div>
-        </button>
+      {% csrf_token %}
+      <button type="submit" class="menu-link btn btn-link p-0" style="border: none; background: none;">
+        <i class="menu-icon tf-icons bx bx-log-out"></i>
+        <div class="text-truncate" data-i18n="Logout">Logout</div>
+      </button>
     </form>
-</li>
-
-
+  </li>
 </aside>

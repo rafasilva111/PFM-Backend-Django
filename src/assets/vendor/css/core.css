@@ -16329,6 +16329,7 @@ html:not(.layout-menu-fixed) .menu-inner-shadow {
 }
 
 .menu-item {
+  cursor: pointer;
   align-items: flex-start;
   justify-content: flex-start;
 }

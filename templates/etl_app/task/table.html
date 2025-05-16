@@ -61,7 +61,7 @@
       <thead>
         <tr>
           <th>Task</th>
-          <th>Users</th>
+          <th>Company</th>
           <th>Type</th>
           <th>Status</th>
           <th>Started At</th>
@@ -76,7 +76,7 @@
           <td>{{ task.company.name }}</td>
           <td>{{ task.get_type_process_display }}</td>
           <td><span class="badge 
-            {% if task.status == 'STARTING' %}
+            {% if task.status == 'WAITING' %}
                 bg-label-primary
             {% elif task.status == 'RUNNING' %}
                 bg-label-info
@@ -116,6 +116,7 @@
     </table>
   </div>
   
+  <!-- Pagination -->
   {% include "common/default/pagination.html" %}
 </div>
 </div>

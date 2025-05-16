@@ -198,3 +198,6 @@ sudo bash -c 'echo "generateResolvConf = false" >> /etc/wsl.conf'
 sudo chattr +i /etc/resolv.conf
 
 scp -i C:\Users\rafae\.ssh\ssh_key.pem projetofoodmanager-6087f7b4c412.json azureuser@172.162.241.76:/tmp
+
+# list all containers ip's
+docker ps -q | xargs -n 1 docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'

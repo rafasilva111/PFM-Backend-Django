@@ -22,7 +22,7 @@
 
 {% block content %}
 <h4 class="py-3 mb-4">
-    <span class="text-muted fw-light"> Jobs / </span> Job {{record.id}} details
+    <span class="text-muted fw-light"> Jobs / </span> Job {{instance.id}} details
 </h4>
 
 
@@ -34,55 +34,70 @@
             <div class="container-fluid d-flex align-items-center justify-content-between">
                 <h5 class="card-header">Job Details</h5>
                 <div>
-                    <a href="{% url 'job_resume' record.id %}" class="btn btn-success py-1">
-                        Resume
+                    <!-- Top Options -->
+
+                    <!-- Force Start Job -->
+                    {% if can_force_start_job and instance.get_current_task.status != 'RUNNING' and instance.get_current_task.status != 'WAITING' %}
+                    <a href="{% url 'job_force_start' instance.id %}" class="btn btn-success py-1">
+                        Force Start
                     </a>
-                    <a href="{% url 'job_pause' record.id %}" class="btn btn-secondary py-1">
-                        Pause
+                    {% endif %}
+
+                    <!-- Enable/Disable Job -->
+                    {% if can_enable_job and not instance.enabled %}
+                    <a href="{% url 'job_enable' instance.id %}" class="btn btn-success py-1">
+                        Enable
                     </a>
-                    <a href="{% url 'job_delete' record.id %}" class="btn btn-danger py-1">
+                    {% endif %}
+
+                    {% if can_disable_job and instance.enabled %}
+                    <a href="{% url 'job_disable' instance.id %}" class="btn btn-warning py-1">
+                        Disable
+                    </a>
+                    {% endif %}
+
+                    <!-- Edit Job -->
+                    {% if can_edit_job %}
+                    <a href="{% url 'job_edit' instance.id %}" class="btn btn-info py-1">
+                        Edit
+                    </a>
+                    {% endif %}
+
+                    <!-- Delete Job -->
+                    {% if can_delete_job %}
+                    <a href="{% url 'job_delete' instance.id %}" class="btn btn-danger py-1">
                         Delete
                     </a>
+                    {% endif %}
                 </div>
             </div>
             <div class="card-body task-details">
                 <div class="row">
 
-                    <div class="col-md-2">
+                    <!-- Name -->
+                    <div class="col-md-4">
                         <h6>Name:</h6>
-                        <p class="badge bg-label-primary me-1">{{ record.name }}</p>
+                        <p class="badge bg-label-primary me-1">{{ instance.name }}</p>
                     </div>
 
-                    <div class="col-md-2">
-                        <h6>Created By:</h6>
-                        <p class="badge bg-label-primary me-1">{{ record.created_by }}</p>
-                    </div>
-
-                    
-                    <div class="col-md-2">
-                        <h6>Type:</h6>
-                        <p class="badge bg-label-primary me-1">
-                            {{ record.type }}
-                        </p>
-                    </div>
-
+                    <!-- Enabled -->
                     <div class="col-md-2">
                         <h6>Enabled:</h6>
                         <p class="badge 
-                        {% if record.enabled %}
+                        {% if instance.enabled %}
                         bg-label-success
                         {% else %}
-                        bg-label-warning
+                        bg-label-danger
                         {% endif %} me-1">
-                            {{ record.enabled }}
+                            {{ instance.enabled }}
                         </p>
                     </div>
 
-                    {% if record.debug_mode %}
+                    {% if instance.debug_mode %}
                     <div class="col-md-2">
                         <h6>Debug Mode:</h6>
                         <p class="badge bg-label-warning me-1">
-                            {{ record.debug_mode }}
+                            {{ instance.debug_mode }}
                         </p>
                     </div>
                     {% endif %}
@@ -90,22 +105,78 @@
 
                 </div>
                 <div class="row mt-3">
-                    <div class="col-md-3">
-                        <h6>Starting Condition:</h6>
-                        <p class="badge bg-label-primary me-1">{{ record.starting_condition }}</p>
-                    </div>
-                    <div class="col-md-3">
-                        <h6>Stopping Condition:</h6>
-                        <p class="badge bg-label-primary me-1">{{ record.stopping_condition }}</p>
+                    
+                    <!-- Company -->
+                    <div class="col-md-2">
+                        <h6>Company:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.company.name }}</p>
                     </div>
 
+                    <!-- Process -->
+                    <div class="col-md-2">
+                        <h6>Process:</h6>
+                        <p class="badge bg-label-primary me-1">
+                            {{ instance.process }}
+                        </p>
+                    </div>
+                    
+                    <!-- Type -->
+                    <div class="col-md-2">
+                        <h6>Type:</h6>
+                        <p class="badge bg-label-primary me-1">
+                            {{ instance.type }}
+                        </p>
+                    </div>
+
+                    <!-- Parent Task -->
+                    {% if instance.parent_task %}
+                    <div class="col-md-3">
+                        <h6>Parent Task:</h6>
+                        <p class="badge bg-label-primary me-1">
+                            {{ instance.parent_task }}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Parent Job -->
+                    {% if instance.parent_job %}
+                    <div class="col-md-3">
+                        <h6>Parent Job:</h6>
+                        <p class="badge bg-label-primary me-1">
+                            {{ instance.parent_job }}
+                        </p>
+                    </div>
+                    {% endif %}
+
+                    <!-- Created By -->
+                    <div class="col-md-2">
+                        <h6>Created By:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.created_by }}</p>
+                    </div>
+                </div>
+
+                <div class="row mt-3">
+                    {% if instance.starting_condition %}
+                    <div class="col-md-3">
+                        <h6>Starting Condition:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.starting_condition }}</p>
+                    </div>
+                    {% endif %}
+
+                    
+                    {% if instance.stopping_condition %}
+                    <div class="col-md-3">
+                        <h6>Stopping Condition:</h6>
+                        <p class="badge bg-label-primary me-1">{{ instance.stopping_condition }}</p>
+                    </div>
+                    {% endif %}	
                 </div>
                 <div class="row mt-3">
                     <div class="col-md-3">
                         <h6>Last Run At:</h6>
 
-                        {% if record.last_run %}
-                        <p class="badge bg-label-primary  me-1">{{ record.last_run }}</p>
+                        {% if instance.last_run %}
+                        <p class="badge bg-label-primary  me-1">{{ instance.last_run }}</p>
                         {% else%}
                         <p class="badge bg-label-primary  me-1"> It's yet to be run.</p>
                         {% endif %}
@@ -119,18 +190,14 @@
     <div class="col-12">
         <div class="card mb-4">
 
+            <!-- Header -->
             <div class="container-fluid d-flex align-items-center">
                 <h5 class="card-header flex-grow-1">Task List</h5>
-
-                <!-- <a href="{% url 'task_create' %}" class="btn btn-primary">
-                    Create ETL Task
-                </a> -->
             </div>
 
             <!-- Filter Form -->
             <form method="get" class="card py-3 mb-4">
                 <div class="container-fluid d-flex align-items-center">
-
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Type: </label>
                         {{ filter.form.type}}
@@ -151,32 +218,30 @@
                         <button type="submit" class="btn btn-primary">Filter</button>
                     </div>
                 </div>
-
             </form>
 
             <!-- Table -->
             <div class="table-responsive text-nowrap">
                 <table class="table">
-                    <thead>
-                        <tr>
-                            <th>Task</th>
-                            <th>Users</th>
-                            <th>Type</th>
-                            <th>Status</th>
-                            <th>Started At</th>
-                            <th>Finished At</th>
-                            <th>Max Records</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody class="table-border-bottom-0">
-                        {% for task in page_obj %}
-                        <tr>
-                            <td>{{ task.id }}</td>
-                            <td>{{ task.company.name }}</td>
-                            <td>{{ task.get_type_display }}</td>
-                            <td><span class="badge 
-                        {% if task.status == 'STARTING' %}
+                <thead>
+                    <tr>
+                    <th>Task</th>
+                    <th>Company</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Started At</th>
+                    <th>Finished At</th>
+                    <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for task in tasks_page_obj %}
+                    <tr >
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.company.name }}</td>
+                    <td>{{ task.get_type_process_display }}</td>
+                    <td><span class="badge 
+                        {% if task.status == 'WAITING' %}
                             bg-label-primary
                         {% elif task.status == 'RUNNING' %}
                             bg-label-info
@@ -190,24 +255,107 @@
                             bg-label-secondary
                         {% endif %}
                         me-1">{{ task.get_status_display }}</span></td>
-                            <td>{{ task.started_at }}</td>
-                            <td>{{ task.finished_at }}</td>
-                            <td>{{ task.max_records }}</td>
-                            <td>
-                                <div class="dropdown">
-                                    <button type="button" class="btn p-0 dropdown-toggle hide-arrow"
-                                        data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
-                                    <div class="dropdown-menu">
-                                        <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i
-                                                class="bx bx-detail me-1"></i> Details</a>
-                                        <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i
-                                                class="bx bx-trash me-1"></i> Delete</a>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
+                    <td>{{ task.started_at }}</td>
+                    <td>{{ task.finished_at }}</td>
+                    <td>
+                        <div class="dropdown">
+                        <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                        <div class="dropdown-menu">
+                            {% if can_view_task %}
+                            <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                            {% endif %}
+
+                            {% if can_edit_task %}
+                            <a class="dropdown-item" href="{% url 'task_edit' task.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
+                            {% endif %}
+
+                            {% if can_delete_task %}
+                            <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                </table>
+            </div>
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+
+    <!-- Trigger History Table Card -->
+    <div class="col-12">
+        <div class="card mb-4">
+
+            <!-- Header -->
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header flex-grow-1">Trigger History</h5>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4">
+                <div class="container-fluid d-flex align-items-center">
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Type: </label>
+                        {{ filter.form.type}}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Status: </label>
+                        {{ filter.form.status }}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Started At: </label>
+                        {{ filter.form.started_at }}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Finished At: </label>
+                        {{ filter.form.finished_at }}
+                    </div>
+                    <div class="col-md-4 text-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Table -->
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                <thead>
+                    <th>ID</th>
+                    <th>Type</th>
+                    <th>Action</th>
+                    <th>Triggered At</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for task in trigger_history_page_obj %}
+                    <tr >
+                    <td>{{ task.id }}</td>
+                    <td>{{ task.type }}</td>
+                    <td>{{ task.action }}</td>
+                    <td>{{ task.triggered_at }}</td>
+                    <td>
+                        <div class="dropdown">
+                        <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                        <div class="dropdown-menu">
+                            {% if can_view_task %}
+                            <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                            {% endif %}
+
+                            {% if can_edit_task %}
+                            <a class="dropdown-item" href="{% url 'task_edit' task.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
+                            {% endif %}
+
+                            {% if can_delete_task %}
+                            <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                            {% endif %}
+                        </div>
+                        </div>
+                    </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
                 </table>
             </div>
             {% include "common/default/pagination.html" %}
@@ -234,7 +382,7 @@
     const cardBody = document.getElementById('both-scrollbars-example');
     console.log("logContainer");
     // Initialize WebSocket
-    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/job/{{ record.id }}/");
+    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/job/{{ instance.id }}/");
 
     // Handle incoming messages
     socket.onmessage = function (event) {
@@ -242,8 +390,52 @@
 
         // Handle log line updates
         if (data.type === 'log_line') {
-            const newLog = document.createTextNode(data.line);
-            logContainer.appendChild(newLog);
+            const logEntry = document.createElement('div');
+            
+            // Regex to match the date part (timestamp) and the log level part (INFO, WARNING, ERROR)
+            const logPattern = /(\[[^\]]*\])\s*(\[(INFO|WARNING|ERROR)\])\s*(.*)/;
+
+            // Apply the regex to the log line
+            const match = data.line.match(logPattern);
+
+            if (match) {
+                // Extract the timestamp, log level, and message
+                const timestamp = match[1];  // The date part
+                const logLevel = match[2];   // The log level part [INFO], [WARNING], [ERROR]
+                const message = match[4];    // The rest of the log message
+
+                // Create the elements for the log entry
+                const timestampSpan = document.createElement('span');
+                timestampSpan.textContent = timestamp;  // Add the timestamp without changes
+
+                const logLevelSpan = document.createElement('span');
+                logLevelSpan.textContent = ' ' + logLevel;  // Add the log level
+
+                // Style the log level based on its type
+                logLevelSpan.style.fontWeight = 'bold';
+                if (logLevel.includes('INFO')) {
+                    logLevelSpan.style.color = '#4A90E2';  // Soft blue
+                } else if (logLevel.includes('WARNING')) {
+                    logLevelSpan.style.color = '#FDD835';  // Soft yellow
+                } else if (logLevel.includes('ERROR')) {
+                    logLevelSpan.style.color = '#E57373';  // Soft red
+                }
+
+                const messageSpan = document.createElement('span');
+                messageSpan.textContent = ' ' + message;  // Add the message without changes
+
+                // Append everything together in the correct order
+                logEntry.appendChild(timestampSpan);
+                logEntry.appendChild(logLevelSpan);
+                logEntry.appendChild(messageSpan);
+
+            } else {
+                // If the log line doesn't match the expected pattern, just show it as is
+                logEntry.textContent = data.line;
+            }
+
+            // Append the log entry to the container
+            logContainer.appendChild(logEntry);
             cardBody.scrollTop = cardBody.scrollHeight;
         }
     };

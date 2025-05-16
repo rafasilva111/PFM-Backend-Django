@@ -16,7 +16,7 @@ from selenium.webdriver.firefox.service import Service
 """
 Import custom functions and constants
 """
-from apps.etl_app.functions import start_extract_db
+from apps.etl_app.functions import start_db
 from apps.etl_app.constants import extract_continente_ingredients_db,continente_ingredients_images_folder	
 from apps.etl_app.ingredient.extract.continente.models import Tag, NutritionInformation, Ingredient, database_proxy, IngredientLink
 
@@ -601,7 +601,8 @@ def __extract_continente_ingredients(logger, task, continue_mode):
     logger.info("")
         
     " Starts the db "
-    start_extract_db(
+    logger.info("Starting extract db...")
+    start_db(
         logger=logger,
         task=task,
         models=models_,

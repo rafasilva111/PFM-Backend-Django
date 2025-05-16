@@ -443,15 +443,17 @@ class UserTableView(LoginRequiredMixin, TemplateView):
         filtered_records = filter.qs
     
         # Implement pagination
-        page_size = int(self.request.GET.get('page_size', self.page_size))
-        paginator = Paginator(filtered_records, page_size)
-        page_number = self.request.GET.get('page')
-        page_obj = paginator.get_page(page_number)
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
         
-        # Add user permissions to the context
+        # Created context
         context.update(
             {
                 "filter": filter,
+                "total_count": paginator.count,
                 "page_obj": page_obj,
                 "can_view_user": self.request.user.has_perm(
                     "user_app.can_view_user"

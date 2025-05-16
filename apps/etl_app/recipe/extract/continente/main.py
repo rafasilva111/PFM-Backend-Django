@@ -6,7 +6,7 @@ import unidecode
 from bs4 import BeautifulSoup
 
 " Import custom functions and constants "
-from apps.etl_app.functions import start_extract_db
+from apps.etl_app.functions import start_db
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
 from apps.etl_app.constants import extract_continente_recipes_db, continente_recipes_images_folder
@@ -50,8 +50,8 @@ def extract_data_from_link(logger, recipe_link):
     
     
     " Initialize variables "
-    warnings = 0
-    errors = 0
+    __errors = 0
+    __warnings = 0    
     recipe_db = Recipe()
     
     " Extract html response from the recipe link "
@@ -105,7 +105,7 @@ def extract_data_from_link(logger, recipe_link):
             f.write(requests.get(image_source_link).content)
     except Exception as e:
         logger.error(f"Error extracting preparation steps: {e}")
-        errors += 1
+        __errors += 1
 
     " Preparation "
 
@@ -129,7 +129,7 @@ def extract_data_from_link(logger, recipe_link):
         recipe_db.preparation = pickle.dumps(preparation)
     except Exception as e:
         logger.error(f"Error extracting preparation steps: {e}")
-        errors += 1
+        __errors += 1
         
     
     " Nutrition Information "
@@ -150,27 +150,29 @@ def extract_data_from_link(logger, recipe_link):
                 item_value = item_element.find('strong').text.replace(",", ".").strip()
                 nutrition_helper.update({item_title: item_value})
 
-        nutrition_information = NutritionInformation(energia=nutrition_helper['Calorias'],
-                                                     energia_perc="0",
-                                                     gordura=nutrition_helper['Lípidos'],
-                                                     gordura_perc="0",
-                                                     gordura_saturada=nutrition_helper['Saturados'],
-                                                     gordura_saturada_perc="0",
-                                                     hidratos_carbonos=nutrition_helper['Hidratos'],
-                                                     hidratos_carbonos_acucares=nutrition_helper['Açúcares'],
-                                                     hidratos_carbonos_acucares_perc="0",
-                                                     fibra=nutrition_helper['Fibras'],
-                                                     fibra_perc="0",
-                                                     proteina=nutrition_helper['Proteínas'],
-                                                     proteina_perc="0",
-                                                     sal=nutrition_helper['Sal'],
-                                                     sal_perc="0")
+        nutrition_information = NutritionInformation(
+            energy_kcal=nutrition_helper['Calorias'],
+            energy_perc="0",
+            fat_g=nutrition_helper['Lípidos'],
+            fat_perc="0",
+            saturates_g=nutrition_helper['Saturados'],
+            saturates_perc="0",
+            carbohydrates_g=nutrition_helper['Hidratos'],
+            carbohydrates_perc="0",
+            sugars_g=nutrition_helper['Açúcares'],
+            sugars_perc="0",
+            fiber_g=nutrition_helper['Fibras'],
+            protein_g=nutrition_helper['Proteínas'],
+            protein_perc="0",
+            salt_g=nutrition_helper['Sal'],
+            salt_perc="0"
+        )
         nutrition_information.save()
         recipe_db.nutrition_information = nutrition_information.id
 
     else:
         logger.warning("No nutritional information found")
-        warnings += 1
+        __warnings += 1
     recipe_db.save()
     
     " Useful tools "
@@ -209,14 +211,14 @@ def extract_data_from_link(logger, recipe_link):
         tags_tag = tags_raw.find('span', class_='categoryTag')
 
         if tags_tag:
-            tag, created = Tag.get_or_create(title=tags_tag.text.strip())
+            tag, created = Tag.get_or_create(text=tags_tag.text.strip())
             tag.save()
             recipe_db.tags.add(tag)
 
     logger.info("")
     recipe_db.save()
     
-    return warnings, errors
+    return __errors, __warnings
 
 
 def pull_recipes(logger,task, max_recipes=-1):
@@ -235,49 +237,65 @@ def pull_recipes(logger,task, max_recipes=-1):
     
     
     " Initialize the warnings and errors counters "
-    warnings = 0
-    errors = 0
+    __warnings = 0
+    __errors = 0
+    
+    OFFSET = None
     
     logger.info("")
     logger.info("Starting to pull Recipes")
-    
-    total_recipes = Recipe.select().count()
-    
-    logger.info(f"Found {total_recipes} recipes on DB...")
+    logger.info("")
+    logger.info(f"Recipe extraction is on step {task.step}...")
     logger.info("")
     
-
-    max_ingredients = -1
-
-
-    counter = 0
-    for ingredient_link in RecipeLinks.select().where(RecipeLinks.id > total_recipes):
-        if max_ingredients != -1 and counter == max_ingredients:
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
+    if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.parent_job.stopping_condition
+    
+    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+    if task.step != 0:
+        recipes_in_db = Recipe.select().count()
+        if recipes_in_db > task.step:
+            # Delete tasks until step matches recipes_in_db
+            tasks_to_delete = Recipe.select().where(Recipe.id > task.id).order_by(Recipe.id.desc())
+            for t in tasks_to_delete:
+                if task.step == recipes_in_db:
+                    break
+                t.delete_instance()
+                recipes_in_db -= 1
+        
+    " Extract data from each recipe link "
+    for recipe_link in RecipeLinks.select().where(RecipeLinks.id > task.step):
+        
+        if OFFSET and recipe_link.id > OFFSET:
+            task.parent_job.create_job_trigger_history(
+                type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                status=JobTriggerHistory.Status.SUCCESS,
+            )
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe_link.id}...")
             break
-        else:
-            counter += 1
-
-        logger.info(f"Extracting Recipe {ingredient_link.id} from {ingredient_link.link}")
-
-        warnigs_, errors_ = extract_data_from_link(logger, ingredient_link.link)
-        warnings += warnigs_
-        errors += errors_
+        
+        logger.info(f"Extracting Recipe {recipe_link.id} from {recipe_link.link}")
+        _errors, _warnings = extract_data_from_link(logger, recipe_link.link)
+        __warnings += _warnings
+        __errors += _errors
+        task.step += 1
+        task.save()
     
     " Update Task Statistics"
-    task.items = Recipe.select().count()
-    task.items_warnings = warnings
-    task.items_errors = errors
+    task.items_processed = Recipe.select().count()
     task.save()
     
+    
     " Log the completion of the extraction process "
-    logger.info("All Recipes pulled ...")
-    logger.info("")
-    logger.info("Pull Recipes summary:")
-    logger.info(f"{task.print_items_summary()}")
+    logger.info(f"{task.items_processed} Recipes pulled ...")
     logger.info("")
     
+    return __errors, __warnings
+    
 
-def pull_all_recipes_links(logger, task, continue_mode=False):
+def pull_all_recipes_links(logger, task):
     """
     Extracts all recipe links from the Continente website using a GraphQL API.
     This function retrieves recipe links in a paginated manner and stores them in the database.
@@ -304,8 +322,8 @@ def pull_all_recipes_links(logger, task, continue_mode=False):
     
     
     " Initialize the warnings and errors "
-    warnings = 0
-    errors = 0
+    __warnings = 0
+    __errors = 0
     
 
     " Gets all Recipe's Links from Continente "
@@ -321,8 +339,7 @@ def pull_all_recipes_links(logger, task, continue_mode=False):
     
 
     " Get data "
-    if continue_mode:
-        page = RecipeLinks.select().count() // OFFSET + 1
+    page = RecipeLinks.select().count() // OFFSET + 1
 
     while True:
 
@@ -371,7 +388,15 @@ def pull_all_recipes_links(logger, task, continue_mode=False):
             break
 
         for item in data_json['data']['genericRecipesBy']['recipes']:
-
+            
+            # Prevent empty links
+            if 'pageUrl' not in item or item['pageUrl'] == '':
+                logger.warning(f"Page URL not found for item:")
+                logger.warning(f"{item}")
+                __warnings += 1
+                continue
+            
+            
             data_point = RecipeLinks(
                 link = f"{BASE_URL}{item['pageUrl']}",
                 image_link = item['image'],
@@ -385,19 +410,21 @@ def pull_all_recipes_links(logger, task, continue_mode=False):
 
     " Update Task Statistics"
     task.links = RecipeLinks.select().count()
-    task.links_warnings = warnings
-    task.links_errors = errors
     task.save()
     
     " Log the completion of the extraction process "
+    logger.info("")
     logger.info("All Recipe's Links pulled ...")
     logger.info("")
-    logger.info("Pull Recipe's Links summary:")
-    logger.info(f"{task.print_links_summary()}")
-    logger.info("")
+    
+    return __errors, __warnings
     
 
-def __extract_continente_recipes(logger, task, continue_mode):
+def __extract_continente_recipes(logger, task, resume = False):
+    
+    " Initialize the warnings and errors "
+    __errors = 0
+    __warnings = 0
     
     " Log the start of the extraction process"
     logger.info(f"Extracting all recipes from {task.company}...")
@@ -405,42 +432,42 @@ def __extract_continente_recipes(logger, task, continue_mode):
     
 
     " Starts the db "
-    start_extract_db(
+    logger.info("Starting extract db...")
+    start_db(
         logger=logger,
         task=task,
         models=models_,
         path=extract_continente_recipes_db,
-        database_proxy=database_proxy
+        database_proxy=database_proxy,
+        reset=not resume # we want to reset the database if we are not resuming
         )
     
     
     " Get all recipes links "
-    pull_all_recipes_links(logger, task, continue_mode=continue_mode)
-    
+    if task.step == 0:
+        _errors, _warnings = pull_all_recipes_links(logger, task)
+        __errors += _errors
+        __warnings += _warnings
 
     " Pulls recipes from above links "
-    pull_recipes(logger, task)
+    _errors, _warnings = pull_recipes(logger, task)
+    __errors += _errors
+    __warnings += _warnings
     
     
     " Calculate total summary "
-    task.warnings = task.links_warnings + task.items_warnings
-    task.errors = task.links_errors + task.items_errors
+    task.errors = __errors
+    task.warnings = __warnings
     task.save()
     
     
     " Log the completion of the extraction process "
-    logger.info("Pull links summary:")
-    logger.info(f"{task.print_links_summary()}")
+    logger.info("Summary:")
+    logger.info(f"Total links: {task.links}")
+    logger.info(f"Total recipes: {task.items_processed}")
     logger.info("")
-    
-    logger.info("Pull recipes summary:")
-    logger.info(f"{task.print_items_summary()}")
-    logger.info("")
-    
-    logger.info("")
-    logger.info("Total summary:")
-    logger.info(f"{task.print_total_summary()}")
-    logger.info("")
+    logger.info(f"Total errors: {task.errors}")
+    logger.info(f"Total warnings: {task.warnings}")
     
     
     " Finish task "

@@ -17,37 +17,49 @@ main_db = "./recipe/transform/transform_recipes.db"
 """ Secondary Databases """
 
 
+
 """ 
-    Continente
-    
+        Extract 
+
 """
+
+"""    Continente   """
+
 
 """ Ingredients """
 
-""" Extract """
+extract_continente_ingredients_db = f"apps/etl_app/ingredient/extract/continente/dbs"
+continente_ingredients_images_folder = f"apps/etl_app/ingredient/extract/continente/images"
 
-extract_continente_ingredients_db = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/dbs"
-continente_ingredients_images_folder = f"{settings.BASE_DIR}/apps/etl_app/ingredient/extract/continente/images"
 
 """ Recipes """
 
-extract_continente_recipes_db = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/continente/dbs"
-continente_recipes_images_folder = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/continente/images"
-
-
-
-
+extract_continente_recipes_db = f"apps/etl_app/recipe/extract/continente/dbs"
+continente_recipes_images_folder = f"apps/etl_app/recipe/extract/continente/images"
 
 
 """ Pingo Doce """
 
+""" Ingredients """
+
 extract_recipe_pingo_doce = "./recipe/extract/pingo_doce/dbs"
-extract_recipe_pingo_doce_db = SqliteDatabase(extract_recipe_pingo_doce)
+
+
+""" 
+        Transform 
+
+"""
+
+transform_recipes_db = f"apps/etl_app/recipe/transform/dbs"
+
+
+
+
 
 
 """ Images Dict """
 
-PINGO_DOCE_IMAGES_FOLDER = f"{settings.BASE_DIR}/apps/etl_app/recipe/extract/pingo_doce/images"
+PINGO_DOCE_IMAGES_FOLDER = f"apps/etl_app/recipe/extract/pingo_doce/images"
 
 """ Marshmallow """
 
@@ -65,3 +77,12 @@ class Measures(models.IntegerChoices):
     DESERT_SPOON = 10, 'Desert Spoon'
 
 
+eu_reference_intake = {
+    "energy_kcal": 2000,
+    "carbohydrates_g": 260,
+    "sugars_g": 90,
+    "fat_g": 70,
+    "saturates_g": 20,
+    "protein_g": 50,
+    "salt_g": 6
+}

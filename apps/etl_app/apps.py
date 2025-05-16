@@ -11,7 +11,7 @@ class EtlAppConfig(AppConfig):
         
         # Import task Signals
         
-        from apps.etl_app.signals import post_create_task_handler,post_delete_task_handler,task_success_handler
+        from apps.etl_app.signals import post_delete_task_handler,task_success_handler
         
         # create etl logs base dir
         

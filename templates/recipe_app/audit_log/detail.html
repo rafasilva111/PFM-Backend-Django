@@ -1,0 +1,212 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+  Perfect Scrollbar - Extended UI
+{% endblock %}
+
+{% block vendor_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock %}
+
+{% block vendor_js %}
+  {{ block.super }}
+  <script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock %}
+
+{% block page_js %}
+  {{ block.super }}
+  <script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock %}
+
+{% block content %}
+  <h4 class="py-3 mb-4"><span class="text-muted fw-light">Recipe / Audit Log /</span> Audit Log {{ instance.id }} Details</h4>
+
+<div class="row">
+    <!-- Audit Log Detail Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+            <h4 class="card-header">Audit Log Details</h4>
+            <div>
+                <!-- Top Options -->
+
+                <!-- Accept -->
+                {% if can_accept_audit_log and not instance.accepted %}
+                <a href="{% url 'audit_log_accept' instance.id %}" class="btn btn-success py-1">Accept</a>
+                {% endif %}
+
+                {% if can_accept_audit_log and instance.accepted %}
+                <a href="{% url 'audit_log_unaccept' instance.id %}" class="btn btn-warning py-1">Unaccept</a>
+                {% endif %}
+
+                <!-- Review -->
+                {% if can_accept_audit_log and not instance.reviewed %}
+                <a href="{% url 'audit_log_review' instance.id %}" class="btn btn-success py-1">Review</a>
+                {% endif %}
+
+                {% if can_accept_audit_log and instance.reviewed %}
+                <a href="{% url 'audit_log_unreview' instance.id %}" class="btn btn-warning py-1">Unreview</a>
+                {% endif %}
+
+                <!-- Delete -->
+                {% if can_delete_audit_log %}
+                <a href="{% url 'audit_log_delete' instance.id %}" class="btn btn-danger py-1">Delete</a>
+                {% endif %}
+            </div>
+            </div>
+            <div class="card-body task-details">
+            <div class="row pb-3">
+                <!-- Recipe -->
+                <div class="col-md-2">
+                <h6>Recipe:</h6>
+                <a href="{% url 'recipe_detail' instance.recipe.id %}" class="badge bg-label-primary me-1">{{ instance.recipe }}</a>
+                </div>
+
+                <!-- Task -->
+                <div class="col-md-2">
+                <h6>Task:</h6>
+                <a href="{% url 'task_detail' instance.task.id %}" class="badge bg-label-primary me-1">{{ instance.task }}</a>
+                </div>
+            </div>
+
+            <div class="row">
+                <!-- Type -->
+                <div class="col-md-2">
+                <h6>Type:</h6>
+                <p class="badge bg-label-primary me-1">{{ instance.type }}</p>
+                </div>
+
+                <!-- Description -->
+                <div class="col-md-3">
+                    <h6>Description:</h6>
+                    <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.description }}</p>
+                </div>
+                
+                <!-- Accepted -->
+                <div class="col-md-2">
+                    <h6>Accepted:</h6>
+                    <p class="badge 
+                    {% if instance.accepted %}
+                        bg-label-success
+                    {% else %}
+                        bg-label-danger
+                    {% endif %}
+                    me-1">{{ instance.accepted }}</p>
+                </div>
+
+                <!-- Reviewed -->
+                <div class="col-md-2">
+                    <h6>Reviewed:</h6>
+                    <p class="badge 
+                    {% if instance.reviewed %}
+                        bg-label-success
+                    {% else %}
+                        bg-label-danger
+                    {% endif %}
+                    me-1">{{ instance.reviewed }}</p>
+            </div>
+
+            {% if task.field %}
+            <div class="row">
+                <!-- Field -->
+                <div class="col-md-3">
+                    <h6>Field:</h6>
+                    <p class="badge bg-label-primary me-1">{{ instance.field }}</p>
+                </div>
+
+                <!-- Old Value -->
+                <div class="col-md-3">
+                    <h6>Old Value:</h6>
+                    <p class="badge bg-label-primary me-1">
+                        {{ instance.old_value|truncatewords_html:5|safe  }}
+                    </p>
+                </div>
+
+                <!-- New Value -->
+                <div class="col-md-3">
+                    <h6>New Value:</h6>
+                    <p class="badge bg-label-primary me-1" >
+                        {{ instance.new_value|truncatewords_html:5|safe  }}
+                    </p>
+                </div>
+            </div>
+            {% endif %}
+            </div>
+            
+            <div class="row">
+
+                <!-- Created At -->
+                <div class="col-md-3">
+                    <h6>Created At:</h6>
+                    <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.created_at }}</p>
+                </div>
+                
+                <!-- Updated At -->
+                <div class="col-md-3">
+                    <h6>Updated At:</h6>
+                    <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.updated_at }}</p>
+                </div>
+                
+            </div>
+
+        </div>
+    </div>
+
+    <!-- Audit Log Status Updates Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h4 class="card-header">Audit Log Status Updates</h4>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4">    
+                <div class="container-fluid d-flex justify-content-start align-items-center">
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Changed By: </label>
+                        {{ filter.form.changed_by}}
+                    </div>
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Status: </label>
+                        {{ filter.form.status}}
+                    </div>
+                    <div class="col-md-2 text-end ms-auto">
+                    <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                    <thead>
+                        <tr>
+                        <th class="text-center">Status</th>
+                        <th class="text-center">Changed By</th>
+                        <th class="text-center">Changed At</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for status_change in instance.status_history.all %}
+                        <tr>
+                            <td class="text-center">{{ status_change.status }}</td>
+                            <td class="text-center">{{ status_change.changed_by }}</td>
+                            <td class="text-center">{{ status_change.changed_at }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="3" class="text-center">No status changes available.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}

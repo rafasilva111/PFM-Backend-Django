@@ -13,7 +13,7 @@ models_ = [Recipe_T, NutritionInformation, IngredientQuantity, RecipeTagThrough,
 
 def transform(logger,recipe):
 
-    logger.info(f"Transforming Recipe {recipe.id}")
+    logger.info(f"Transforming Recipe {recipe.id}.")
     recipe_transformed = RecipeSchema().dump(recipe)
 
     """ Transforming Preparation """

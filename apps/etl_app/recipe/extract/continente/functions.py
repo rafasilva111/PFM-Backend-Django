@@ -1,6 +1,6 @@
 import logging
 import re
-from apps.etl_app.functions import start_extract_db
+from apps.etl_app.functions import start_db
 
 
 #from apps.etl_app.functions import print_it
@@ -26,7 +26,7 @@ def start_recipe_extract_db(path, logger, task, reset=False):
     """
     
     
-    return start_extract_db(path, logger, task, reset, models_)
+    return start_db(path, logger, task, reset, models_)
 
 
 # Regular expression pattern for separating quantity, unit, and ingredient

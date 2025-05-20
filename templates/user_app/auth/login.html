@@ -72,7 +72,18 @@
                 </label>
               </div>
             </div>
+
+            <!-- reCaptcha -->
+            <div class="mb-3">
+              <div class="d-flex justify-content-center">
+                {{ form.captcha }}
+              </div>
+              {% for error in form.captcha.errors %}
+                <div class="invalid-feedback d-block text-center">{{ error }}</div>
+              {% endfor %}
+            </div>
             
+
             <!-- Submit Button -->
             <div class="mb-3">
               <button class="btn btn-primary d-grid w-100" type="submit">Sign in</button>
@@ -94,3 +105,5 @@
 </div>
 
 {% endblock content %}
+
+<script src="https://www.google.com/recaptcha/api.js" async defer></script>

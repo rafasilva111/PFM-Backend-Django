@@ -70,6 +70,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "django_celery_beat",
     "django_extensions",
+    "django_recaptcha",
     "rest_framework_simplejwt.token_blacklist",
     "drf_yasg",
     "apps.common",
@@ -289,15 +290,15 @@ CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = "UTC"
 
-
-
-
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
+
+
+# Celery Recurring Tasks
 
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "reap-zombie-tasks-every-10-minutes": {
-        "task": "etl_app.tasks.reap_zombie_tasks",
+        "task": "etl_app.tasks._reap_zombie_tasks",
         "schedule": crontab(minute="*/10"),  # Runs every 10 minutes
     },
 }
@@ -317,3 +318,9 @@ CHANNEL_LAYERS = {
         },
     },
 }
+
+# reCaptcha
+# ------------------------------------------------------------------------------
+
+RECAPTCHA_PUBLIC_KEY = os.environ.get("RECAPTCHA_PUBLIC_KEY")
+RECAPTCHA_PRIVATE_KEY = os.environ.get("RECAPTCHA_PRIVATE_KEY")

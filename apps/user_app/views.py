@@ -114,10 +114,12 @@ class LoginView(TemplateView):
             Handles POST requests for user login. Authenticates the user and logs them in if credentials are valid.
             Sets session expiry based on the 'remember_me' option.
     """
-    template_name = 'common/auth/login.html'  # Assuming the login template path
+    template_name = 'user_app/auth/login.html'
     form_class = LoginForm
 
     def get_context_data(self, **kwargs):
+        
+        
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
 
         context.update({
@@ -125,6 +127,14 @@ class LoginView(TemplateView):
             'form': self.form_class(),
         })
         return context
+
+    def get(self, request):
+        if request.user.is_authenticated:
+            return redirect('home')
+        
+        context = self.get_context_data()
+        
+        return render(request, self.template_name, context)
 
     def post(self, request):
         """

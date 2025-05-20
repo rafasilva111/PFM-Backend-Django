@@ -377,6 +377,7 @@ def test_task(logger, task, max_count=10000, continue_mode=True):
     # Update task status to finished
     task.finish()
 
+@app.task
 def _reap_zombie_tasks():
     """
     Reaps zombie tasks that have been running for too long.
@@ -389,7 +390,7 @@ def _reap_zombie_tasks():
 
     from config.celery import app
     
-    # Get the list of active Celery tasks
+    " Get the list of active Celery tasks "
     i = app.control.inspect()
     active = i.active()
     active_celery_tasks_ids = []
@@ -398,24 +399,32 @@ def _reap_zombie_tasks():
             for task in tasks:
                 active_celery_tasks_ids.append(task['id'])
     
-    # Get current running tasks from the database
+    " Get current running tasks from the database "
     tasks = Task.objects.filter(status=Task.Status.RUNNING)
     
+    counter = 0
     active_sql_tasks_ids = []
     for task in tasks:
         if task.celery_task_id:
             active_sql_tasks_ids.append(task.celery_task_id)
-
-    # Calculate the Zombie tasks
+        else:
+            # Reap tasks that are in the database but not in Celery
+            # This means they are zombie tasks
+            task.cancel()
+            counter = counter + 1
+    
+    " Calculate the Zombie tasks "
     zombie_tasks = list(set(active_sql_tasks_ids) - set(active_celery_tasks_ids))
     
-    # Find all tasks that have been running for more than 24 hours
+    " Find all tasks that have been running for more than 24 hours "
     zombie_tasks = Task.objects.filter(
         celery_task_id__in=zombie_tasks,
     )
 
-    # Update the status of each zombie task to FAILED
+    " Update the status of each zombie task to CANCELLED "
     for task in zombie_tasks:
-        task.pause()
+        task.cancel()
+    
+    print(f"Reaped {len(zombie_tasks) + counter} zombie tasks.")
     
     return len(zombie_tasks)

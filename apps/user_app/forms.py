@@ -43,6 +43,8 @@ from apps.user_app.models import User,Group
 #
 from apps.user_app.constants import REGISTER_MINIMUM_AGE
 
+from django_recaptcha.fields import ReCaptchaField
+from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', widget=forms.TextInput(attrs={
@@ -56,7 +58,8 @@ class LoginForm(forms.Form):
     remember_me = forms.BooleanField(label='Remember Me', required=False, widget=forms.CheckboxInput(attrs={
         'class': 'form-check-input'
     }))
-
+    captcha = ReCaptchaField(widget=ReCaptchaV2Checkbox)
+    
 class RegisterForm(UserCreationForm):
     name = forms.CharField(
         widget=forms.TextInput(

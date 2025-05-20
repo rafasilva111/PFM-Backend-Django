@@ -8,6 +8,5 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         
         _reap_zombie_tasks()
-        self.stdout.write(self.style.SUCCESS('Zombie tasks reaped successfully'))
 
 

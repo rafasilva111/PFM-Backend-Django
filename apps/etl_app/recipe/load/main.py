@@ -47,9 +47,6 @@ def load_recipes(logger,task, resume):
         task.step += 1
         task.save()
         
-        # TODO remover este breakpoint
-        if task.step == 10:
-            break
         
     " Audit the deleted recipes "
     

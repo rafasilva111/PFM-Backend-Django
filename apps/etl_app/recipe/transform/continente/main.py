@@ -112,36 +112,68 @@ def transform_recipe(logger, task, recipe):
         _ingredient_quantity.ingredient = _ingredient
         _ingredient_quantity.save()
         
-    task.items_processed += 1
-    task.save()
+    
     return __errors, __warnings
     
     
 def transform_recipes(logger, task, resume):
     
-    " Initialize the warnings and errors "
-    __errors = 0
+    " Initialize the warnings and errors counters "
     __warnings = 0
+    __errors = 0
     
-    " Deal with the resume "
-    if resume:
-        logger.info("Resuming the transformation of recipes...")
-        logger.info("")
-        query = Recipe_E.select().where(Recipe_E.id > task.step).order_by(Recipe_E.id)
-    else:
-        query = Recipe_E.select().order_by(Recipe_E.id)
+    OFFSET = None
     
-    
-    logger.info("Transforming recipes:")
     logger.info("")
-
-    for recipe in query:
-        __errors, __warnings = transform_recipe(logger, task, recipe)
-        task.step += 1
+    logger.info("Starting to transform Recipes")
+    logger.info("")
+    logger.info(f"Recipe extraction is on step {task.step}...")
+    logger.info("")
     
-    task.save()
-    return __errors, __warnings
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
+    if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.parent_job.stopping_condition
+    
+    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+    if task.step != 0:
+        recipes_in_db = Recipe_T.select().count()
+        if recipes_in_db > task.step:
+            # Delete tasks until step matches recipes_in_db
+            tasks_to_delete = Recipe_T.select().order_by(Recipe_T.id.desc())
+            for t in tasks_to_delete:
+                if task.step == recipes_in_db:
+                    break
+                t.tags.clear()
+                t.delete_instance()
+                recipes_in_db -= 1
+    
+    
+    
+    " Extract data from each extracted recipe "
+    for recipe in Recipe_E.select().where(Recipe_E.id > task.step):
+        
+        if OFFSET and recipe.id > OFFSET:
+            task.parent_job.create_job_trigger_history(
+                type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                status=JobTriggerHistory.Status.SUCCESS,
+            )
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe.id}...")
+            break
+        
+        _errors, _warnings = transform_recipe(logger, task, recipe)
+        __warnings += _warnings
+        __errors += _errors
+        task.step += 1
+        task.items_processed += 1
+        task.save()
 
+    
+    " Log the completion of the extraction process "
+    logger.info(f"{task.items_processed} Recipes transformed ...")
+    logger.info("")
+    
+    return __errors, __warnings
 
 def __transform_continente_recipes(logger, task, resume):
     

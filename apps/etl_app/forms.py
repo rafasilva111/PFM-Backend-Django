@@ -233,7 +233,7 @@ class TaskForm(forms.ModelForm):
                 self.add_error('parent_tasks_transform', 'Please choose a Parent Task.')
         
         # Enforce parent task to be PAUSED or STOPPED
-        if parent_task and parent_task.status not in [Task.Status.PAUSED, Task.Status.STOPPED]:
+        if parent_task and parent_task.status not in [Task.Status.PAUSED, Task.Status.STOPPED, Task.Status.FINISHED]:
             self.add_error('parent_tasks_extract', 'Parent task must be PAUSED or STOPPED.')
         
         

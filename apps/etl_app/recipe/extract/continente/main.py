@@ -258,10 +258,11 @@ def pull_recipes(logger,task, max_recipes=-1):
         recipes_in_db = Recipe.select().count()
         if recipes_in_db > task.step:
             # Delete tasks until step matches recipes_in_db
-            tasks_to_delete = Recipe.select().where(Recipe.id > task.id).order_by(Recipe.id.desc())
+            tasks_to_delete = Recipe.select().order_by(Recipe.id.desc())
             for t in tasks_to_delete:
                 if task.step == recipes_in_db:
                     break
+                t.tags.clear()
                 t.delete_instance()
                 recipes_in_db -= 1
         

@@ -298,7 +298,7 @@ CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     "reap-zombie-tasks-every-10-minutes": {
-        "task": "etl_app.tasks._reap_zombie_tasks",
+        "task": "apps.etl_app.tasks._reap_zombie_tasks",
         "schedule": crontab(minute="*/10"),  # Runs every 10 minutes
     },
 }

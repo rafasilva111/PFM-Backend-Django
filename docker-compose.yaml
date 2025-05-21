@@ -6,29 +6,29 @@ services:
       - develop-net
     ports:
       - "5672:5672"
-      - "15672:15672"  # RabbitMQ management port
+      - "15672:15672"
     restart: always
 
   postgresql:
     image: postgres:13
     container_name: postgres
     env_file:
-      - .env 
+      - .env
     networks:
       - develop-net
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data  # Mount volume for PostgreSQL data
+      - postgres_data:/var/lib/postgresql/data
     restart: always
 
   django:
-    build: 
+    build:
       context: .
       dockerfile: ./DockerFiles/Dockerfile-Django
     container_name: django
     env_file:
-      - .env  
+      - .env
     depends_on:
       - rabbitmq
       - postgresql
@@ -43,12 +43,12 @@ services:
     restart: always
 
   celery-worker:
-    build: 
+    build:
       context: .
-      dockerfile: ./DockerFiles/Dockerfile-Celery-Worker
+      dockerfile: ./DockerFiles/Dockerfile
     container_name: celery-worker
     env_file:
-      - .env  
+      - .env
     depends_on:
       - rabbitmq
       - postgresql
@@ -61,9 +61,9 @@ services:
     restart: always
 
   flower:
-    build: 
+    build:
       context: .
-      dockerfile: ./DockerFiles/Dockerfile 
+      dockerfile: ./DockerFiles/Dockerfile
     container_name: flower
     depends_on:
       - rabbitmq
@@ -75,21 +75,21 @@ services:
     networks:
       - develop-net
     ports:
-      - "5555:5555"  # Expose Flower web UI on port 5555
+      - "5555:5555"
     restart: always
 
   celery-beat:
-    build: 
+    build:
       context: .
-      dockerfile: ./DockerFiles/Dockerfile  
+      dockerfile: ./DockerFiles/Dockerfile
     container_name: celery-beat
     depends_on:
       - rabbitmq
       - celery-worker
+    command: celery -A config.celery beat --loglevel=info
     volumes:
       - .:/app
     working_dir: /app
-    command: celery -A config.celery beat --loglevel=info
     networks:
       - develop-net
     restart: always
@@ -113,13 +113,12 @@ services:
     networks:
       - develop-net
     ports:
-      - "6379:6379"  # Redis default port
+      - "6379:6379"
     restart: always
 
 volumes:
   app-data:
   postgres_data:
-
 
 networks:
   develop-net:

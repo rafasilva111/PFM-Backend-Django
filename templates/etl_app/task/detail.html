@@ -165,17 +165,22 @@
                 <!-- File Paths -->
                 <div class="row">
 
+                    
                     <!-- Log Path -->
+                    {% if task.log_path %}
                     <div class="col-md-4">
                         <h6>Log Path:</h6>
                         <p class="badge bg-label-primary  me-1">{{ task.log_path }}</p>
                     </div>
-                    
+                    {% endif %}
+
                     <!-- SQL File -->
+                    {% if task.sql_file %}
                     <div class="col-md-3">
-                        <h6>Log Path:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ task.log_path }}</p>
+                        <h6>SQL Path:</h6>
+                        <p class="badge bg-label-primary  me-1">{{ task.sql_file }}</p>
                     </div>
+                    {% endif %}
                 </div>
                 
                 <!-- Task Statistics -->

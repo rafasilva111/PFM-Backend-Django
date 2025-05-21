@@ -2,7 +2,8 @@ from apps.etl_app.recipe.transform.continente.utils import convert_fractions, re
     remove_fraction_characters, remove_multiple_spaces, contains_numbers
 import re
 
-general_units = "kg|g|ml|dl|cl|l|lt|L|c\. de sopa|c\. de chá|c\. de café|c\. de sobremesa|cháv\.|folha|dente|pacotes|embalagem|embalagens|garrafa"
+general_units = "kg|g|ml|dl|cl|l|lt|L|c\. de sopa|c\. de chá|c\. de café|c\. de sobremesa|cháv\.|folhas|folha|dentes|dente|pacotes|pacote|\
+    embalagens|embalagem|garrafas|garrafa"
 
 def normalize_quantity(logger, quantity_original: str):
     """
@@ -78,12 +79,16 @@ def normalize_quantity(logger, quantity_original: str):
         quantity_tempered = quantity_tempered.replace("qb", "q.b.")
     if "a gosto" in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("a gosto", "q.b.")
-    if "c. (de sopa)" in quantity_tempered:
-        quantity_tempered = quantity_tempered.replace("c. (de sopa)", "c. de sopa")
-    if "c.sopa" in quantity_tempered:
+    if "c.sopa" in quantity_tempered:                                 # C. de Sopa
         quantity_tempered = quantity_tempered.replace("c.sopa", "c. de sopa")
-    if "c.café" in quantity_tempered:
+    if "c.de sopa" in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("c.de sopa", "c. de sopa")
+    if "c. (de sopa)" in quantity_tempered:                                               
+        quantity_tempered = quantity_tempered.replace("c. (de sopa)", "c. de sopa")
+    if "c.café" in quantity_tempered:                                               # C. de café
         quantity_tempered = quantity_tempered.replace("c.café", "c. de café")
+    if "c.de café" in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("c.de café", "c. de café")
     if "chávena" in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("chávena", "cháv.")
     if "  " in quantity_tempered:
@@ -159,7 +164,7 @@ def normalize_quantity(logger, quantity_original: str):
 
     # Extract numeric value, unit, and ingredient
     try:
-        pattern = fr'(\d+(?:[.,]\d+)?)\s?({general_units})\s*(.*)'
+        pattern = fr'(\d+(?:[.,]\d+)?)\s?({general_units})\s+(.*)'
         match = re.match(pattern, quantity_tempered)
         if match:
             value = str(match.group(1))

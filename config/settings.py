@@ -47,7 +47,11 @@ ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
 ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None)]
     
 
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://127.0.0.1",
+    "https://localhost",
+    "https://goodbites.online"
+]
 
 
 
@@ -85,6 +89,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
+
 
 ROOT_URLCONF = "apps.common.urls"
 

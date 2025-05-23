@@ -2,7 +2,7 @@ from config.websocket.consumers import TaskLogConsumer, JobLogConsumer
 from os import environ
 from django.urls import path
 
-ENV = environ.get('WEBSOCKET_URL','127.0.0.1:8000')
+ENV = environ.get('ENVIROMENT','127.0.0.1:8000')
 
 if ENV == 'prod':
     websocket_urlpatterns = [

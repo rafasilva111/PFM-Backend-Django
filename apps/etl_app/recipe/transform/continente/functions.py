@@ -2,8 +2,11 @@ from apps.etl_app.recipe.transform.continente.utils import convert_fractions, re
     remove_fraction_characters, remove_multiple_spaces, contains_numbers
 import re
 
-general_units = "kg|g|ml|dl|cl|l|lt|L|c\. de sopa|c\. de chá|c\. de café|c\. de sobremesa|cháv\.|folhas|folha|dentes|dente|pacotes|pacote|\
-    embalagens|embalagem|garrafas|garrafa"
+general_units = (
+    r"kg|g|ml|dl|cl|l|lt|L|c\. de sopa|c\. de chá|c\. de café|c\. de sobremesa|cháv\."
+    r"|folhas|folha|dentes|dente|pacotes|pacote|embalagens|embalagem|garrafas|garrafa"
+)
+
 
 def normalize_quantity(logger, quantity_original: str):
     """
@@ -75,10 +78,18 @@ def normalize_quantity(logger, quantity_original: str):
         quantity_tempered = quantity_tempered.replace("cha", "chá")
     if "cafe " in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("cafe", "café")
-    if "qb" in quantity_tempered:
+    if "qb" in quantity_tempered:                                 # Q.b.
         quantity_tempered = quantity_tempered.replace("qb", "q.b.")
+    if "q.b" in quantity_tempered and 'q.b.' not in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("q.b", "q.b.")
+    if "qb." in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("qb.", "q.b.")
     if "a gosto" in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("a gosto", "q.b.")
+    if "c.es" in quantity_tempered:                                 # C.
+        quantity_tempered = quantity_tempered.replace("c.es", "c.")
+    if "colher" in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("colher", "c.")
     if "c.sopa" in quantity_tempered:                                 # C. de Sopa
         quantity_tempered = quantity_tempered.replace("c.sopa", "c. de sopa")
     if "c.de sopa" in quantity_tempered:
@@ -93,10 +104,8 @@ def normalize_quantity(logger, quantity_original: str):
         quantity_tempered = quantity_tempered.replace("chávena", "cháv.")
     if "  " in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("  ", " ")
-    if "colher" in quantity_tempered:
-        quantity_tempered = quantity_tempered.replace("colher", "c.")
-    if "c.es" in quantity_tempered:
-        quantity_tempered = quantity_tempered.replace("c.es", "c.")
+    
+    
     
 
     # Add spaces between numbers and units (e.g., "100g" -> "100 g")

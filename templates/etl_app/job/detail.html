@@ -25,6 +25,16 @@
     <span class="text-muted fw-light"> Jobs / </span> Job {{instance.id}} details
 </h4>
 
+<!-- Error Messages Container -->
+{% if messages %}
+<div class="col-12">
+    <div class="alert alert-danger">
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
 
 <!-- Details -->
 <div class="row">

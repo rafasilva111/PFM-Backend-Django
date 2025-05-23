@@ -2,6 +2,8 @@
 # General imports
 ##
 
+from os import path
+import shutil
 ## Django
 from django.db import models
 from django.utils import timezone
@@ -26,7 +28,6 @@ from apps.user_app.models import Company,User
 ## Tasks and Functions
 from apps.common.models import ProcessType
 from apps.etl_app.tasks import _launch_task, _launch_job
-from apps.etl_app.functions import delete_task_logs
 from config.celery import app
 
 # Third-party imports
@@ -255,7 +256,7 @@ class Job(BaseTask):
         """
         Returns the last finished date of the tasks associated with this job.
         """
-        last_task = self.tasks.filter(status=Task.Status.FINISHED).order_by('-finished_at').first()
+        last_task = self.tasks.order_by('-finished_at').first()
         return last_task.finished_at if last_task else None
 
     @property
@@ -379,8 +380,6 @@ class Task(BaseTask):
     """
     
     company = models.ForeignKey(Company, on_delete=models.CASCADE, null=True, blank=True, related_name='tasks')
-    parent_task = models.ForeignKey('Task', on_delete=models.SET_NULL, blank=True, null=True, related_name='subtasks')
-    parent_job = models.ForeignKey(Job, on_delete=models.CASCADE, blank=True, null=True, related_name='tasks')
 
     celery_task_id = models.CharField(max_length=255, null=True, blank=True)
     
@@ -389,9 +388,13 @@ class Task(BaseTask):
     paused_at = models.DateTimeField(null=True,blank=True)
     resumed_at = models.DateTimeField(null=True,blank=True)
     duration = models.DurationField(null=True, blank=True)
-    log_path = models.CharField(max_length=255, null=True, blank=True)
     
-    sql_file = models.CharField(max_length=255, null=True, blank=True)
+    log_path = models.CharField(max_length=255, null=True, blank=True)
+    sql_path = models.CharField(max_length=255, null=True, blank=True)
+    
+    parent_task = models.ForeignKey('Task', on_delete=models.SET_NULL, blank=True, null=True, related_name='subtasks')
+    parent_job = models.ForeignKey(Job, on_delete=models.CASCADE, blank=True, null=True, related_name='subtasks')
+    owner_job = models.ForeignKey(Job, on_delete=models.CASCADE, blank=True, null=True, related_name='tasks')
     
     debug_mode = models.BooleanField(default=False)
     step = models.IntegerField(default=0)
@@ -472,20 +475,40 @@ class Task(BaseTask):
         
         self.status = Task.Status.WAITING
         self.started_at = timezone.now()
+        self.save()
         
         if self.debug_mode:
             _launch_task(self.id, resume)
+            # We dont save here otherwise we rollback the task
         else:
             self.celery_task_id = _launch_task.delay(self.id, resume).id
+            self.save()
             
-        self.save()
+        
         
         
     def purge(self):
         """
         Deletes task logs associated with this task.
         """
-        delete_task_logs(self)
+        
+        self.delete_task_logs()
+        self.delete_sql_file()
+        
+        
+    def delete_task_logs(self):
+        if self.log_path:
+            directory_path = path.dirname(self.log_path)
+
+            if path.exists(directory_path):
+                shutil.rmtree(directory_path)
+            
+    def delete_sql_file(self):
+        if self.sql_path:
+            directory_path = path.dirname(self.sql_path)
+
+            if path.exists(directory_path):
+                shutil.rmtree(directory_path)
             
     def restart(self):
         """

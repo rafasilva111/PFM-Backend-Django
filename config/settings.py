@@ -43,17 +43,10 @@ ENVIRONMENT = os.environ.get("DJANGO_ENVIRONMENT", default="local")
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-if ENVIRONMENT == "dev":
-    DEBUG = True
-    ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0"]
+
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None)]
     
-elif ENVIRONMENT == "staging":
-    DEBUG = True
-    ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0"]
-    
-else:
-    DEBUG = False
-    ALLOWED_HOSTS = [os.environ.get("ALLOWED_HOST"), os.environ.get("ALLOWED_URL")]
+
 
 
 
@@ -270,12 +263,13 @@ LOGOUT_REDIRECT_URL = "login"
 
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-EMAIL_HOST = "smtp.mailersend.net"
-EMAIL_PORT = 587
-EMAIL_USE_TLS = True
-EMAIL_HOST_USER = "MS_b9QJB2@trial-z3m5jgr2p9dldpyo.mlsender.net"
+EMAIL_HOST = 'sandbox.smtp.mailtrap.io'
+EMAIL_PORT = 2525
+EMAIL_HOST_USER = '1dc3e2c7ff1ec6'
 EMAIL_HOST_PASSWORD = os.environ.get("SMTP_USER_PASSWORD")
-DEFAULT_FROM_EMAIL = "no-response@trial-z3m5jgr2p9dldpyo.mlsender.net"
+EMAIL_USE_TLS = True
+EMAIL_USE_SSL = False
+
 
 AUTH_USER_MODEL = "user_app.User"
 

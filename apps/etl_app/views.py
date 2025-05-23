@@ -58,7 +58,7 @@ from apps.etl_app.models import Job, Task
 #   Forms
 #
 
-from apps.etl_app.forms import  TaskForm, JobForm, TimeConditionForm,ThresholdConditionForm, TaskEditForm, JobEditForm
+from apps.etl_app.forms import  TaskForm, JobForm, TimeConditionForm,ThresholdConditionForm
 
 
 ##
@@ -529,6 +529,13 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
         # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         
+        return context
+
+    def get(self, request, *args, **kwargs):
+        
+        # Obtain the context
+        context = self.get_context_data(**kwargs)
+        
         # Retrieve Instances
         instance = Job.objects.get(id=kwargs["id"])
         
@@ -549,7 +556,8 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
             ),
         })
         
-        return context
+        return self.render_to_response(context)
+        
 
     def post(self, request, *args, **kwargs):
         """
@@ -571,7 +579,6 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
         # Create job form
         job_form = self.form_class(request.POST, instance=instance)
         
-
         # Create Starting forms
         starting_time_condition_form = TimeConditionForm(
             request.POST,
@@ -932,10 +939,10 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         
         # Retrieve the task by ID
-        context["task"] = Task.objects.get(id=kwargs["id"])
+        context["instance"] = Task.objects.get(id=kwargs["id"])
 
         # Read the task's log file if it exists
-        log_path = context["task"].log_path
+        log_path = context["instance"].log_path
         if log_path and path.isfile(log_path):
             with open(log_path, "r") as log_file:
                 log_content = log_file.read()
@@ -962,6 +969,9 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
                 ),
                 "can_pause_task": self.request.user.has_perm(
                     "task_app.can_pause_task"
+                ),
+                "can_edit_task": self.request.user.has_perm(
+                    "task_app.can_edit_task"
                 ),
                 "can_delete_task": self.request.user.has_perm(
                     "task_app.can_delete_task"
@@ -1059,41 +1069,56 @@ class TaskEditView(PermissionRequiredMixin, TemplateView):
     """
     template_name = 'etl_app/task/edit.html'
     permission_required = "task_app.change_task"
-    permission_required = 'auth.change_user'
-    form_class = TaskEditForm
-
-    def get_object(self):
-        """
-        Retrieve the User object or raise a 404 error.
-        """
-        instance_id = self.kwargs.get('id')
-        return get_object_or_404(Task, id=instance_id)
-
+    form_class = TaskForm
+    
     def get_context_data(self, **kwargs):
-        """
-        Add the UserEditForm to the context.
-        """
+
+        # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        instance = self.get_object()
-        context['form'] = self.form_class(instance=instance, user=self.request.user)
+        
         return context
+
+    def get(self, request, *args, **kwargs):
+        
+        # Obtain the context
+        context = self.get_context_data(**kwargs)
+        
+        # Retrieve Instances
+        instance = Task.objects.get(id=kwargs["id"])
+        
+        # Create context
+        context.update({
+            "form": self.form_class(instance=instance)
+        })
+        
+        return self.render_to_response(context)
+
+
 
     def post(self, request, *args, **kwargs):
         """
         Handle form submission for editing a user.
         """
-        user = self.get_object()
-        form = self.form_class(request.POST, instance=user, user=request.user)
+        
+        # Retrieve Instances
+        instance = Task.objects.get(id=kwargs["id"])
+        
+        # Create task form        
+        task_form = self.form_class(request.POST, instance=instance)
 
-        if form.is_valid():
-            form.save()
-            return redirect(reverse("task_detail", args=[user.id]))
+        # Validate Job form
+        if task_form.is_valid():
+            task_form.save()
+            return redirect(reverse("task_detail", args=[instance.id]))
 
-        # Re-render the form with errors
+        # Create context
         context = self.get_context_data()
-        context['form'] = form
+        context.update(
+            {
+                "form": task_form
+            }
+        )  
         return self.render_to_response(context)
-
 
 ###
 #
@@ -1233,6 +1258,25 @@ def download_log(request, id):
 
 @login_required
 @require_GET
+def download_log(request, id):
+    task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
+
+    if task.status in [task.Status.RUNNING, Task.Status.WAITING]:
+        messages.error(request, 'Task is still running. Please wait until it finishes.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
+
+    if path.exists(task.log_path):
+        with open(task.log_path, 'rb') as log_file:
+            response = HttpResponse(log_file.read(), content_type='text/plain')
+            response['Content-Disposition'] = f'attachment; filename="task_{id}_log.txt"'
+            return response
+    else:
+        messages.error(request, 'Log file not found.')
+        return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+@require_GET
 def download_db(request, id):
     task = get_object_or_404(Task, id=id)  # Assuming you have a Task model
     
@@ -1240,9 +1284,9 @@ def download_db(request, id):
         messages.error(request, 'Task is still running. Please wait until it finishes.')
         return redirect(request.META.get('HTTP_REFERER', '/'))  # Redirect to previous page
     
-    if task.sql_file and path.exists(task.sql_file):
+    if task.sql_path and path.exists(task.sql_path):
         # Open the log file in binary mode
-        with open(task.sql_file, 'rb') as sql_file:
+        with open(task.sql_path, 'rb') as sql_file:
             response = HttpResponse(sql_file.read(), content_type='text/plain')
             # Set the Content-Disposition header to indicate a file download
             response['Content-Disposition'] = f'attachment; filename="task_{id}_db.sql"'

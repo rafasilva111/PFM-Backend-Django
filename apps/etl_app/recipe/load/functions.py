@@ -14,7 +14,7 @@ recipeTagThrough_T = Recipe_T.tags.get_through_model()
 transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, NutritionInformation_T, Ingredient_T, UsefulTool_T, recipeTagThrough_T]
 
 
-def load_recipe(logger, task, recipe, company):
+def load_recipe(logger, task, recipe):
     
     " Initialize the warnings and errors "
     
@@ -28,7 +28,7 @@ def load_recipe(logger, task, recipe, company):
     recipe_t = model_to_dict(recipe, backrefs=True, recurse=True)
     
     __recipe, created = Recipe.objects.get_or_create(
-        created_by=company.user_account,
+        created_by=task.company.user_account,
         title=recipe.title
     )
     
@@ -39,12 +39,12 @@ def load_recipe(logger, task, recipe, company):
     else:
         logger.info(f"Recipe already exists in Main database.")
         
-        audit_logs = RecipeAuditLog.objects.filter(recipe=__recipe)
+        audit_logs_count = RecipeAuditLog.objects.filter(recipe=__recipe).count()
         
-        if audit_logs.count() >= 1:
-            logger.info(f"Found Audit Logs for Recipe.")
+        if audit_logs_count >= 1:
+            logger.info(f"Found {audit_logs_count} Audit Logs for Recipe.")
         else:
-            logger.info(f"Not found Audit Logs for Recipe.")
+            logger.info(f"Not found any Audit Logs for Recipe.")
         
         
         logger.info(f"Checking for changes in Recipe ...")
@@ -188,7 +188,10 @@ def load_recipe(logger, task, recipe, company):
                         __errors += 1
             else:
                 # Create new ingredient and quantity
+
                 _ingredient, created = Ingredient.objects.get_or_create(name=ingredient_name)
+
+
                 _ingredient_quantity = IngredientQuantity.objects.create(
                     ingredient=_ingredient,
                     recipe=__recipe,
@@ -378,15 +381,12 @@ def load_recipe(logger, task, recipe, company):
         if mapped_fields :
             logger.info(f"Recipe {recipe.id} has changes.")
             
-            
-            
             # Check if the recipe is verified and create audit logs accordingly
             if __recipe.verified:
                 __recipe.verified = False
                 __recipe.save()
                 
                 for field, changes in mapped_fields.items():
-                    
                     create_audit_log(RecipeAuditLog.Type.Update, task, __recipe,field=field, old_value=changes['old'], new_value=changes['new']) 
                     
             else:
@@ -484,7 +484,9 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     " Ingredient "
     for ingredient in recipe_t['ingredients']:
+
         _ingredient, created = Ingredient.objects.get_or_create(name = ingredient['ingredient']['name'])
+
         _ingredient_quantity = IngredientQuantity(
             ingredient=_ingredient,
             recipe=recipe,
@@ -575,6 +577,4 @@ def create_audit_log(type, task, recipe, field = None, old_value = None, new_val
         
     recipe_audit_log.save()
     
-
-
 

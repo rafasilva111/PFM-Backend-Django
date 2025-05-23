@@ -71,7 +71,22 @@
             {% endif %}
           </div>
 
-          <!-- Tasks Extraction field -->
+          <!-- Process field -->
+          <div id="parent-process" style="display: none;">
+            {{ form.process.label_tag }}
+            <div class="col-md-12 mt-2 mb-3">
+              {{ form.process }}
+              {% if form.process.errors %}
+              <div class="invalid-feedback d-block">
+                {% for error in form.process.errors %}
+                {{ error }}
+                {% endfor %}
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- Tasks and Jobs Extraction fields-->
           <div id="parent-tasks-extract" style="display: none;">
             <div class="row">
 
@@ -131,21 +146,6 @@
                 </div>
                 {% endif %}
               </div>
-            </div>
-          </div>
-
-          <!-- Process field -->
-          <div id="parent-process" style="display: none;">
-            {{ form.process.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.process }}
-              {% if form.process.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.process.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
             </div>
           </div>
 
@@ -342,9 +342,19 @@
             </div>
           </div>                    
 
-          <button type="submit" class="btn btn-primary">
-            Submit
-          </button>
+          <!-- General Errors -->
+          {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                  {{ form.non_field_errors }}
+              </div>
+          {% endif %}
+          
+          <!-- Submit button -->
+          <div class="d-flex justify-content-center ">
+            <button type="submit" class="btn btn-primary mt-3">
+              Submit
+            </button>
+          </div>
         </form>
       </div>
     </div>

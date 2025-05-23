@@ -251,7 +251,7 @@ def pull_recipes(logger,task, max_recipes=-1):
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
     if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.parent_job.stopping_condition
+        OFFSET = task.step + task.parent_job.stopping_condition.threshold_value
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
@@ -445,6 +445,8 @@ def __extract_continente_recipes(logger, task, resume = False):
     
     
     " Get all recipes links "
+    # We only want to pull all recipes links if step is 0
+    # This is because we want to pull all recipes links only once
     if task.step == 0:
         _errors, _warnings = pull_all_recipes_links(logger, task)
         __errors += _errors

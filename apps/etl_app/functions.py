@@ -21,15 +21,6 @@ from peewee import SqliteDatabase, OperationalError
 """ Main Datbase """
 
 
-def delete_task_logs(task):
-
-    if task.log_path:
-        directory_path = path.dirname(task.log_path)
-
-        if path.exists(directory_path):
-            shutil.rmtree(directory_path)
-
-
 def configure_logging(log_folder):
     
 
@@ -113,16 +104,16 @@ def start_db(task, models, path, database_proxy, logger = None,  reset=False):
         logger = logging.getLogger(__name__)
     
     # Save the task with the new sql file name
-    task_sql_file = f"{path}/db_{task.id}.sql"
+    task_sql_path = f"{path}/db_{task.id}.sql"
 
     from apps.etl_app.models import Task
 
-    task.sql_file = task_sql_file
+    task.sql_path = task_sql_path
         
     task.save()
 
     # Create a new database instance
-    database = SqliteDatabase(task_sql_file)
+    database = SqliteDatabase(task_sql_path)
 
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     database_proxy.initialize(database)
@@ -154,16 +145,38 @@ def start_sub_db(logger, task, models, database_proxy):
     Returns:
         SqliteDatabase: The new database instance.
     """
+    " Initialize the warnings and errors "
+    __errors = 0
+    __warnings = 0
 
     # Create a new database instance
     if task.parent_task:
-        database = SqliteDatabase(task.parent_task.sql_file)
-    elif task.parent_job.parent_job:
-        database = SqliteDatabase(task.parent_job.parent_job.current_task.sql_file)
+        database = SqliteDatabase(task.parent_task.sql_path)
+
+    elif task.owner_job.parent_job:
+        if task.owner_job.parent_job.current_task:
+            database = SqliteDatabase(task.owner_job.parent_job.current_task.sql_path)
+        else:
+            logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
+            __errors += 1
+            return __errors, __warnings, None
         
-    elif task.parent_job.parent_task:
-        database = SqliteDatabase(task.parent_job.parent_task.sql_file)
-    
+    elif task.owner_job.parent_task:
+        if task.owner_job.parent_task.sql_path:
+            database = SqliteDatabase(task.owner_job.parent_task.sql_path)
+        else:
+            logger.error("Parent task does not have a SQL file. Most likely the Task has not been run yet.")
+            __errors += 1
+            return __errors, __warnings, None
+        
+    elif task.parent_job:
+        if task.parent_job.current_task:
+            database = SqliteDatabase(task.parent_job.current_task.sql_path)
+        else:
+            logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
+            __errors += 1
+            return __errors, __warnings, None
+        
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     database_proxy.initialize(database)
 
@@ -173,12 +186,13 @@ def start_sub_db(logger, task, models, database_proxy):
     except OperationalError as e:
         logger.info("")
         logger.error(f"Error starting Extract database: {e}")
-        logger.error(f"Database path: {task.parent_task.sql_file}")
-        return None
+        logger.error(f"Database path: {task.parent_task.sql_path}")
+        __errors += 1
+        return __errors, __warnings, None
 
     # Create all tables in the database
     database.create_tables(models)
 
     logger.info("")
     # Return the new database instance
-    return database
+    return __errors, __warnings, database

@@ -19,8 +19,7 @@ from apps.etl_app.functions import configure_task_logging, configure_job_logging
 from apps.common.models import ProcessType
 from apps.etl_app.recipe.extract.main import _extract_recipes
 from apps.etl_app.recipe.transform.main import _transform_recipes
-from apps.etl_app.recipe.load.main import __load_recipes
-#from apps.etl_app.recipe.load.main import _load_recipes
+from apps.etl_app.recipe.load.main import _load_recipes
 
 from apps.etl_app.ingredient.extract.main import _extract_ingredients
 #from apps.etl_app.ingridients.transform.main import _transform_ingridients
@@ -81,7 +80,7 @@ def _launch_job(job_id, force_start=False):
         job_logger.info(f'No existing task. Creating new task.')
         job_trigger_action = JobTriggerHistory.Action.CREATE_TASK
         
-    elif current_task.status == Task.Status.FINISHED:
+    elif current_task.status in [Task.Status.FINISHED, Task.Status.CANCELED]:
         job_logger.info(f'Task {current_task.id} has Finished. Creating new task...')
         job_trigger_action = JobTriggerHistory.Action.CREATE_TASK
         
@@ -111,7 +110,9 @@ def _launch_job(job_id, force_start=False):
         " Create a new task if the last task was finished or if there was no task "
         current_task = Task.objects.create(
             type=job.type,
-            parent_job=job,
+            owner_job=job,
+            parent_task=job.parent_task,
+            parent_job=job.parent_job,
             company=job.company,
             process=job.process
         )
@@ -250,9 +251,9 @@ def _launch_task(task_id, resume=True):
     
     logger.info("")
     if resume:
-        logger.info(f'Resuming {task.type} Task')   
+        logger.info(f'> Resuming {task.type} Task')   
     else:
-        logger.info(f'Starting {task.type} Task')
+        logger.info(f'> Starting {task.type} Task')
     
     logger.info("")
     
@@ -283,9 +284,6 @@ def _launch_task(task_id, resume=True):
                     _extract_recipes(logger, task, resume)
                 
         case  Task.TaskType.TRANSFORM:
-            
-            logger.info('Starting data Transform')
-            
             match task.process:
                 case ProcessType.INGREDIENTS:
                     logger.info('Yet to be done')
@@ -294,14 +292,13 @@ def _launch_task(task_id, resume=True):
                     _transform_recipes(logger, task, resume)
     
         case Task.TaskType.LOAD:
-            
-            
+    
             match task.process:
                 case ProcessType.INGREDIENTS:
                     logger.info('Yet to be done')
                     pass
                 case ProcessType.RECIPES:
-                    __load_recipes(logger, task, resume)
+                    _load_recipes(logger, task, resume)
                 
         case Task.TaskType.FULL_PROCESS:
                     

@@ -10,8 +10,14 @@ def _transform_recipes(logger, task, resume):
     
     if ProcessType.RECIPES.value not in task.company.processes:
         logger.error(f"Company of task does not have a Recipe's process.")
+        task.errors += 1
+        task.save()
+        return
         
     if task.company.name == COMPANY_CONTINENTE:
         __transform_continente_recipes(logger, task, resume)
     else:
         logger.error(f"Company of task does not have a Recipe's process implemented.")
+        task.errors += 1
+        task.save()
+        return

@@ -10,7 +10,7 @@ def start_recipe_extract_db(logger, task):
     logger.info("Starting Recipe Transform Database...")
     
     # Create a new database instance
-    transform_recipes_db = SqliteDatabase(task.sql_file)    
+    transform_recipes_db = SqliteDatabase(task.sql_path)    
     
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     transform_database_proxy.initialize(transform_recipes_db)

@@ -45,7 +45,7 @@
           </div>
 
           <!-- Process field -->
-          <div id="process-field" style="display: none;">
+          <div id="parent-process" style="display: none;">
             {{ form.process.label_tag }}
             <div class="col-md-12 mt-2 mb-3">
               {{ form.process }}
@@ -59,33 +59,66 @@
             </div>
           </div>
 
-          <!-- Tasks Transformation field -->
-          <div id="parent-tasks-transform" style="display: none;">
-            {{ form.parent_tasks_transform.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_tasks_transform }}
-              {% if form.parent_tasks_transform.errors %}
+          <!-- Tasks and Jobs Extraction fields-->
+          <div id="parent-extract" style="display: none;">
+            <div class="row">
+
+              <!-- Tasks Extract field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_task_extract.label_tag }}
+                {{ form.parent_task_extract }}
+                {% if form.parent_task_extract.errors %}
                 <div class="invalid-feedback d-block">
-                  {% for error in form.parent_tasks_transform.errors %}
-                    {{ error }}
+                  {% for error in form.parent_task_extract.errors %}
+                  {{ error }}
                   {% endfor %}
                 </div>
-              {% endif %}
+                {% endif %}
+              </div>
+
+              <!-- Jobs Extract field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_job_extract.label_tag }}
+                {{ form.parent_job_extract }}
+                {% if form.parent_job_extract.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_job_extract.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
             </div>
           </div>
 
-          <!-- Tasks Extraction field -->
-          <div id="parent-tasks-extract" style="display: none;">
-            {{ form.parent_tasks_extract.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_tasks_extract }}
-              {% if form.parent_tasks_extract.errors %}
+          <!-- Tasks and Jobs Transformation fields -->
+          <div id="parent-transform" style="display: none;">
+            <div class="row">
+              <!-- Tasks Transformation field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_task_transform.label_tag }}
+                {{ form.parent_task_transform }}
+                {% if form.parent_task_transform.errors %}
                 <div class="invalid-feedback d-block">
-                  {% for error in form.parent_tasks_extract.errors %}
-                    {{ error }}
+                  {% for error in form.parent_task_transform.errors %}
+                  {{ error }}
                   {% endfor %}
                 </div>
-              {% endif %}
+                {% endif %}
+                </div>
+
+                <!-- Jobs Transformation field -->
+                <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_job_transform.label_tag }}
+                {{ form.parent_job_transform }}
+                {% if form.parent_job_transform.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_job_transform.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
             </div>
           </div>
 
@@ -103,7 +136,6 @@
           </div>
 
           <!-- Debug Mode field -->
-
           <div class="col-md-12 mt-2 mb-3">
             {{ form.debug_mode.label_tag }} {{ form.debug_mode }}
             {% if form.debug_mode.errors %}
@@ -115,8 +147,19 @@
             {% endif %}
           </div>
 
-          <button type="submit" class="btn btn-primary">Submit</button>
-
+          <!-- General Errors -->
+          {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                  {{ form.non_field_errors }}
+              </div>
+          {% endif %}
+          
+          <!-- Submit button -->
+          <div class="d-flex justify-content-center ">
+            <button type="submit" class="btn btn-primary mt-3">
+              Submit
+            </button>
+          </div>
         </form>
       </div>
     </div>
@@ -127,28 +170,24 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
   $(document).ready(function() {
+    // Event listener for change in Type
     $('#id_type').change(function() {
-      if ($(this).val() === 'LOAD') {
-        $('#process-field').show()
-
-        $('#parent-tasks-extract').hide()
-        $('#parent-tasks-transform').show()
+      if ($(this).val() === 'EXTRACT'){
+        $('#parent-extract').hide()
+        $('#parent-transform').hide()
+        $('#parent-process').show()
+      } else if ($(this).val() === 'LOAD') {
+        $('#parent-extract').hide()
+        $('#parent-transform').show();
+        $('#parent-process').show()
       } else if ($(this).val() === 'TRANSFORM') {
-        $('#process-field').show()
-
-        $('#parent-tasks-transform').hide()
-        $('#parent-tasks-extract').show()
-      } else if ($(this).val() === 'EXTRACT') {
-        $('#process-field').show()
-
-        $('#parent-tasks-extract').hide()
-        $('#parent-tasks-transform').hide()
-
-      }else {
-        $('#process-field').hide()
-
-        $('#parent-tasks-transform').hide()
-        $('#parent-tasks-extract').hide()
+        $('#parent-extract').show();
+        $('#parent-transform').hide()
+        $('#parent-process').show()
+      } else{
+        $('#parent-extract').hide()
+        $('#parent-transform').hide()
+        $('#parent-process').hide()
       }
     });
 

@@ -36,6 +36,7 @@ urlpatterns = [
     path("job/<int:id>/enable", job_enable, name="job_enable"),
     path("job/<int:id>/disable", job_disable, name="job_disable"),
     path("job/<int:id>/delete", job_delete, name="job_delete"),
+    path("job/<int:id>/log/clear", download_log, name="job_log_clear"),
     path("job/<int:id>/log/download", download_log, name="job_log_download"),
     
     ###
@@ -51,6 +52,7 @@ urlpatterns = [
     path("task/<int:id>/pause", task_pause, name="task_pause"),
     path("task/<int:id>/resume", task_resume, name="task_resume"),
     path("task/<int:id>/delete", task_delete, name="task_delete"),
+    path("task/<int:id>/log/clear", download_log, name="task_log_clear"),
     path("task/<int:id>/log/download", download_log, name="task_log_download"),
     path("task/<int:id>/db/download", download_db, name="task_db_download"),
 

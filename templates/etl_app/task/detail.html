@@ -36,6 +36,7 @@
 </div>
 {% endif %}
 
+<!-- Details -->
 <div class="row">
     <!-- Task Detail Card -->
     <div class="col-md-12 col-sm-12">
@@ -43,30 +44,44 @@
             <div class="container-fluid d-flex align-items-center justify-content-between">
                 <h4 class="card-header">Task Details</h4>
                 <div>
-
                     <!-- Top Options -->
-                    {% if can_cancel_task  and task.status == 'RUNNING' %}
-                    <a href="{% url 'task_cancel' task.id %}" class="btn btn-warning py-1">
+
+                    <!-- Cancel-->
+                    {% if can_cancel_task  and instance.status == 'RUNNING' %}
+                    <a href="{% url 'task_cancel' instance.id %}" class="btn btn-warning py-1">
                         Cancel
                     </a>
                     {% endif %}
-                    {% if can_restart_task and task.status != 'RUNNING' %}
-                    <a href="{% url 'task_restart' task.id %}" class="btn btn-info py-1">
+
+                    <!-- Restart Task -->
+                    {% if can_restart_task and instance.status != 'RUNNING' %}
+                    <a href="{% url 'task_restart' instance.id %}" class="btn btn-success py-1">
                         Restart
                     </a>
                     {% endif %}
-                    {% if can_pause_task and task.status == 'RUNNING' %}
-                    <a href="{% url 'task_pause' task.id %}" class="btn btn-secondary py-1">
+
+                    <!-- Enable/Disable Job -->
+                    {% if can_pause_task and instance.status == 'RUNNING' %}
+                    <a href="{% url 'task_pause' instance.id %}" class="btn btn-warning py-1">
                         Pause
                     </a>
                     {% endif %}
-                    {% if can_resume_task and task.status == 'PAUSED' %}
-                    <a href="{% url 'task_resume' task.id %}" class="btn btn-success py-1">
+                    {% if can_resume_task and instance.status == 'PAUSED' %}
+                    <a href="{% url 'task_resume' instance.id %}" class="btn btn-success py-1">
                         Resume
                     </a>
                     {% endif %}
+
+                    <!-- Edit Task -->
+                    {% if can_edit_task %}
+                    <a href="{% url 'task_edit' instance.id %}" class="btn btn-info py-1">
+                        Edit
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Delete Job -->
                     {% if can_delete_task %}
-                    <a href="{% url 'task_delete' task.id %}" class="btn btn-danger py-1">
+                    <a href="{% url 'task_delete' instance.id %}" class="btn btn-danger py-1">
                         Delete
                     </a>
                     {% endif %}
@@ -78,13 +93,13 @@
                     <!-- Type -->
                     <div class="col-md-2">
                         <h6>Type:</h6>
-                        <p class="badge bg-label-primary me-1">{{ task.get_type_process_display }}</p>
+                        <p class="badge bg-label-primary me-1">{{ instance.get_type_process_display }}</p>
                     </div>
 
                     <!-- Company -->
                     <div class="col-md-2">
                         <h6>Company:</h6>
-                        <p class="badge bg-label-primary me-1">{{ task.company }}</p>
+                        <p class="badge bg-label-primary me-1">{{ instance.company }}</p>
                     </div>
 
                     <!-- Status --> 
@@ -92,37 +107,46 @@
                         <h6>Status:</h6>
                         <span id="status" class="
                         badge 
-                        {% if task.status == 'WAITING' %}
+                        {% if instance.status == 'WAITING' %}
                             bg-label-primary
-                        {% elif task.status == 'RUNNING' %}
+                        {% elif instance.status == 'RUNNING' %}
                             bg-label-info
-                        {% elif task.status == 'CANCELED' %}
+                        {% elif instance.status == 'CANCELED' %}
                             bg-label-warning
-                        {% elif task.status == 'FAILED' %}
+                        {% elif instance.status == 'FAILED' %}
                             bg-label-danger
-                        {% elif task.status == 'FINISHED' %}
+                        {% elif instance.status == 'FINISHED' %}
                             bg-label-success
                         {% else %}
                             bg-label-secondary
                         {% endif %}
-                        me-1">{{ task.get_status_display }}</span>
+                        me-1">{{ instance.get_status_display }}</span>
                     </div>
 
                     <!-- Status --> 
-                    {% if task.step != 0 %}
+                    {% if instance.step != 0 %}
                     <div class="col-md-2">
                         <h6>Step:</h6>
-                        <span id="status" class="badge bg-label-primary me-1">{{ task.step }}</span>
+                        <span id="status" class="badge bg-label-primary me-1">{{ instance.step }}</span>
                     </div>
                     {% endif %}
 
                     <!-- Status --> 
-                    {% if task.debug %}
+                    {% if instance.debug %}
                     <div class="col-md-2">
                         <h6>Debug mode:</h6>
-                        <span id="status" class="badge bg-label-info me-1">{{ task.debug }}</span>
+                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug }}</span>
                     </div>
                     {% endif %}
+
+                    <!-- Debug Mode -->
+                    {% if instance.debug %}
+                    <div class="col-md-2">
+                        <h6>Debug Mode:</h6>
+                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug }}</span>
+                    </div>
+                    {% endif %}
+
                 </div>
 
                 <!-- Task timings -->
@@ -131,35 +155,53 @@
                     <!-- Started at -->
                     <div class="col-md-3">
                         <h6>Started At:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ task.started_at }}</p>
+                        <p class="badge bg-label-primary  me-1">{{ instance.started_at }}</p>
                     </div>
 
                     <!-- Finished at -->
-                    {% if task.finished_at %}
+                    {% if instance.finished_at %}
                     <div class="col-md-3">
                         <h6>Finished At:</h6>
-                        <p id="finished-at" class="badge bg-label-primary me-1">{{ task.finished_at }}</p>
+                        <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.finished_at }}</p>
                     </div>
                     {% endif %}
 
                     <!-- Duration -->
-                    {% if task.duration %}
+                    {% if instance.duration %}
                     <div class="col-md-3">
                         <h6>Duration:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ task.duration }}</p>
+                        <p class="badge bg-label-primary  me-1">{{ instance.duration }}</p>
                     </div>
                     {% endif %}
                 </div>
                 
                 <!-- Parent Task -->
                 <div class="row">
+
                     <!-- Parent Task -->
-                    {% if task.parent_task %}
+                    {% if instance.parent_task %}
                     <div class="col-md-3 pb-3">
                         <h6>Parent Task:</h6>
-                        <a href="{% url 'task_detail' task.parent_task.id %}" class="badge bg-label-primary me-1">{{ task.parent_task }}</a>
+                        <a href="{% url 'task_detail' instance.parent_task.id %}" class="badge bg-label-primary me-1">{{ instance.parent_task }}</a>
                     </div>
                     {% endif %}
+
+                    <!-- Parent Job -->
+                    {% if instance.parent_job %}
+                    <div class="col-md-3 pb-3">
+                        <h6>Parent Job:</h6>
+                        <a href="{% url 'job_detail' instance.parent_job.id %}" class="badge bg-label-primary me-1">{{ instance.parent_job }}</a>
+                    </div>
+                    {% endif %}
+
+                    <!-- Owner Job -->
+                    {% if instance.owner_job %}
+                    <div class="col-md-3 pb-3">
+                        <h6>Owner Job:</h6>
+                        <a href="{% url 'job_detail' instance.owner_job.id %}" class="badge bg-label-primary me-1">{{ instance.owner_job }}</a>
+                    </div>
+                    {% endif %}
+
                 </div>
 
                 <!-- File Paths -->
@@ -167,49 +209,49 @@
 
                     
                     <!-- Log Path -->
-                    {% if task.log_path %}
+                    {% if instance.log_path %}
                     <div class="col-md-4">
                         <h6>Log Path:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ task.log_path }}</p>
+                        <p class="badge bg-label-primary  me-1">{{ instance.log_path }}</p>
                     </div>
                     {% endif %}
 
                     <!-- SQL File -->
-                    {% if task.sql_file %}
+                    {% if instance.sql_path %}
                     <div class="col-md-3">
                         <h6>SQL Path:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ task.sql_file }}</p>
+                        <p class="badge bg-label-primary  me-1">{{ instance.sql_path }}</p>
                     </div>
                     {% endif %}
                 </div>
                 
                 <!-- Task Statistics -->
-                {% if task.status != "RUNNING" %}
+                {% if instance.status != "RUNNING" %}
                 <div>
                     <h4 class="card-header">Task Statistics</h4>
                     <div class="row pb-3">
                         
                         <!-- Links -->
-                        {% if task.type == "EXTRACT" %}
+                        {% if instance.type == "EXTRACT" %}
                         <div class="col-md-3">
                             <h6>Links:</h6>
                             
-                            <p class="badge bg-label-primary me-1">{{ task.links }}</p>
+                            <p class="badge bg-label-primary me-1">{{ instance.links }}</p>
                         </div>
                         {% endif %}
 
                         <!-- Items Expected  -->
-                        {% if task.type == "TRANSFORM" or task.type == "LOAD" %}
+                        {% if instance.type == "TRANSFORM" or instance.type == "LOAD" %}
                         <div class="col-md-3">
                             <h6>Items Expected:</h6>
-                            <p class="badge bg-label-primary me-1">{{ task.items_expected }} </p>
+                            <p class="badge bg-label-primary me-1">{{ instance.items_expected }} </p>
                         </div>
                         {% endif %}
 
                         <!-- Items Processed  -->
                         <div class="col-md-3">
                             <h6>Items Processed:</h6>
-                            <p class="badge bg-label-primary me-1">{{ task.items_processed }} </p>
+                            <p class="badge bg-label-primary me-1">{{ instance.items_processed }} </p>
                         </div>
 
                         
@@ -220,13 +262,13 @@
                         <!-- Total Errors -->
                         <div class="col-md-3">
                             <h6>Errors:</h6>
-                            <p class="badge bg-label-primary me-1">{{ task.errors }}</p>
+                            <p class="badge bg-label-primary me-1">{{ instance.errors }}</p>
                         </div>
 
                         <!-- Items Errors -->
                         <div class="col-md-3">
                             <h6>Warnings</h6>
-                            <p class="badge bg-label-primary me-1">{{ task.warnings }}</p>
+                            <p class="badge bg-label-primary me-1">{{ instance.warnings }}</p>
                         </div>
 
 
@@ -247,13 +289,13 @@
                 <h4 class="card-header">Log</h4>
                 
                 <!-- Log Options -->  
-                {% if task.status != "RUNNING" %}
+                {% if instance.status != "RUNNING" %}
                 <div>
-                    {% if task.sql_file %}
-                    <a href="{% url 'task_db_download' task.id %}" class="btn btn-success" role="button">Download DB</a>
+                    {% if instance.sql_path %}
+                    <a href="{% url 'task_db_download' instance.id %}" class="btn btn-success" role="button">Download DB</a>
                     {% endif %}
                     
-                    <a href="{% url 'task_log_download' task.id %}" class="btn btn-success" role="button">Download Log</a>
+                    <a href="{% url 'task_log_download' instance.id %}" class="btn btn-success" role="button">Download Log</a>
                 </div>
                 {% endif %}
             </div>
@@ -275,7 +317,7 @@
     const statusElement = document.getElementById('status');
 
     // Initialize WebSocket
-    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/task/{{ task.id }}/");
+    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/task/{{ instance.id }}/");
 
     // Handle incoming messages
     socket.onmessage = function (event) {

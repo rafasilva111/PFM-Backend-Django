@@ -7,6 +7,7 @@ from apps.recipe_app.models import RecipeAuditLog, Recipe, Tag, UsefulTool, Prep
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
 from apps.etl_app.models import ProcessType
 from apps.user_app.models import Company
+from apps.common.constants import COMPANY_CONTINENTE
 
 " Define the through model for Recipe and Tag relationship "
 recipeTagThrough_T = Recipe_T.tags.get_through_model()
@@ -17,108 +18,117 @@ transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, Nutrit
 
 
 def load_recipes(logger,task, resume):
+    
     " Initialize the warnings and errors "
     __errors = 0
     __warnings = 0
+    OFFSET = None
     
-    " Deal with the resume "
+    " Check if we are resuming the task "
     if resume:
-        logger.info("Resuming the transformation of recipes...")
+        logger.info(f"Recipe Load is on step {task.step}...")
+        logger.info("Resuming the Loading of recipes...")
         logger.info("")
-        query = Recipe_T.select().where(Recipe_T.id > task.step).order_by(Recipe_T.id)
     else:
-        query = Recipe_T.select().order_by(Recipe_T.id)
+        logger.info("Starting Recipe Loading...")
+        logger.info("")
     
-    logger.info("Loading recipes:")
-    logger.info("")
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
+    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
     
-    " Obtain the company user "
-    try:
-        company = query[0].company
-        __company = Company.objects.get(name=company)
-    except Company.DoesNotExist:
-        logger.error(f"Company with name {company} does not exist.")
-        task.errors = 1
-        task.fail()
-        return
-    
+    " Load data from each Transformed recipe "
+    query = Recipe_T.select().where(Recipe_T.id > task.step).order_by(Recipe_T.id)
     for recipe in query:
-        __errors, __warnings = load_recipe(logger, task, recipe, __company)
+        
+        if OFFSET and recipe.id > OFFSET:
+            task.owner_job.create_job_trigger_history(
+                type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                action = JobTriggerHistory.Action.REST,
+            )
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe.id}...")
+            logger.info("")
+            return __errors, __warnings, False
+
+        
+        _errors, _warnings = load_recipe(logger, task, recipe)
+        __warnings += _warnings
+        __errors += _errors
         task.step += 1
+        task.items_processed += 1
         task.save()
         
         
     " Audit the deleted recipes "
-    
     logger.info("Auditing deleted recipes...")
     # Identify and delete removed Recipes
     recipe_title_transform_set = {recipe.title for recipe in query}
-    recipe_title_load_set = {recipe.title for recipe in Recipe.objects.filter(created_by__company=__company)}
+    recipe_title_load_set = {recipe.title for recipe in Recipe.objects.filter(created_by__company=task.company)}
     
     # Detect recipes that are in the load set but not in the transform set
     removed_recipes = Recipe.objects.filter(
-        created_by__company=__company, title__in=(recipe_title_load_set - recipe_title_transform_set)
+        created_by__company=task.company, title__in=(recipe_title_load_set - recipe_title_transform_set)
     )
     
     if removed_recipes:
-        logger.info("The following recipes are in the load set but not in the transform set:")
         for removed_recipe in removed_recipes:
             create_audit_log(
-                log_type=RecipeAuditLog.Type.Delete,
+                type=RecipeAuditLog.Type.Delete,
                 task=task,
                 recipe=removed_recipe,
                 details=f"Recipe '{removed_recipe}' was removed."
             )
+    # Note: we don't unverify the deleted recipes
     
-    logger.info(f"Found {removed_recipes.count()} deleted.")
+
+    " Log the completion of the extraction process "
+    logger.info(f"{task.items_processed} Recipes loaded ...")
+    logger.info(f"With {removed_recipes.count()} being deleted.")
+    logger.info("")
     
-    
-    
-    return __errors, __warnings   
+    return __errors, __warnings, True
 
 def __load_recipes(logger, task, resume):
 
-    logger.info(f"Loading recipes...")
-    logger.info("")
-    logger.info("")
-    
-    " Check if the company has the Recipe process "
-    if ProcessType.RECIPES.value not in task.company.processes:
-        logger.error(f"Company of task does not have a Recipe's process.")
-    
     " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
-        
-    " Log the start of the extraction process "
+    task.errors = 0
+    task.warnings = 0
+    
+    
+    " Log the start of the Loading process "
     logger.info(f"Loading all recipes from {task.company.name}...")
-    logger.info("")
+    
     
     " Starts the Transform database "
-    logger.info("Starting Transform database ...")
-
-    database = start_sub_db(
-            logger=logger,
-            task=task,
-            models=transform_models_,
-            database_proxy=database_proxy
-            )
-
+    logger.info("Initializing Transform database ...")
+    _errors, _warnings, database = start_sub_db(
+        logger=logger,
+        task=task,
+        models=transform_models_,
+        database_proxy=database_proxy
+    )
+    task.errors += _errors
+    task.warnings += _warnings
+    
+    
     if not database:
-        task.errors = 1
+        logger.error("Error initializing the Transform database.")
+        # we dont sum the errors here because we are already summing them in the start_sub_db function
+        task.save()
         task.fail()
         return
+    
+    
+    " Calculate the number of recipes expected to be loaded "
+    task.items_expected = Recipe_T.select().count()
+    task.save()
+
 
     " Transform elements "
-    __errors, __warnings =load_recipes(logger, task, resume)
-    logger.info("")
-
-    
-    
-    " Calculate total summary "
-    task.errors = __errors
-    task.warnings = __warnings
-    task.save()
+    _errors, _warnings, completed = load_recipes(logger, task, resume)
+    task.errors += _errors
+    task.warnings += _warnings
     
     
     " Log the completion of the Loading process "
@@ -131,9 +141,32 @@ def __load_recipes(logger, task, resume):
     
     
     " Finish task "
-    task.finish(kill_celery_task=False)
+    if completed:
+        task.finish(kill_celery_task=False)
+    else:
+        task.pause()
     
     
     " Log the completion of the Loading process "
-    logger.info(f"Done...")
     logger.info("")
+    logger.info(f"> Done...")
+    logger.info("")
+
+
+
+def _load_recipes(logger, task, resume):
+        
+    if ProcessType.RECIPES.value not in task.company.processes:
+        logger.error(f"Company of task does not have a Recipe's process.")
+        task.errors += 1
+        task.save()
+        return
+        
+    if task.company.name == COMPANY_CONTINENTE:
+        __load_recipes(logger, task, resume)
+    else:
+        logger.error(f"Company of task does not have a Recipe's process implemented.")
+        task.errors += 1
+        task.save()
+        return
+

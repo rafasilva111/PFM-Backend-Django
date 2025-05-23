@@ -27,7 +27,7 @@ def transform_recipe(logger, task, recipe):
     _time, _time_units = normalize_time(logger, recipe.time)
     _portion_lower_bound, _portion_upper_bound, _portion_units = normalize_portion(logger, recipe.portion)
     
-    recipe_transformed = Recipe_T(
+    _recipe = Recipe_T(
         company=task.company.name,
         title=recipe.title,
         description=recipe.description,
@@ -43,7 +43,7 @@ def transform_recipe(logger, task, recipe):
         preparation=recipe.preparation
     )
     
-    recipe_transformed.save()
+    _recipe.save()
     
     " Tag "
     
@@ -51,7 +51,7 @@ def transform_recipe(logger, task, recipe):
         _tag, created = Tag_T.get_or_create(text = tag.text)
         if created:
             _tag.save()
-        _tag.recipe.add(recipe_transformed)
+        _tag.recipe.add(_recipe)
         _tag.save()
     
     " Useful Tool "
@@ -59,7 +59,7 @@ def transform_recipe(logger, task, recipe):
     for useful_tool in recipe.useful_tools:
         _useful_tool = UsefulTool_T()
         _useful_tool.text = useful_tool.text
-        _useful_tool.recipe = recipe_transformed
+        _useful_tool.recipe = _recipe
         _useful_tool.save()
     
     " Nutrition Information "
@@ -91,8 +91,8 @@ def transform_recipe(logger, task, recipe):
         )
         _nutrition_information.save()
     
-        recipe_transformed.nutrition_information = _nutrition_information
-        recipe_transformed.save()   
+        _recipe.nutrition_information = _nutrition_information
+        _recipe.save()   
     
     " Ingredient "
     for ingredient in recipe.ingredients:
@@ -103,9 +103,20 @@ def transform_recipe(logger, task, recipe):
         _ingredient_quantity.quantity_tempered,_ingredient_quantity.units_normalized,_ingredient_quantity.quantity_normalized,\
         _ingredient_quantity.extra_quantity,_ingredient_quantity.extra_units, _ingredient, \
         _errors, _warnings = normalize_quantity(logger, ingredient.text)
-        _ingredient_quantity.recipe = recipe_transformed
+        _ingredient_quantity.recipe = _recipe
         __errors += _errors
         __warnings += _warnings
+        
+        if _ingredient == None:
+            logger.error(f"Transformation of Ingredient Quantity ( {_ingredient_quantity.quantity_original} ) lead to a None Ingredient.")
+            __errors += 1
+            
+            logger.info(f"Skipping recipe...")
+            
+            _recipe.delete_instance()
+            _recipe.tags.clear()
+            
+            return __errors, __warnings
         
         _ingredient, created = Ingredient_T.get_or_create(name = _ingredient)
         
@@ -118,25 +129,26 @@ def transform_recipe(logger, task, recipe):
     
 def transform_recipes(logger, task, resume):
     
-    " Initialize the warnings and errors counters "
+    " Initialize the control variables "
     __warnings = 0
     __errors = 0
-    
     OFFSET = None
     
+    " Log the start of the transform process "
     logger.info("")
-    logger.info("Starting to transform Recipes")
+    logger.info("Starting to transform Recipes...")
     logger.info("")
-    logger.info(f"Recipe extraction is on step {task.step}...")
-    logger.info("")
+
     
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
     if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.parent_job.stopping_condition
+        OFFSET = task.step + task.parent_job.stopping_condition.threshold_value
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
-    if task.step != 0:
+    if resume:
+        logger.info(f"Resuming Recipe Transformation on step {task.step}...")
+        logger.info("")
         recipes_in_db = Recipe_T.select().count()
         if recipes_in_db > task.step:
             # Delete tasks until step matches recipes_in_db
@@ -147,10 +159,12 @@ def transform_recipes(logger, task, resume):
                 t.tags.clear()
                 t.delete_instance()
                 recipes_in_db -= 1
+    else:
+        logger.info("Starting Recipe Transformation...")
+        logger.info("")
     
     
-    
-    " Extract data from each extracted recipe "
+    " Transform data from each Extracted recipe "
     for recipe in Recipe_E.select().where(Recipe_E.id > task.step):
         
         if OFFSET and recipe.id > OFFSET:
@@ -181,12 +195,12 @@ def __transform_continente_recipes(logger, task, resume):
     __errors = 0
     __warnings = 0
         
-    " Log the start of the extraction process "
+    " Log the start of the transform process "
     logger.info(f"Transforming all recipes from {task.company.name}...")
     logger.info("")
     
     " Start the Transform database "
-    logger.info("Starting Transform database ...")
+    logger.info("Initializing Transform database ...")
     start_db(
         logger=logger,
         task=task,
@@ -198,20 +212,13 @@ def __transform_continente_recipes(logger, task, resume):
     
 
     " Starts the Extract database "
-    logger.info("Starting Extract database ...")
-    database = start_sub_db(
-            logger=logger,
-            task=task,
-            models=extract_models_,
-            database_proxy=database_proxy_E
-            )
-    
-    # This was required in the past, but now it doesn't seem to be necessary
-    # it was used because Debug Mode and Prod Mode Database where not in the same path
-    #if not database:
-    #    task.errors = 1
-    #    task.fail()
-    #    return
+    logger.info("Initializing Extract database ...")
+    start_sub_db(
+        logger=logger,
+        task=task,
+        models=extract_models_,
+        database_proxy=database_proxy_E
+    )
     
     " Transform Elements "
     _errors, _warnings = transform_recipes(logger, task, resume)

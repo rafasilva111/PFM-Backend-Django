@@ -72,36 +72,6 @@
             {% endif %}
           </div>
 
-          <!-- Tasks Extraction field -->
-          <div id="parent-tasks-extract" class="mt-1 mb-5" style="display: none;">
-            {{ form.parent_task_extract.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_task_extract }}
-              {% if form.parent_task_extract.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_task_extract.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
-          <!-- Tasks Transformation field -->
-          <div id="parent-tasks-transform" style="display: none;">
-            {{ form.parent_task_transform.label_tag }}
-            <div class="col-md-12 mt-2 mb-3">
-              {{ form.parent_task_transform }}
-              {% if form.parent_task_transform.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.parent_task_transform.errors %}
-                {{ error }}
-                {% endfor %}
-              </div>
-              {% endif %}
-            </div>
-          </div>
-
           <!-- Process field -->
           <div id="parent-process" style="display: none;">
             {{ form.process.label_tag }}
@@ -116,8 +86,70 @@
               {% endif %}
             </div>
           </div>
-          
 
+          <!-- Tasks and Jobs Extraction fields-->
+          <div id="parent-extract" style="display: none;">
+            <div class="row">
+
+              <!-- Tasks Extract field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_task_extract.label_tag }}
+                {{ form.parent_task_extract }}
+                {% if form.parent_task_extract.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_task_extract.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+
+              <!-- Jobs Extract field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_job_extract.label_tag }}
+                {{ form.parent_job_extract }}
+                {% if form.parent_job_extract.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_job_extract.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Tasks and Jobs Transformation fields -->
+          <div id="parent-transform" style="display: none;">
+            <div class="row">
+              <!-- Tasks Transformation field -->
+              <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_task_transform.label_tag }}
+                {{ form.parent_task_transform }}
+                {% if form.parent_task_transform.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_task_transform.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+                </div>
+
+                <!-- Jobs Transformation field -->
+                <div class="col-md-6 mt-2 mb-3">
+                {{ form.parent_job_transform.label_tag }}
+                {{ form.parent_job_transform }}
+                {% if form.parent_job_transform.errors %}
+                <div class="invalid-feedback d-block">
+                  {% for error in form.parent_job_transform.errors %}
+                  {{ error }}
+                  {% endfor %}
+                </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          
           <!-- Starting Condition field -->
           {{ form.starting_condition_type.label }}
           <div class="col-md-12 mt-2 mb-3">
@@ -309,27 +341,22 @@
                 </div>
 
             </div>
+          </div>                    
+
+          <!-- General Errors -->
+          {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                  {{ form.non_field_errors }}
+              </div>
+          {% endif %}
+          
+          <!-- Submit button -->
+          <div class="d-flex justify-content-center ">
+            <button type="submit" class="btn btn-primary mt-3">
+              Submit
+            </button>
           </div>
 
-          <!-- Continue field -->
-          {{ form.continue_mode.label }}
-          <p class="text-muted">If the job is stopped, should it continue from where it left off?</p>
-          <div class="col-md-12 mb-4">
-            
-            {{ form.continue_mode }}
-            {% if form.continue_mode.errors %}
-            <div class="invalid-feedback d-block">
-              {% for error in form.continue_mode.errors %}
-              {{ error }}
-              {% endfor %}
-            </div>
-            {% endif %}
-          </div>
-                    
-
-          <button type="submit" class="btn btn-primary">
-            Submit
-          </button>
         </form>
       </div>
     </div>
@@ -340,24 +367,24 @@
 <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 <script>
   $(document).ready(function () {
-
+    
     // Event listener for change in Type
     $('#id_type').change(function() {
       if ($(this).val() === 'EXTRACT'){
+        $('#parent-extract').hide()
+        $('#parent-transform').hide()
         $('#parent-process').show()
-        $('#parent-tasks-extract').hide()
-        $('#parent-tasks-transform').hide()
       } else if ($(this).val() === 'LOAD') {
-        $('#parent-tasks-extract').hide()
-        $('#parent-tasks-transform').show();
+        $('#parent-extract').hide()
+        $('#parent-transform').show();
         $('#parent-process').show()
       } else if ($(this).val() === 'TRANSFORM') {
-        $('#parent-tasks-transform').hide()
-        $('#parent-tasks-extract').show();
+        $('#parent-extract').show();
+        $('#parent-transform').hide()
         $('#parent-process').show()
       } else{
-        $('#parent-tasks-extract').hide()
-        $('#parent-tasks-transform').hide()
+        $('#parent-extract').hide()
+        $('#parent-transform').hide()
         $('#parent-process').hide()
       }
     });

@@ -103,8 +103,13 @@ services:
       - develop-net
     ports:
       - "80:80"
+      - "443:443"
     volumes:
+      - ./staticfiles:/app/staticfiles
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/ssl-secrets/ssl_domain.crt:/etc/ssl/certs/ssl_domain.crt
+      - ./nginx/ssl-secrets/ssl_domain.key:/etc/ssl/private/ssl_domain.key
     restart: always
 
   redis:

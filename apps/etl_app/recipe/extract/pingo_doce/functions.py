@@ -33,12 +33,12 @@ def start_recipe_extract_db(path, logger, task, reset=False):
     logger.info("Starting Recipe Extract Database...")
     
     # Save the task with the new sql file name
-    task.sql_file = f"{extract_recipe_pingo_doce}/db_{task.id}.sql"
+    task.sql_path = f"{extract_recipe_pingo_doce}/db_{task.id}.sql"
 
     task.save()
 
     # Create a new database instance
-    extract_recipe_pingo_doce_db = SqliteDatabase(task.sql_file)    
+    extract_recipe_pingo_doce_db = SqliteDatabase(task.sql_path)    
     
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     database_proxy.initialize(extract_recipe_pingo_doce_db)

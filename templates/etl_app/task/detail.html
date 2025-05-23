@@ -317,7 +317,7 @@
     const statusElement = document.getElementById('status');
 
     // Initialize WebSocket
-    const socket = new WebSocket("ws://{{ WEBSOCKET_HOST }}/ws/task/{{ instance.id }}/");
+    const socket = new WebSocket("{{ WEBSOCKET_URL }}/ws/task/{{ instance.id }}/");
 
     // Handle incoming messages
     socket.onmessage = function (event) {

@@ -78,7 +78,7 @@ from apps.etl_app.tasks import _launch_job
 #   Contants
 #
 
-from apps.common.constants import WEBSOCKET_HOST
+from apps.common.constants import WEBSOCKET_URL
 
 
 ###
@@ -201,7 +201,7 @@ class JobDetailView(PermissionRequiredMixin, TemplateView):
         dict: Context dictionary containing:
             - record: Job object retrieved from database.
             - log: Content of the job's log file (if exists).
-            - WEBSOCKET_HOST: WebSocket host configuration.
+            - WEBSOCKET_URL: WebSocket host configuration.
             - Additional template layout context data.
     """
     
@@ -221,7 +221,7 @@ class JobDetailView(PermissionRequiredMixin, TemplateView):
             dict: Context dictionary containing:
                 - record: Job object retrieved from database.
                 - log: Content of the job's log file (if exists).
-                - WEBSOCKET_HOST: WebSocket host configuration.
+                - WEBSOCKET_URL: WebSocket host configuration.
         """
         # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
@@ -272,7 +272,7 @@ class JobDetailView(PermissionRequiredMixin, TemplateView):
         context.update(
             {
                 "instance": instance,
-                "WEBSOCKET_HOST": WEBSOCKET_HOST,
+                "WEBSOCKET_URL": WEBSOCKET_URL,
                 "task_filter": tasks_filter,
                 "tasks_page_obj": tasks_page_obj,
                 "can_force_start_job": self.request.user.has_perm(
@@ -914,7 +914,7 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         dict: Context dictionary containing:
             - task: Task object retrieved from database
             - log: Content of the task's log file (if exists)
-            - WEBSOCKET_HOST: WebSocket host configuration
+            - WEBSOCKET_URL: WebSocket host configuration
             - Additional template layout context data
     """
     template_name = "etl_app/task/detail.html"
@@ -933,7 +933,7 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
             dict: Context dictionary containing:
                 - task: Task object retrieved from database
                 - log: Content of the task's log file (if exists)
-                - WEBSOCKET_HOST: WebSocket host configuration
+                - WEBSOCKET_URL: WebSocket host configuration
         """
         # Initialize template layout
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
@@ -957,7 +957,7 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         # Create context
         context.update(
             {
-                "WEBSOCKET_HOST": WEBSOCKET_HOST,
+                "WEBSOCKET_URL": WEBSOCKET_URL,
                 "can_cancel_task": self.request.user.has_perm(
                     "task_app.can_cancel_task"
                 ),

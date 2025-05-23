@@ -97,6 +97,10 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
         """
         try:
             while True:
+                
+                if self.log_file.closed:
+                    break
+                
                 line = self.log_file.readline()
                 if line:
                     await self.send_json({
@@ -106,6 +110,7 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
                 else:
                     await asyncio.sleep(1)
         except Exception as e:
+            print(f"Error in stream_log_data: {e}")
             await self.close()
 
     async def disconnect(self, close_code):

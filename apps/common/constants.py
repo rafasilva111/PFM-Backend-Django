@@ -1,9 +1,10 @@
 
 from os import environ
+from django.conf import settings
 
 ## Websocket
+WEBSOCKET_URL = environ.get('WEBSOCKET_URL')
 
-WEBSOCKET_HOST = environ.get('WEBSOCKET_URL','127.0.0.1:8000')
 
 ## Firebase Storage
 

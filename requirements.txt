@@ -109,3 +109,4 @@ sphinx_rtd_theme
 django-multiselectfield
 selenium
 django-recaptcha
+uvicorn

@@ -32,7 +32,7 @@ from apps.etl_app.models import Task
 from apps.recipe_app.models import Recipe, RecipeReport, RecipeAuditLog
 from apps.recipe_app.filters import RecipeFilter, RecipeAuditLogFilter, RecipeAuditLogStatusHistoryFilter
 from apps.recipe_app.forms import RecipeReportForm
-from apps.common.constants import WEBSOCKET_HOST   
+from apps.common.constants import WEBSOCKET_URL   
 
 from firebase_admin import  storage
 
@@ -267,7 +267,7 @@ class RecipeTaskDetailView(PermissionRequiredMixin, TemplateView):
                 context['log'] = log_file.read()  # Read the entire content of the log file
 
         
-        context['WEBSOCKET_HOST'] =  WEBSOCKET_HOST
+        context['WEBSOCKET_URL'] =  WEBSOCKET_URL
         
         return context
     

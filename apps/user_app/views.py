@@ -92,8 +92,6 @@ from apps.user_app.filters import UserFilter
 #   Contants
 #
 
-from apps.common.constants import WEBSOCKET_HOST
-
 
 ###
 #

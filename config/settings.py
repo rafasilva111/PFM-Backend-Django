@@ -39,7 +39,7 @@ if not SECRET_KEY:
     SECRET_KEY = "".join(random.choice(string.ascii_lowercase) for i in range(32))
 
 # Current DJANGO_ENVIRONMENT
-ENVIRONMENT = os.environ.get("ENVIROMENT", default="local")
+ENVIRONMENT = os.environ.get("ENVIRONMENT", default="local")
 
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts

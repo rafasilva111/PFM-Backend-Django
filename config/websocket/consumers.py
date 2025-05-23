@@ -88,6 +88,7 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
 
             asyncio.create_task(self.stream_log_data())
         else:
+            print(f"Log file not found: {self.log_file_path}")
             await self.close()
 
     async def stream_log_data(self):

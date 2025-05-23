@@ -3,7 +3,7 @@ from os import environ
 
 ## Websocket
 
-WEBSOCKET_HOST = environ.get('WEBSOCKET_HOST','127.0.0.1:8000')
+WEBSOCKET_HOST = environ.get('WEBSOCKET_URL','127.0.0.1:8000')
 
 ## Firebase Storage
 

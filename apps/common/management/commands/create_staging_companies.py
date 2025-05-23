@@ -1,4 +1,5 @@
 from django.core.management.base import BaseCommand
+from apps.common.models import ProcessType
 from apps.user_app.models import Company,User
 from apps.common.constants import FIREBASE_STORAGE_COMPANY_BUCKET,COMPANY_PINGO_DOCE,COMPANY_CONTINENTE,COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD,COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD
 from apps.common.functions import lower_and_underescore
@@ -64,6 +65,8 @@ class Command(BaseCommand):
                 name='Continente',
                 imgs_bucket=f"{FIREBASE_STORAGE_COMPANY_BUCKET}/{lower_and_underescore(name)}"
                 )
+            continente_company.processes.set([ProcessType.INGREDIENTS, ProcessType.RECIPES])
+            continente_company.save()
             self.stdout.write(self.style.SUCCESS('Successfully created the default company'))
 
         # Check for Company default User

@@ -240,7 +240,7 @@ class TaskForm(forms.ModelForm):
         cleaned_data = super().clean()
         
         # Prevent from saving a RUNNING task
-        if self.instance.status in [Task.Status.WAITING, Task.Status.RUNNING, Task.Status.PAUSED]:
+        if self.instance.status in [Task.Status.RUNNING, Task.Status.PAUSED]:
             self.add_error(None, f'You cannot save a task with status {self.instance.status}.')
         
         # Enforce parent task or job required for TRANSFORM, LOAD

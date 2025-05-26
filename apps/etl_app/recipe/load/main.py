@@ -19,9 +19,7 @@ transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, Nutrit
 
 def load_recipes(logger,task, resume):
     
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
+    " Initialize the control variables "
     OFFSET = None
     
     " Check if we are resuming the task "
@@ -49,12 +47,12 @@ def load_recipes(logger,task, resume):
             )
             logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe.id}...")
             logger.info("")
-            return __errors, __warnings, False
+            return task, False
 
         
         _errors, _warnings = load_recipe(logger, task, recipe)
-        __warnings += _warnings
-        __errors += _errors
+        task.warnings += _warnings
+        task.errors += _errors
         task.step += 1
         task.items_processed += 1
         task.save()
@@ -76,8 +74,7 @@ def load_recipes(logger,task, resume):
             create_audit_log(
                 type=RecipeAuditLog.Type.Delete,
                 task=task,
-                recipe=removed_recipe,
-                details=f"Recipe '{removed_recipe}' was removed."
+                recipe=removed_recipe
             )
     # Note: we don't unverify the deleted recipes
     
@@ -87,29 +84,26 @@ def load_recipes(logger,task, resume):
     logger.info(f"With {removed_recipes.count()} being deleted.")
     logger.info("")
     
-    return __errors, __warnings, True
+    return task, True
 
 def __load_recipes(logger, task, resume):
-
-    " Initialize the warnings and errors "
-    task.errors = 0
-    task.warnings = 0
-    
     
     " Log the start of the Loading process "
-    logger.info(f"Loading all recipes from {task.company.name}...")
-    
+    logger.info(f"Initializing the {task.type} of recipes from {task.company.name}...")
+
+    " Initialize the warnings and errors "
+    if resume:
+        task.errors = 0
+        task.warnings = 0
     
     " Starts the Transform database "
     logger.info("Initializing Transform database ...")
-    _errors, _warnings, database = start_sub_db(
+    task, database = start_sub_db(
         logger=logger,
         task=task,
         models=transform_models_,
         database_proxy=database_proxy
     )
-    task.errors += _errors
-    task.warnings += _warnings
     
     
     if not database:
@@ -118,7 +112,7 @@ def __load_recipes(logger, task, resume):
         task.save()
         task.fail()
         return
-    
+    logger.info("")
     
     " Calculate the number of recipes expected to be loaded "
     task.items_expected = Recipe_T.select().count()
@@ -126,9 +120,7 @@ def __load_recipes(logger, task, resume):
 
 
     " Transform elements "
-    _errors, _warnings, completed = load_recipes(logger, task, resume)
-    task.errors += _errors
-    task.warnings += _warnings
+    task, completed = load_recipes(logger, task, resume)
     
     
     " Log the completion of the Loading process "

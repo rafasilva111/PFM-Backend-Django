@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from apps.etl_app.models import Task
 from playhouse.shortcuts import model_to_dict
 import json
-from apps.etl_app.constants import transform_recipes_db
+from apps.etl_app.constants importTRANSFORM_CONTINENTE_RECIPES_DB
 from apps.etl_app.recipe.transform.models import database_proxy, Ingredient as Ingredient_T
 from apps.etl_app.functions import start_db
 from apps.etl_app.recipe.transform.continente.main import transform_models_

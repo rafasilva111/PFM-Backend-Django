@@ -558,7 +558,6 @@ class JobEditView(PermissionRequiredMixin, TemplateView):
         
         return self.render_to_response(context)
         
-
     def post(self, request, *args, **kwargs):
         """
         Handles form submission for creating a new job.

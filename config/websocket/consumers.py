@@ -175,6 +175,10 @@ class JobLogConsumer(AsyncJsonWebsocketConsumer):
         """
         try:
             while True:
+                
+                if self.log_file.closed:
+                    break
+                
                 line = self.log_file.readline()
                 if line:
                     await self.send_json({

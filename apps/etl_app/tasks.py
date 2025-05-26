@@ -355,10 +355,12 @@ def test_task(logger, task, max_count=10000, continue_mode=True):
 
     while counter < max_count:
         counter += 1
+        
         logger.info(f"Counting at: {counter} .")
         
         time.sleep(1)
         # Save state to avoid losing the counter value in case of failure or pause
+        task.items_processed = counter
         task.step = counter
         task.save()
     
@@ -368,7 +370,7 @@ def test_task(logger, task, max_count=10000, continue_mode=True):
         raise Exception("Failure was triggered.")
     
     logger.info("")
-    logger.info("Done...")
+    logger.info("> Done...")
     logger.info("")
     
     # Update task status to finished

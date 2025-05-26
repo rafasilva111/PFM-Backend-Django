@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from apps.etl_app.functions import start_db
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
-from apps.etl_app.constants import extract_continente_recipes_db, continente_recipes_images_folder
+from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, continente_recipes_images_folder
 
 
 " Define the through model for Recipe and Tag relationship "
@@ -237,8 +237,8 @@ def pull_recipes(logger,task, max_recipes=-1):
     
     
     " Initialize the warnings and errors counters "
-    __warnings = 0
-    __errors = 0
+    task.warnings = 0
+    task.errors = 0
     
     OFFSET = None
     
@@ -250,8 +250,8 @@ def pull_recipes(logger,task, max_recipes=-1):
     
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
-    if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.parent_job.stopping_condition.threshold_value
+    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
@@ -270,30 +270,27 @@ def pull_recipes(logger,task, max_recipes=-1):
     for recipe_link in RecipeLinks.select().where(RecipeLinks.id > task.step):
         
         if OFFSET and recipe_link.id > OFFSET:
-            task.parent_job.create_job_trigger_history(
+            task.owner_job.create_job_trigger_history(
                 type=JobTriggerHistory.Type.STOPPING_CONDITION,
-                status=JobTriggerHistory.Status.SUCCESS,
+                action=JobTriggerHistory.Action.REST,
             )
             logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe_link.id}...")
-            break
+            logger.info("")
+            return task, False
         
         logger.info(f"Extracting Recipe {recipe_link.id} from {recipe_link.link}")
         _errors, _warnings = extract_data_from_link(logger, recipe_link.link)
-        __warnings += _warnings
-        __errors += _errors
+        task.warnings += _warnings
+        task.errors += _errors
         task.step += 1
-        task.save()
-    
-    " Update Task Statistics"
-    task.items_processed = Recipe.select().count()
-    task.save()
-    
+        task.items_processed += 1
+        task.save()    
     
     " Log the completion of the extraction process "
     logger.info(f"{task.items_processed} Recipes pulled ...")
     logger.info("")
     
-    return __errors, __warnings
+    return task, False
     
 
 def pull_all_recipes_links(logger, task):
@@ -323,8 +320,8 @@ def pull_all_recipes_links(logger, task):
     
     
     " Initialize the warnings and errors "
-    __warnings = 0
-    __errors = 0
+    task.warnings = 0
+    task.errors = 0
     
 
     " Gets all Recipe's Links from Continente "
@@ -394,7 +391,7 @@ def pull_all_recipes_links(logger, task):
             if 'pageUrl' not in item or item['pageUrl'] == '':
                 logger.warning(f"Page URL not found for item:")
                 logger.warning(f"{item}")
-                __warnings += 1
+                task.warnings += 1
                 continue
             
             
@@ -418,65 +415,59 @@ def pull_all_recipes_links(logger, task):
     logger.info("All Recipe's Links pulled ...")
     logger.info("")
     
-    return __errors, __warnings
+    return task
     
 
 def __extract_continente_recipes(logger, task, resume = False):
     
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
-    
     " Log the start of the extraction process"
-    logger.info(f"Extracting all recipes from {task.company}...")
-    logger.info("")
+    logger.info(f"Initializing the {task.type} all recipes from {task.company}...")
     
+    " Initialize the warnings and errors "
+    if resume:
+        task.errors = 0
+        task.warnings = 0
 
     " Starts the db "
-    logger.info("Starting extract db...")
-    start_db(
+    logger.info("Initializing Extract database ...")
+    task, database = start_db(
         logger=logger,
         task=task,
         models=models_,
-        path=extract_continente_recipes_db,
+        path=EXTRACT_CONTINENTE_RECIPES_DB,
         database_proxy=database_proxy,
         reset=not resume # we want to reset the database if we are not resuming
-        )
+    )
+    logger.info("")
     
     
     " Get all recipes links "
-    # We only want to pull all recipes links if step is 0
+    # We only want to pull recipes links if step is 0
     # This is because we want to pull all recipes links only once
     if task.step == 0:
-        _errors, _warnings = pull_all_recipes_links(logger, task)
-        __errors += _errors
-        __warnings += _warnings
+        task = pull_all_recipes_links(logger, task)
 
     " Pulls recipes from above links "
-    _errors, _warnings = pull_recipes(logger, task)
-    __errors += _errors
-    __warnings += _warnings
-    
-    
-    " Calculate total summary "
-    task.errors = __errors
-    task.warnings = __warnings
-    task.save()
+    task, completed = pull_recipes(logger, task)
     
     
     " Log the completion of the extraction process "
     logger.info("Summary:")
-    logger.info(f"Total links: {task.links}")
-    logger.info(f"Total recipes: {task.items_processed}")
+    logger.info(f"Recipe Links Found: {task.links}")
+    logger.info(f"Recipes: {task.items_processed}")
     logger.info("")
     logger.info(f"Total errors: {task.errors}")
     logger.info(f"Total warnings: {task.warnings}")
     
     
     " Finish task "
-    task.finish(kill_celery_task=False)
+    if completed:
+        task.finish(kill_celery_task=False)
+    else:
+        task.pause()
     
     
     " Log the completion of the extraction process "
-    logger.info(f"Done...")
+    logger.info("")
+    logger.info(f"> Done...")
     logger.info("")

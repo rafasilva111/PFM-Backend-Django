@@ -108,9 +108,3 @@ def __transform_pingo_doce_recipes(logger,task):
     logger.info(f"Done...")
     logger.info("")
 
-
-def __transform_recipes(logger,task):
-    
-    match task.company:
-        
-        

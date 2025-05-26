@@ -2,7 +2,7 @@
 # General imports
 ##
 
-from os import path
+import os
 import shutil
 ## Django
 from django.db import models
@@ -498,17 +498,18 @@ class Task(BaseTask):
         
     def delete_task_logs(self):
         if self.log_path:
-            directory_path = path.dirname(self.log_path)
-
-            if path.exists(directory_path):
-                shutil.rmtree(directory_path)
+            try:
+                os.remove(self.log_path)
+            except Exception:
+                print(f"Error deleting Log file: {self.log_path}")
             
     def delete_sql_file(self):
         if self.sql_path:
-            directory_path = path.dirname(self.sql_path)
-
-            if path.exists(directory_path):
-                shutil.rmtree(directory_path)
+            try:
+                os.remove(self.sql_path)
+            except Exception:
+                print(f"Error deleting SQL file: {self.sql_path}")
+            
             
     def restart(self):
         """

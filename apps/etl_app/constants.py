@@ -34,7 +34,7 @@ continente_ingredients_images_folder = f"apps/etl_app/ingredient/extract/contine
 
 """ Recipes """
 
-extract_continente_recipes_db = f"apps/etl_app/recipe/extract/continente/dbs"
+EXTRACT_CONTINENTE_RECIPES_DB = f"apps/etl_app/recipe/extract/continente/dbs"
 continente_recipes_images_folder = f"apps/etl_app/recipe/extract/continente/images"
 
 
@@ -50,7 +50,11 @@ extract_recipe_pingo_doce = "./recipe/extract/pingo_doce/dbs"
 
 """
 
-transform_recipes_db = f"apps/etl_app/recipe/transform/dbs"
+"""    Continente   """
+
+"""     Recipes     """
+
+TRANSFORM_CONTINENTE_RECIPES_DB = f"apps/etl_app/recipe/transform/continente/dbs"
 
 
 

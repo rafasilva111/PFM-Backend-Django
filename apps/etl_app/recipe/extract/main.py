@@ -19,10 +19,6 @@ def _extract_recipes(logger, task, resume):
         - Logs an error if the company's recipe extraction process is not implemented.
     """
     
-    logger.info(f"Extracting all recipes...")
-    logger.info("")
-    logger.info("")
-    
     if ProcessType.RECIPES.value not in task.company.processes:
         logger.error(f"Company of task does not have a Recipe's process.")
         task.errors += 1

@@ -2,7 +2,7 @@
 
 " Import custom functions and constants "
 from apps.etl_app.functions import start_db, start_sub_db
-from apps.etl_app.constants import transform_recipes_db, eu_reference_intake
+from apps.etl_app.constants import TRANSFORM_CONTINENTE_RECIPES_DB, eu_reference_intake
 from apps.etl_app.recipe.extract.continente.models import database_proxy as database_proxy_E, Recipe as Recipe_E, RecipeLinks as RecipeLinks_E, NutritionInformation as NutritionInformation_E, Ingredient as Ingredient_E, Tag as Tag_E, UsefulTool as UsefulTool_E
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
 from apps.etl_app.recipe.transform.continente.functions import normalize_time, normalize_portion, normalize_quantity
@@ -130,8 +130,6 @@ def transform_recipe(logger, task, recipe):
 def transform_recipes(logger, task, resume):
     
     " Initialize the control variables "
-    __warnings = 0
-    __errors = 0
     OFFSET = None
     
     " Log the start of the transform process "
@@ -142,8 +140,8 @@ def transform_recipes(logger, task, resume):
     
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
-    if task.parent_job and task.parent_job.stopping_condition and isinstance(task.parent_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.parent_job.stopping_condition.threshold_value
+    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if resume:
@@ -168,16 +166,17 @@ def transform_recipes(logger, task, resume):
     for recipe in Recipe_E.select().where(Recipe_E.id > task.step):
         
         if OFFSET and recipe.id > OFFSET:
-            task.parent_job.create_job_trigger_history(
+            task.owner_job.create_job_trigger_history(
                 type=JobTriggerHistory.Type.STOPPING_CONDITION,
-                status=JobTriggerHistory.Status.SUCCESS,
+                action=JobTriggerHistory.Action.REST,
             )
             logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe.id}...")
-            break
+            logger.info("")
+            return task, False
         
         _errors, _warnings = transform_recipe(logger, task, recipe)
-        __warnings += _warnings
-        __errors += _errors
+        task.warnings += _warnings
+        task.errors += _errors
         task.step += 1
         task.items_processed += 1
         task.save()
@@ -187,25 +186,25 @@ def transform_recipes(logger, task, resume):
     logger.info(f"{task.items_processed} Recipes transformed ...")
     logger.info("")
     
-    return __errors, __warnings
+    return task, True
 
 def __transform_continente_recipes(logger, task, resume):
     
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
-        
     " Log the start of the transform process "
-    logger.info(f"Transforming all recipes from {task.company.name}...")
-    logger.info("")
+    logger.info(f"Initializing the {task.type} of recipes from {task.company.name}...")
     
+    " Initialize the warnings and errors "
+    if resume:
+        task.errors = 0
+        task.warnings = 0
+        
     " Start the Transform database "
     logger.info("Initializing Transform database ...")
-    start_db(
+    task, database = start_db(
         logger=logger,
         task=task,
         models=transform_models_,
-        path=transform_recipes_db,
+        path=TRANSFORM_CONTINENTE_RECIPES_DB,
         database_proxy=database_proxy,
         reset= not resume # we want to reset the database if we are not resuming
     )
@@ -213,29 +212,21 @@ def __transform_continente_recipes(logger, task, resume):
 
     " Starts the Extract database "
     logger.info("Initializing Extract database ...")
-    start_sub_db(
+    task, database = start_sub_db(
         logger=logger,
         task=task,
         models=extract_models_,
         database_proxy=database_proxy_E
     )
+    logger.info("")
     
     " Transform Elements "
-    _errors, _warnings = transform_recipes(logger, task, resume)
-    __errors += _errors
-    __warnings += _warnings
+    task, completed = transform_recipes(logger, task, resume)
 
     # Verify data integrity # TODO: use chatgpt to correct final data integrity
     # verify_data_integrity(logger)
     # logger.info("")
 
-    
-    
-    " Calculate total summary "
-    task.errors = __errors
-    task.warnings = __warnings
-    task.save()
-    
     
     " Log the completion of the Transformation process "
     logger.info("Summary:")
@@ -247,9 +238,13 @@ def __transform_continente_recipes(logger, task, resume):
     
     
     " Finish task "
-    task.finish(kill_celery_task=False)
+    if completed:
+        task.finish(kill_celery_task=False)
+    else:
+        task.pause()
     
     
-    " Log the completion of the Transformation process "
-    logger.info(f"Done...")
+    " Log the completion of the extraction process "
+    logger.info("")
+    logger.info(f"> Done...")
     logger.info("")

@@ -87,7 +87,7 @@ def configure_task_logging(task):
     return logger, info_log_path
 
 
-def start_db(task, models, path, database_proxy, logger = None,  reset=False):
+def start_db(logger, task, models, path, database_proxy, reset=False):
     """
     Start the recipe extract database.
 
@@ -99,11 +99,9 @@ def start_db(task, models, path, database_proxy, logger = None,  reset=False):
     Returns:
         SqliteDatabase: The new database instance.
     """
-
-    if not logger:
-        logger = logging.getLogger(__name__)
     
-    # Save the task with the new sql file name
+    
+    " Save the task with the new sql file name "
     task_sql_path = f"{path}/db_{task.id}.sql"
 
     from apps.etl_app.models import Task
@@ -112,26 +110,24 @@ def start_db(task, models, path, database_proxy, logger = None,  reset=False):
         
     task.save()
 
-    # Create a new database instance
+    " Create a new database instance "
     database = SqliteDatabase(task_sql_path)
 
-    # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
+    " Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name) "
     database_proxy.initialize(database)
 
-    # Connect to the database
+    " Connect to the database "
     database.connect()
 
-    # If reset is True, drop all tables in the database
+    " If reset is True, drop all tables in the database "
     if reset:
         logger.info("Resetting Database...")
         database.drop_tables(models)
 
-    # Create all tables in the database
+    " Create all tables in the database "
     database.create_tables(models)
-    logger.info("")
     
-    # Return the new database instance
-    return database
+    return task, database
 
 def start_sub_db(logger, task, models, database_proxy):
     """
@@ -145,11 +141,9 @@ def start_sub_db(logger, task, models, database_proxy):
     Returns:
         SqliteDatabase: The new database instance.
     """
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
 
-    # Create a new database instance
+
+    " Create a new database instance "
     if task.parent_task:
         database = SqliteDatabase(task.parent_task.sql_path)
 
@@ -158,24 +152,27 @@ def start_sub_db(logger, task, models, database_proxy):
             database = SqliteDatabase(task.owner_job.parent_job.current_task.sql_path)
         else:
             logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
-            __errors += 1
-            return __errors, __warnings, None
+            task.errors += 1
+            task.save()
+            return task, None
         
     elif task.owner_job.parent_task:
         if task.owner_job.parent_task.sql_path:
             database = SqliteDatabase(task.owner_job.parent_task.sql_path)
         else:
             logger.error("Parent task does not have a SQL file. Most likely the Task has not been run yet.")
-            __errors += 1
-            return __errors, __warnings, None
+            task.errors += 1
+            task.save()
+            return task, None
         
     elif task.parent_job:
         if task.parent_job.current_task:
             database = SqliteDatabase(task.parent_job.current_task.sql_path)
         else:
             logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
-            __errors += 1
-            return __errors, __warnings, None
+            task.errors += 1
+            task.save()
+            return task, None
         
     # Initialize the database proxy with the new database instance (This is usefull because models have to have a defined database, here we can dinamically change the database name)
     database_proxy.initialize(database)
@@ -187,12 +184,13 @@ def start_sub_db(logger, task, models, database_proxy):
         logger.info("")
         logger.error(f"Error starting Extract database: {e}")
         logger.error(f"Database path: {task.parent_task.sql_path}")
-        __errors += 1
-        return __errors, __warnings, None
+        task.errors += 1
+        task.save()
+        return task, None
 
     # Create all tables in the database
     database.create_tables(models)
 
     logger.info("")
     # Return the new database instance
-    return __errors, __warnings, database
+    return task, database

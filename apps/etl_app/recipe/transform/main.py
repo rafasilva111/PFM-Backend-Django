@@ -4,10 +4,6 @@ from apps.common.constants import COMPANY_CONTINENTE
 
 def _transform_recipes(logger, task, resume):
     
-    logger.info(f"Transforming all recipes...")
-    logger.info("")
-    logger.info("")
-    
     if ProcessType.RECIPES.value not in task.company.processes:
         logger.error(f"Company of task does not have a Recipe's process.")
         task.errors += 1

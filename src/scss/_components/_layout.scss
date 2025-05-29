@@ -537,3 +537,15 @@ html:not(.layout-footer-fixed) .content-wrapper {
     opacity: $modal-backdrop-opacity;
   }
 }
+
+// Force vertical menu to be visible on mobile landscape
+@media (max-width: 991.98px) and (orientation: landscape) {
+  .layout-menu {
+    display: block !important;
+    transform: none !important;
+    left: 0 !important;
+  }
+  .layout-overlay {
+    display: none !important;
+  }
+}

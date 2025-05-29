@@ -48,6 +48,10 @@ from apps.user_app.constants import REGISTER_MINIMUM_AGE
 from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
+
+import logging
+logger = logging.getLogger(__name__)
+
 ###
 #
 #       Auth Forms 
@@ -422,6 +426,16 @@ class UserRegisterByInviteForm(UserCreationForm):
             self.add_error('terms_and_conditions', "You must agree to the terms and conditions to register.")
         
         return cleaned_data
+    
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        
+        " Delete the invitation after successful registration "
+        try:
+            invitation = Invitation.objects.get(token=instance.email)
+            invitation.delete()
+        except Invitation.DoesNotExist:
+            logger.error(f"Invitation with token {instance.email} does not exist. It might have already been deleted or is invalid.")
 
 
 ##

@@ -65,7 +65,7 @@ class Command(BaseCommand):
                 name='Continente',
                 imgs_bucket=f"{FIREBASE_STORAGE_COMPANY_BUCKET}/{lower_and_underescore(name)}"
                 )
-            continente_company.processes.set([ProcessType.INGREDIENTS, ProcessType.RECIPES])
+            continente_company.processes = [ProcessType.INGREDIENTS, ProcessType.RECIPES]
             continente_company.save()
             self.stdout.write(self.style.SUCCESS('Successfully created the default company'))
 

@@ -15,19 +15,21 @@
   <div class="col-md-4">
     <div class="card">
       <div class="card-body">
+
         <!-- Logo -->
         <div class="app-brand justify-content-center mb-4">
           <a href="{% url 'home' %}" class="app-brand-link gap-2">
             <span class="app-brand-logo demo">
-              {% include 'layout/partials/logo.html' with width=25 withbg="#696cff" %}
+              <img src="{% static 'img/logo/logo.png' %}" alt="Logo" width="25" style=" border-radius: 4px;">
             </span>
             <span class="app-brand-text demo text-body fw-bold">{% get_theme_variables 'template_name' %}</span>
           </a>
         </div>
         <!-- /Logo -->
-        <h4 class="mb-2">{{ title }}</h4>
-        <p class="mb-4">{{ message }}</p>
+        
         <div class="text-center">
+          <h4 class="mb-2">{{ title }}</h4>
+          <p class="mb-4">{{ message }}</p>
           <a href="{{ redirect_url }}" class="d-flex align-items-center justify-content-center">
             <i class="bx bx-chevron-left scaleX-n1-rtl bx-sm"></i>
             {{ redirect_text }}

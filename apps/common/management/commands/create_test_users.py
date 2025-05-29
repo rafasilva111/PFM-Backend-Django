@@ -15,7 +15,6 @@ class Command(BaseCommand):
             default_company = Company.objects.get(
                 name='Goodbites'
             )
-            self.stdout.write(self.style.SUCCESS('Company already exists'))
         except Company.DoesNotExist:
             self.stdout.write(self.style.ERROR('You need to create the default company first'))
             return

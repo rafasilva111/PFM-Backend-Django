@@ -1092,8 +1092,6 @@ class TaskEditView(PermissionRequiredMixin, TemplateView):
         
         return self.render_to_response(context)
 
-
-
     def post(self, request, *args, **kwargs):
         """
         Handle form submission for editing a user.
@@ -1209,7 +1207,7 @@ def task_delete(request, id):
 
     instance = get_object_or_404(Task, id=id)
     instance.delete()
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    return redirect(reverse("tasks"))
 
 
 @login_required

@@ -22,7 +22,7 @@ class Command(BaseCommand):
             automation_account, created = User.objects.get_or_create(
                 username=lower_and_underescore(AUTOMATION_ACCOUNT),
                 email=f'{lower_and_underescore(AUTOMATION_ACCOUNT)}@example.com',
-                type=User.UserType.STAFF,
+                type=User.UserType.APP_STAFF,
                 defaults={
                     'name': AUTOMATION_ACCOUNT,
                     'password': AUTOMATION_ACCOUNT_DEFAULT_USER_PASSWORD,

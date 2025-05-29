@@ -12,7 +12,7 @@ class UserAdmin(BaseUserAdmin):
 
     fieldsets = (
         (None, {'fields': ('email', 'password')}),
-        ('Personal info', {'fields': ('type',)}),
+        ('Personal info', {'fields': ('type','name', 'birth_date', 'company')}),
         ('Permissions', {
             'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions'),
         }),
@@ -28,9 +28,9 @@ class UserAdmin(BaseUserAdmin):
 
     
 class InvitationAdmin(admin.ModelAdmin):
-    list_display = ('email', 'token', 'invited_by', 'created_at')
-    list_filter = ( 'created_at', 'invited_by')
-    search_fields = ('email', 'token', 'invited_by__email')
+    list_display = ('invited', 'token', 'inviter', 'created_at')
+    list_filter = ( 'created_at', 'inviter')
+    search_fields = ('invited', 'token', 'inviter__email')
     readonly_fields = ('token', 'created_at')
 
 

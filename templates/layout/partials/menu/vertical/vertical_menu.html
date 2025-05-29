@@ -3,7 +3,9 @@
   {% if not navbar_full %}
     <div class="app-brand demo">
       <a href="{% url 'home' %}" class="app-brand-link">
-        <span class="app-brand-logo demo">{% include 'layout/partials/logo.html' with width=25 withbg='#696cff' %}</span>
+        <span class="app-brand-logo demo">
+          <img src="{% static 'img/logo/logo.png' %}" alt="Logo" width="25" style=" border-radius: 4px;">
+        </span>
         <span class="app-brand-text demo menu-text fw-bold ms-2">{% get_theme_variables 'template_name' %}</span>
       </a>
     </div>
@@ -17,14 +19,6 @@
       <a href="{% url 'home' %}" class="menu-link">
         <i class="menu-icon tf-icons bx bx-home-circle"></i>
         <div class="text-truncate" >Dashboard</div>
-      </a>
-    </li>
-
-    <!-- Users -->
-    <li class="menu-item {% if 'user' in request.resolver_match.url_name %}active{% endif %}">
-      <a href="{% url 'users' %}" class="menu-link">
-        <i class="menu-icon tf-icons bx bx-male"></i>
-        <div class="text-truncate" >Users</div>
       </a>
     </li>
 
@@ -67,6 +61,38 @@
           </a>
         </li>
       </ul>
+    </li>
+
+    <!-- Users -->
+    <li class="menu-item {% if 'user' in request.resolver_match.url_name or 'invites' in request.resolver_match.url_name %}active open{% endif %}">
+      <a class="menu-link menu-toggle">
+        <i class="menu-icon tf-icons bx bx-male"></i>
+        <div class="text-truncate" >User</div>
+      </a>
+
+      <ul class="menu-sub">
+        <!-- Users -->
+        <li class="menu-item {% if 'user' in request.resolver_match.url_name and not 'invite' in request.resolver_match.url_name %}active{% endif %}">
+          <a href="{% url 'users' %}" class="menu-link">
+            <div class="text-truncate">Users</div>
+          </a>
+        </li>
+
+        <!-- Invitations -->
+        <li class="menu-item {% if 'invite' in request.resolver_match.url_name %}active{% endif %}">
+          <a href="{% url 'invites' %}" class="menu-link">
+            <div class="text-truncate">Invitations</div>
+          </a>
+        </li>
+      </ul>
+    </li>
+
+    <!-- Companies -->
+    <li class="menu-item {% if 'companies' in request.resolver_match.url_name %}active{% endif %}">
+      <a href="{% url 'companies' %}" class="menu-link">
+        <i class="menu-icon tf-icons bx bxs-business"></i>
+        <div class="text-truncate" >Companies</div>
+      </a>
     </li>
 
     <!-- Misc -->

@@ -70,42 +70,42 @@
         </tr>
       </thead>
       <tbody class="table-border-bottom-0">
-        {% for task in page_obj %}
+        {% for instance in page_obj %}
         <tr >
-          <td>{{ task.id }}</td>
-          <td>{{ task.company.name }}</td>
-          <td>{{ task.get_type_process_display }}</td>
+          <td>{{ instance.id }}</td>
+          <td>{{ instance.company.name }}</td>
+          <td>{{ instance.get_type_process_display }}</td>
           <td><span class="badge 
-            {% if task.status == 'WAITING' %}
+            {% if instance.status == 'WAITING' %}
                 bg-label-primary
-            {% elif task.status == 'RUNNING' %}
+            {% elif instance.status == 'RUNNING' %}
                 bg-label-info
-            {% elif task.status == 'CANCELED' %}
+            {% elif instance.status == 'CANCELED' %}
                 bg-label-warning
-            {% elif task.status == 'FAILED' %}
+            {% elif instance.status == 'FAILED' %}
                 bg-label-danger
-            {% elif task.status == 'FINISHED' %}
+            {% elif instance.status == 'FINISHED' %}
                 bg-label-success
             {% else %}
                 bg-label-secondary
             {% endif %}
-            me-1">{{ task.get_status_display }}</span></td>
-          <td>{{ task.started_at }}</td>
-          <td>{{ task.finished_at }}</td>
+            me-1">{{ instance.get_status_display }}</span></td>
+          <td>{{ instance.started_at }}</td>
+          <td>{{ instance.finished_at }}</td>
           <td>
             <div class="dropdown">
               <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
               <div class="dropdown-menu">
                 {% if can_view_task %}
-                <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                <a class="dropdown-item" href="{% url 'task_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
                 {% endif %}
 
                 {% if can_edit_task %}
-                  <a class="dropdown-item" href="{% url 'task_edit' task.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
+                  <a class="dropdown-item" href="{% url 'task_edit' instance.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
                 {% endif %}
 
                 {% if can_delete_task %}
-                  <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                  <a class="dropdown-item" href="{% url 'task_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
                 {% endif %}
               </div>
             </div>

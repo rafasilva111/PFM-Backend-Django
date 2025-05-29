@@ -19,7 +19,7 @@ class Command(BaseCommand):
         call_command('create_staging_automation_account')
         
         self.stdout.write(self.style.SUCCESS('Creating user groups...'))
-        call_command('create_groups')
+        call_command('create_groups', assign_test_users=True)
         
         self.stdout.write(self.style.SUCCESS('Creating user groups...'))
         call_command('install_geckodriver')

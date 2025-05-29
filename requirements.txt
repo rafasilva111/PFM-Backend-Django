@@ -110,3 +110,4 @@ django-multiselectfield
 selenium
 django-recaptcha
 uvicorn
+django-ratelimit

@@ -31,7 +31,7 @@ from django.conf import settings
 from django.views.generic import TemplateView
 import markdown
 from django.contrib.auth.tokens import default_token_generator
-
+from django.contrib import messages
 from django.core.exceptions import ImproperlyConfigured, ValidationError
 from django.http import HttpResponseRedirect
 from django.utils.http import  urlsafe_base64_decode
@@ -43,6 +43,7 @@ from django.urls import reverse, reverse_lazy
 
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.views import PasswordResetConfirmView as BasePasswordResetConfirmView,PasswordResetView ,PasswordContextMixin,INTERNAL_RESET_SESSION_TOKEN
+import logging
 
 ##
 #   Api Swagger
@@ -65,7 +66,7 @@ from web_project import TemplateLayout, TemplateHelper
 #   Models
 #
 
-from apps.user_app.models import User, Invitation
+from apps.user_app.models import User, Invitation, Company
 
 ##
 #   Serializers
@@ -75,13 +76,15 @@ from apps.user_app.models import User, Invitation
 ##
 #   Forms
 #
-from apps.user_app.forms import LoginForm, RegisterForm, ResetForm, SetPasswordForm,UserInviteForm,UserRegisterByInviteForm,UserEditForm
+from apps.user_app.forms import LoginForm, RegisterForm, ResetForm, SetPasswordForm, InvitationForm, InvitationEditForm, \
+                            UserRegisterByInviteForm, UserEditForm, CompanyForm
 
 ##
 #   Filters
 #
 
-from apps.user_app.filters import UserFilter
+from apps.user_app.filters import UserFilter, InvitationFilter, CompanyFilter
+
 
 ##
 #   Functions
@@ -92,6 +95,13 @@ from apps.user_app.filters import UserFilter
 #   Contants
 #
 
+from apps.common.constants import INVITATION_EMAIL_SUBJECT
+
+##
+#   Logging
+#
+
+logger = logging.getLogger(__name__)
 
 ###
 #
@@ -172,7 +182,7 @@ class LoginView(TemplateView):
         context['form'] = instance_form
         
         return render(request, self.template_name, context)
-     
+
 class RegisterView(View):
     """
     View for handling user registration.
@@ -237,9 +247,511 @@ class LogoutView(LoginRequiredMixin,PasswordContextMixin,View):
 
         return redirect('login')
 
-##
-#   Password Reset
+###
 #
+#       User Invite Views 
+#   
+##
+
+@method_decorator(login_required, name='dispatch')
+class InvitationTableView(PermissionRequiredMixin, TemplateView):
+    """
+    View to display the user invitation table.
+    This view extends `PermissionRequiredMixin` and `TemplateView` to ensure
+    that only users with the required permissions can access it. It renders
+    a table of user invitations with pagination and filtering capabilities.
+    Attributes:
+        template_name (str): The path to the template used to render the invitation table.
+        permission_required (str): The permission required to access this view.
+    Methods:
+        get_context_data(**kwargs):
+            Adds the invitation table data to the context.
+    """
+    template_name = 'user_app/invitation/table.html'
+    permission_required = 'user_app.can_view_invites'
+    page_size = 10
+    
+    def get_context_data(self, **kwargs):
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
+    
+    def get(self, request, *args, **kwargs):
+
+        # Initialize template layout
+        context = self.get_context_data()
+        
+        # Retrieve and order all users
+        records = Invitation.objects.all().order_by('-id')
+        
+        # Apply filtering based on request parameters
+        filter = InvitationFilter(self.request.GET, queryset=records)
+        filtered_records = filter.qs
+    
+        # Implement pagination
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        
+        # Created context
+        context.update(
+            {
+                "filter": filter,
+                "total_count": paginator.count,
+                "page_obj": page_obj,
+                "can_view_invite": self.request.user.has_perm(
+                    "user_app.can_view_invite"
+                ),
+                "can_invite_user": self.request.user.has_perm(
+                    "user_app.can_invite_user"
+                ),
+                "can_edit_invite": self.request.user.has_perm(
+                    "user_app.can_edit_invite"
+                ),
+                "can_delete_invite": self.request.user.has_perm(
+                    "user_app.can_delete_invite"
+                ),
+            }
+        )
+        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class InvitationDetailView(PermissionRequiredMixin, TemplateView):
+    """
+    View to display the details of a user.
+    Inherits from:
+        PermissionRequiredMixin: Ensures the user has the required permissions.
+        TemplateView: Renders a template.
+    Attributes:
+        template_name (str): The path to the template used to render the view.
+        permission_required (str): The permission required to access this view.
+    Methods:
+        get_context_data(**kwargs): Adds user details to the context.
+    """
+    template_name = 'user_app/invitation/detail.html'
+    permission_required = 'user_app.can_view_invite'
+    
+    def get_context_data(self, **kwargs):
+        
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
+    
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests to display the invitation details.
+        Retrieves the invitation object based on the provided ID and adds it to the context.
+        
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            HttpResponse: Rendered template with the invitation details.
+        """
+        context = self.get_context_data(**kwargs)
+        
+        # Retrieve Instances
+        instance = Invitation.objects.get(id=kwargs["id"])
+        
+        # Create context
+        context.update({
+            "instance": instance,
+            "can_resend_invite": self.request.user.has_perm(
+                "user_app.can_resend_invite"
+            ),
+            "can_edit_invite": self.request.user.has_perm(
+                "user_app.can_edit_invite"
+            ),
+            "can_delete_invite": self.request.user.has_perm(
+                "user_app.can_delete_invite"
+            ),
+        })
+        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class InvitationEditView(PermissionRequiredMixin, TemplateView):
+    """
+    View for editing a user.
+
+    Inherits from:
+        PermissionRequiredMixin: Ensures the user has the required permissions.
+        TemplateView: Renders a template.
+
+    Attributes:
+        template_name (str): The path to the template used for rendering the view.
+        permission_required (str): The permission required to access this view.
+        form_class (UserEditForm): The form class used for editing the user.
+
+    Methods:
+        get_object(): Retrieves the User object or raises a 404 error.
+        get_context_data(**kwargs): Adds the UserEditForm to the context.
+        post(request, *args, **kwargs): Handles form submission for editing a user.
+
+
+        Returns:
+            User: The user object retrieved by ID.
+
+
+        Args:
+            **kwargs: Additional context data.
+
+        Returns:
+            dict: The context data including the form.
+
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            HttpResponse: The HTTP response object.
+    """
+    template_name = 'user_app/invitation/edit.html'
+    permission_required = 'user_app.can_edit_invite'
+    form_class = InvitationEditForm
+
+    
+    def get_context_data(self, **kwargs):
+        """
+        Prepares and returns the context data for template rendering.
+        - Initializes template layout.
+        - Adds job form and time condition forms to context.
+    
+        Returns:
+            dict: Context dictionary containing:
+                - form: JobForm instance.
+                - starting_condition_time_form: TimeConditionForm instance for starting condition.
+                - stopping_condition_time_form: TimeConditionForm instance for stopping condition.
+        """
+        # Initialize template layout
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        
+        return context
+
+    def get(self, request, *args, **kwargs):
+        
+        # Obtain the context
+        context = self.get_context_data(**kwargs)
+        
+        # Retrieve Instances
+        instance = Invitation.objects.get(id=kwargs["id"])
+        
+        # Create context
+        context.update({
+            "form": self.form_class(
+                instance=instance,
+                user=request.user
+            ),
+        })
+        
+        return self.render_to_response(context)
+        
+    def post(self, request, *args, **kwargs):
+        """
+        Handles form submission for creating a new job.
+        - Validates and saves the job form and time condition forms.
+        - Redirects to job detail view on success, or re-renders form with errors.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+
+        Returns:
+            HttpResponseRedirect: Redirects to job detail view on success.
+            HttpResponse: Re-renders form with errors on failure.
+        """
+        
+        # Retrieve Instances
+        instance = Invitation.objects.get(id=kwargs["id"])
+        
+        # Create job form
+        instance_form = self.form_class(
+            instance=instance,
+            user=request.user,
+            data=request.POST            
+        )
+        
+        # Validate Job form
+        if instance_form.is_valid():
+
+            # Save the Job
+            instance = instance_form.save()
+            
+            return redirect(reverse("invite_detail", args=[instance.id]))
+        
+        # Create context
+        context = self.get_context_data()
+        context.update(
+            {
+                "form": instance_form
+            }
+        )        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class InvitationView(PermissionRequiredMixin,TemplateView):
+    """
+    View to handle user invitations.
+    This view allows users with the appropriate permissions to invite new users to the application by sending them an email with an invitation link.
+    Attributes:
+        template_name (str): The path to the template used to render the invitation form.
+        permission_required (str): The permission required to access this view.
+        form_class (InvitationForm): The form class used to handle user invitations.
+    Methods:
+        get_context_data(**kwargs):
+            Adds the invitation form to the context data.
+        post(request, *args, **kwargs):
+            Handles the form submission, validates the form, creates an invitation, and sends an invitation email.
+        send_invitation_email(invitation, request):
+            Sends an email with the invitation link to the invited user.
+    """
+    template_name = 'user_app/invitation/create.html'
+    permission_required = 'auth.add_user'
+    form_class = InvitationForm
+    
+    def get_context_data(self, **kwargs):
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
+
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests to render the invitation form.
+        This method initializes the context with the invitation form and returns the rendered template.
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        Returns:
+            HttpResponse: Rendered template with the invitation form.
+        """
+        context = self.get_context_data()
+        context['form'] = self.form_class(
+            user = request.user
+        )
+        return self.render_to_response(context)
+        
+    def post(self, request, *args, **kwargs):
+        
+        instance_form = self.form_class(
+            user=request.user,
+            data=request.POST
+        ) 
+        
+        if instance_form.is_valid():
+            
+            " Create Invitation "
+            instance = instance_form.save(request.user)
+
+            " Send tokenized invite email "
+            success = instance.send_invitation_email(instance)
+            
+            if success:
+                return redirect('invite_success')
+            
+            messages.error(request, 'Failed to send invitation email. Please try again later.')
+            instance.delete()
+            
+        
+        # Collect all errors if any form is invalid
+        context = self.get_context_data()
+        context['form'] = instance_form
+        
+        return self.render_to_response(context)
+    
+    
+        
+@method_decorator(login_required, name='dispatch')
+class InvitationSuccessView(PermissionRequiredMixin, TemplateView):
+    """
+    View to display a success message after a user invitation is sent.
+    This view extends `PermissionRequiredMixin` and `TemplateView` to ensure
+    that only users with the required permissions can access it. It renders
+    a success page with a custom message and a link to redirect back to the
+    user table.
+    Attributes:
+        template_name (str): The path to the template used to render the success page.
+    Methods:
+        get_context_data(**kwargs): Adds additional context data to the template.
+    """
+    permission_required = 'auth.add_user'
+    template_name = 'common/logged/success_page.html'
+    
+    def get_context_data(self, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context.update({
+            'title': 'Success!',
+            'message': 'Invitation sent successfully!',
+            'tab': 'User / Invite User /',
+            'current_tab': 'Success',
+            'redirect_url': reverse('invites'),
+            'redirect_text': 'Back to User Table'
+        })
+        return context
+
+class UserRegisterView(TemplateView):
+    """
+    View for handling user registration via invitation.
+    Attributes:
+        template_name (str): Path to the template used for rendering the view.
+        form_class (Form): Form class used for user registration.
+    Methods:
+        get_context_data(**kwargs):
+            Retrieves and updates the context data for the view.
+            Raises:
+                SuspiciousOperation: If the token is not provided or invalid.
+        post(request, *args, **kwargs):
+            Handles the POST request to register a user.
+            Returns:
+                HttpResponse: Redirects to the success page if the form is valid,
+                              otherwise re-renders the form with errors.
+    """
+    template_name = 'user_app/auth/invite_register.html'
+    form_class = UserRegisterByInviteForm
+    
+    def get_context_data(self, **kwargs):
+        """
+        Override the get_context_data method to provide additional context data for the template.
+        This method initializes the context using the TemplateLayout and sets the layout path.
+        It retrieves the 'token' from the URL kwargs and uses it to fetch the corresponding Invitation object.
+        If the token is not provided or invalid, a SuspiciousOperation exception is raised.
+        If the invitation exists, it pre-fills the form with the invitation's email and company.
+        Args:
+            **kwargs: Arbitrary keyword arguments passed to the method.
+        Returns:
+            dict: The context dictionary with additional data for the template.
+        Raises:
+            SuspiciousOperation: If the token is not provided or invalid.
+        """
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context['layout_path']  = TemplateHelper.set_layout("layout_blank.html", context)
+        
+        token = self.kwargs.get('token', None)
+        
+        if not token:
+            raise SuspiciousOperation("Token not provided")
+        
+        # Get Invitation
+        try:
+            invitation = Invitation.objects.get(token=token)
+        except Invitation.DoesNotExist:
+            
+            # Check if user is already registered
+            try:
+                user = User.objects.get(email=invitation.email)
+                # todo: User is already registered. Show message and redirect to login
+                
+            except User.DoesNotExist:
+                raise SuspiciousOperation("Token is Invalid")
+            
+        form = self.form_class(email=invitation.email,company=invitation.company)
+        context['form'] = form
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        """
+        Handle POST requests for user registration.
+        This method processes the form data submitted via a POST request. If the form is valid,
+        it saves the form data, prints the URL for the user registration success page, and redirects
+        the user to that page. If the form is not valid, it re-renders the form with error messages.
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+        Returns:
+            HttpResponse: A redirect to the user registration success page if the form is valid,
+                          otherwise the rendered form with error messages.
+        """
+        instance_form = self.form_class(request.POST)
+        
+        if instance_form.is_valid():
+            
+            instance_form.save()
+            print(reverse('user_register_success'))
+            return redirect(reverse('user_register_success'))
+
+        context = self.get_context_data()
+        context['form'] = instance_form
+        
+        return self.render_to_response(context)
+
+class UserRegisterSuccessView(TemplateView):
+    """
+    UserRegisterSuccessView is a Django TemplateView that renders a success page 
+    after a user successfully registers.
+    Attributes:
+        template_name (str): The path to the template used to render the success page.
+    Methods:
+        get_context_data(**kwargs):
+            Adds additional context data to the template, including layout path, 
+            title, success message, and redirect URL.
+    """
+    template_name = 'common/unlogged/success_page.html'
+    
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context.update({
+            'layout_path': TemplateHelper.set_layout("layout_blank.html", context),
+            'title': 'Success!',
+            'message': 'Your account is created successfully!',
+            'redirect_url': reverse('login')
+        })
+        return context
+
+
+###
+#   Actions
+#
+
+
+@login_required
+@require_GET
+@permission_required('user_app.can_delete_user', raise_exception=True)
+def invite_delete(request, id):
+    
+    instance = get_object_or_404(Invitation, id=id)
+    instance.delete()
+    
+    return redirect("invites")
+
+@login_required
+@require_GET
+@permission_required('user_app.can_resend_email', raise_exception=True)
+def invite_resend(request, id):
+    """
+    Resend an invitation email to the user.
+    
+    This function retrieves the invitation by its ID, sends the invitation email,
+    and redirects back to the previous page with a success message.
+    
+    Args:
+        request (HttpRequest): The HTTP request object.
+        id (int): The ID of the invitation to resend.
+        
+    Returns:
+        HttpResponseRedirect: Redirects back to the previous page with a success message.
+    """
+    instance = get_object_or_404(Invitation, id=id)
+    
+    # Send the invitation email
+    success = instance.send_invitation_email()
+    
+    if success:
+        messages.success(request, "Invitation email resent successfully.")
+    else:
+        messages.error(request, "Failed to resend invitation email. Please try again later.")
+    
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+
+###
+#
+#       Password Reset Views 
+#   
+##
+
 
 class PasswordResetView(PasswordResetView):
     template_name = 'common/auth/reset_password/password_reset.html'  # Assuming your template path
@@ -390,11 +902,13 @@ class PasswordResetCompleteView(TemplateView):
         
         return context
 
+
 ###
 #
 #       User Views 
 #   
 ##
+
 
 @method_decorator(login_required, name='dispatch')
 class UserTableView(LoginRequiredMixin, TemplateView):
@@ -472,6 +986,9 @@ class UserTableView(LoginRequiredMixin, TemplateView):
                 "can_edit_user": self.request.user.has_perm(
                     "user_app.can_edit_user"
                 ),
+                "can_enable_user": self.request.user.has_perm(
+                    "user_app.can_enable_user"
+                ),
                 "can_disable_user": self.request.user.has_perm(
                     "user_app.can_disable_user"
                 ),
@@ -482,7 +999,7 @@ class UserTableView(LoginRequiredMixin, TemplateView):
         )
         
         return context
-    
+
 @method_decorator(login_required, name='dispatch')
 class UserDetailView(PermissionRequiredMixin, TemplateView):
     """
@@ -505,8 +1022,6 @@ class UserDetailView(PermissionRequiredMixin, TemplateView):
         context['record'] = User.objects.get(id=kwargs['id'])           
         
         return context
-    
-
 
 @method_decorator(login_required, name='dispatch')
 class UserEditView(PermissionRequiredMixin, TemplateView):
@@ -583,18 +1098,322 @@ class UserEditView(PermissionRequiredMixin, TemplateView):
         return self.render_to_response(context)
 
 
-##
-#     User Invite
+###
+#   Actions
 #
 
-class UserInviteView(PermissionRequiredMixin,TemplateView):
+
+@login_required
+@require_GET
+@permission_required('user_app.can_enable_user', raise_exception=True)
+def user_enable(request, id):
+    instance = get_object_or_404(User, id=id)
+    instance.is_active = True
+    instance.save()
+    
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+
+@login_required
+@require_GET
+@permission_required('user_app.can_disable_user', raise_exception=True)
+def user_disable(request, id):
+    instance = get_object_or_404(User, id=id)
+    instance.is_active = False
+    instance.save()
+    
+    return redirect(request.META.get('HTTP_REFERER', '/'))
+
+@login_required
+@require_GET
+@permission_required('user_app.can_delete_user', raise_exception=True)
+def user_delete(request, id):
+    instance = get_object_or_404(User, id=id)
+    instance.delete()
+    
+    return redirect("users")
+
+
+###
+#
+#       Company Views 
+#   
+##
+
+
+@method_decorator(login_required, name='dispatch')
+class CompanyTableView(PermissionRequiredMixin, TemplateView):
+    """
+    View to display the user invitation table.
+    This view extends `PermissionRequiredMixin` and `TemplateView` to ensure
+    that only users with the required permissions can access it. It renders
+    a table of user invitations with pagination and filtering capabilities.
+    Attributes:
+        template_name (str): The path to the template used to render the invitation table.
+        permission_required (str): The permission required to access this view.
+    Methods:
+        get_context_data(**kwargs):
+            Adds the invitation table data to the context.
+    """
+    template_name = 'user_app/company/table.html'
+    permission_required = 'user_app.can_view_companies'
+    page_size = 10
+    
+    def get_context_data(self, **kwargs):
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
+    
+    def get(self, request, *args, **kwargs):
+
+        # Initialize template layout
+        context = self.get_context_data()
+        
+        # Retrieve and order all users
+        records = Company.objects.all().order_by('-id')
+        
+        # Apply filtering based on request parameters
+        filter = CompanyFilter(self.request.GET, queryset=records)
+        filtered_records = filter.qs
+    
+        # Implement pagination
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        
+        # Created context
+        context.update(
+            {
+                "filter": filter,
+                "total_count": paginator.count,
+                "page_obj": page_obj,
+                "can_view_company": self.request.user.has_perm(
+                    "user_app.can_view_company"
+                ),
+                "can_create_company": self.request.user.has_perm(
+                    "user_app.can_create_company"
+                ),
+                "can_edit_company": self.request.user.has_perm(
+                    "user_app.can_edit_company"
+                ),
+                "can_delete_company": self.request.user.has_perm(
+                    "user_app.can_delete_company"
+                ),
+            }
+        )
+        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class CompanyDetailView(PermissionRequiredMixin, TemplateView):
+    """
+    View to display the details of a user.
+    Inherits from:
+        PermissionRequiredMixin: Ensures the user has the required permissions.
+        TemplateView: Renders a template.
+    Attributes:
+        template_name (str): The path to the template used to render the view.
+        permission_required (str): The permission required to access this view.
+    Methods:
+        get_context_data(**kwargs): Adds user details to the context.
+    """
+    template_name = 'user_app/company/detail.html'
+    permission_required = 'user_app.can_view_company'
+    page_size = 10
+    
+    def get_context_data(self, **kwargs):
+        
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
+    
+    def get(self, request, *args, **kwargs):
+        """
+        Handles GET requests to display the invitation details.
+        Retrieves the invitation object based on the provided ID and adds it to the context.
+        
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            HttpResponse: Rendered template with the invitation details.
+        """
+        context = self.get_context_data(**kwargs)
+        
+        # Retrieve Instances
+        instance = Company.objects.get(id=kwargs["id"])
+        
+        # Apply filtering based on request parameters
+        users_filter = UserFilter(self.request.GET, queryset=instance.users.all())
+        users_filtered_records = users_filter.qs
+    
+        # Implement pagination
+        paginator = Paginator(
+            users_filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        page_obj = paginator.get_page(self.request.GET.get("page"))
+        
+        
+        # Create context
+        context.update({
+            "instance": instance,
+            "can_edit_company": self.request.user.has_perm(
+                "user_app.can_edit_company"
+            ),
+            "can_delete_company": self.request.user.has_perm(
+                "user_app.can_delete_company"
+            ),
+            "filter": users_filter,
+            "total_count": paginator.count,
+            "page_obj": page_obj,
+            "can_view_user": self.request.user.has_perm(
+                "user_app.can_view_user"
+            ),
+            "can_edit_user": self.request.user.has_perm(
+                "user_app.can_edit_user"
+            ),
+            "can_enable_user": self.request.user.has_perm(
+                "user_app.can_enable_user"
+            ),
+            "can_disable_user": self.request.user.has_perm(
+                "user_app.can_disable_user"
+            ),
+            "can_delete_user": self.request.user.has_perm(
+                "user_app.can_delete_user"
+            ),
+        })
+        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class CompanyEditView(PermissionRequiredMixin, TemplateView):
+    """
+    View for editing a user.
+
+    Inherits from:
+        PermissionRequiredMixin: Ensures the user has the required permissions.
+        TemplateView: Renders a template.
+
+    Attributes:
+        template_name (str): The path to the template used for rendering the view.
+        permission_required (str): The permission required to access this view.
+        form_class (UserEditForm): The form class used for editing the user.
+
+    Methods:
+        get_object(): Retrieves the User object or raises a 404 error.
+        get_context_data(**kwargs): Adds the UserEditForm to the context.
+        post(request, *args, **kwargs): Handles form submission for editing a user.
+
+
+        Returns:
+            User: The user object retrieved by ID.
+
+
+        Args:
+            **kwargs: Additional context data.
+
+        Returns:
+            dict: The context data including the form.
+
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+            *args: Additional positional arguments.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            HttpResponse: The HTTP response object.
+    """
+    template_name = 'user_app/company/edit.html'
+    permission_required = 'user_app.can_edit_invite'
+    form_class = CompanyForm
+
+    
+    def get_context_data(self, **kwargs):
+        """
+        Prepares and returns the context data for template rendering.
+        - Initializes template layout.
+        - Adds job form and time condition forms to context.
+    
+        Returns:
+            dict: Context dictionary containing:
+                - form: JobForm instance.
+                - starting_condition_time_form: TimeConditionForm instance for starting condition.
+                - stopping_condition_time_form: TimeConditionForm instance for stopping condition.
+        """
+        # Initialize template layout
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        
+        return context
+
+    def get(self, request, *args, **kwargs):
+        
+        # Obtain the context
+        context = self.get_context_data(**kwargs)
+        
+        # Retrieve Instances
+        instance = Company.objects.get(id=kwargs["id"])
+        
+        # Create context
+        context.update({
+            "form": self.form_class(
+                instance=instance
+            ),
+        })
+        
+        return self.render_to_response(context)
+        
+    def post(self, request, *args, **kwargs):
+        """
+        Handles form submission for creating a new job.
+        - Validates and saves the job form and time condition forms.
+        - Redirects to job detail view on success, or re-renders form with errors.
+
+        Args:
+            request (HttpRequest): The HTTP request object.
+
+        Returns:
+            HttpResponseRedirect: Redirects to job detail view on success.
+            HttpResponse: Re-renders form with errors on failure.
+        """
+        
+        " Retrieve Instances "
+        instance = Company.objects.get(id=kwargs["id"])
+        
+        " Create Instance form "
+        instance_form = self.form_class(
+            instance=instance,
+            data=request.POST            
+        )
+        
+        " Validate Instance form "
+        if instance_form.is_valid():
+
+            " Save Instance Job "
+            instance = instance_form.save()
+            
+            return redirect(reverse("company_detail", args=[instance.id]))
+        
+        " Create context "
+        context = self.get_context_data()
+        context.update(
+            {
+                "form": instance_form
+            }
+        )
+        
+        return self.render_to_response(context)
+
+@method_decorator(login_required, name='dispatch')
+class CompanyCreateView(PermissionRequiredMixin,TemplateView):
     """
     View to handle user invitations.
     This view allows users with the appropriate permissions to invite new users to the application by sending them an email with an invitation link.
     Attributes:
         template_name (str): The path to the template used to render the invitation form.
         permission_required (str): The permission required to access this view.
-        form_class (UserInviteForm): The form class used to handle user invitations.
+        form_class (InvitationForm): The form class used to handle user invitations.
     Methods:
         get_context_data(**kwargs):
             Adds the invitation form to the context data.
@@ -603,215 +1422,61 @@ class UserInviteView(PermissionRequiredMixin,TemplateView):
         send_invitation_email(invitation, request):
             Sends an email with the invitation link to the invited user.
     """
-    template_name = 'user_app/user/invite.html'
-    permission_required = 'auth.add_user'
-    form_class = UserInviteForm
+    template_name = 'user_app/company/create.html'
+    permission_required = 'user_app.can_create_company'
+    form_class = CompanyForm
     
     def get_context_data(self, **kwargs):
-        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context['form'] = self.form_class()
-        return context
+        return TemplateLayout.init(self, super().get_context_data(**kwargs))
 
-    def post(self, request, *args, **kwargs):
-        instance_form = self.form_class(request.POST)
-        if instance_form.is_valid():
-            user_email = instance_form.cleaned_data.get('email')
-
-            # Generate and save the invite with token
-            invitation = Invitation.objects.create(email=user_email, invited_by=request.user)
-
-
-            # Send tokenized invite email
-            self.send_invitation_email(invitation, request)
-
-            return redirect('user_invite_success')
-        
-        # Collect all errors if any form is invalid
-        context = self.get_context_data()
-        context['form'] = instance_form
-        
-        return self.render_to_response(context)
-    
-    def send_invitation_email(self, invitation, request):
-        subject = 'You are invited to join the app!'
-        invite_link = f'{settings.BASE_URL}{reverse("user_register", args=[invitation.token])}'  # Tokenized link
-
-        # Render the email template
-        message = render_to_string('user_app/auth/emails/invite_email.html', {
-            'invite_link': invite_link,
-            'sender_email':invitation.invited_by.email,
-            'sender_name': invitation.invited_by.name,
-        })
-
-        # Send the email
-        send_mail(
-            subject,
-            message,
-            settings.DEFAULT_FROM_EMAIL,  # From email
-            [invitation.email],  # To email
-            fail_silently=False,
-        )
-
-class UserInviteSuccessView(PermissionRequiredMixin, TemplateView):
-    """
-    View to display a success message after a user invitation is sent.
-    This view extends `PermissionRequiredMixin` and `TemplateView` to ensure
-    that only users with the required permissions can access it. It renders
-    a success page with a custom message and a link to redirect back to the
-    user table.
-    Attributes:
-        template_name (str): The path to the template used to render the success page.
-    Methods:
-        get_context_data(**kwargs): Adds additional context data to the template.
-    """
-    template_name = 'common/logged/success_page.html'
-    
-    def get_context_data(self, **kwargs):
-        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context.update({
-            'title': 'Success!',
-            'message': 'Invitation sent successfully!',
-            'tab': 'User / Invite User /',
-            'current_tab': 'Success',
-            'redirect_url': reverse('user'),
-            'redirect_text': 'Back to User Table'
-        })
-        return context
-
-class UserRegisterView(TemplateView):
-    """
-    View for handling user registration via invitation.
-    Attributes:
-        template_name (str): Path to the template used for rendering the view.
-        form_class (Form): Form class used for user registration.
-    Methods:
-        get_context_data(**kwargs):
-            Retrieves and updates the context data for the view.
-            Raises:
-                SuspiciousOperation: If the token is not provided or invalid.
-        post(request, *args, **kwargs):
-            Handles the POST request to register a user.
-            Returns:
-                HttpResponse: Redirects to the success page if the form is valid,
-                              otherwise re-renders the form with errors.
-    """
-    template_name = 'user_app/auth/invite_register.html'
-    form_class = UserRegisterByInviteForm
-    
-    def get_context_data(self, **kwargs):
+    def get(self, request, *args, **kwargs):
         """
-        Override the get_context_data method to provide additional context data for the template.
-        This method initializes the context using the TemplateLayout and sets the layout path.
-        It retrieves the 'token' from the URL kwargs and uses it to fetch the corresponding Invitation object.
-        If the token is not provided or invalid, a SuspiciousOperation exception is raised.
-        If the invitation exists, it pre-fills the form with the invitation's email and company.
-        Args:
-            **kwargs: Arbitrary keyword arguments passed to the method.
-        Returns:
-            dict: The context dictionary with additional data for the template.
-        Raises:
-            SuspiciousOperation: If the token is not provided or invalid.
-        """
-        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context['layout_path']  = TemplateHelper.set_layout("layout_blank.html", context)
-        
-        token = self.kwargs.get('token', None)
-        
-        if not token:
-            raise SuspiciousOperation("Token not provided")
-        
-        # Get Invitation
-        try:
-            invitation = Invitation.objects.get(token=token)
-        except Invitation.DoesNotExist:
-            
-            # Check if user is already registered
-            try:
-                user = User.objects.get(email=invitation.email)
-                # todo: User is already registered. Show message and redirect to login
-                
-            except User.DoesNotExist:
-                raise SuspiciousOperation("Token is Invalid")
-            
-        form = self.form_class(email=invitation.email,company=invitation.company)
-        context['form'] = form
-
-        return context
-
-    def post(self, request, *args, **kwargs):
-        """
-        Handle POST requests for user registration.
-        This method processes the form data submitted via a POST request. If the form is valid,
-        it saves the form data, prints the URL for the user registration success page, and redirects
-        the user to that page. If the form is not valid, it re-renders the form with error messages.
+        Handles GET requests to render the invitation form.
+        This method initializes the context with the invitation form and returns the rendered template.
         Args:
             request (HttpRequest): The HTTP request object.
             *args: Additional positional arguments.
             **kwargs: Additional keyword arguments.
         Returns:
-            HttpResponse: A redirect to the user registration success page if the form is valid,
-                          otherwise the rendered form with error messages.
+            HttpResponse: Rendered template with the invitation form.
         """
-        instance_form = self.form_class(request.POST)
+        context = self.get_context_data()
+        context['form'] = self.form_class()
+        return self.render_to_response(context)
+        
+    def post(self, request, *args, **kwargs):
+        
+        " Create Form "
+        instance_form = self.form_class(
+            data=request.POST
+        ) 
         
         if instance_form.is_valid():
             
-            instance_form.save()
-            print(reverse('user_register_success'))
-            return redirect(reverse('user_register_success'))
+            " Create Instance "
+            instance = instance_form.save(request.user)
+            
+            return redirect(reverse("company_detail", args=[instance.id]))
 
+            
+        
+        " Collect all errors if any form is invalid "
         context = self.get_context_data()
         context['form'] = instance_form
         
         return self.render_to_response(context)
 
-class UserRegisterSuccessView(TemplateView):
-    """
-    UserRegisterSuccessView is a Django TemplateView that renders a success page 
-    after a user successfully registers.
-    Attributes:
-        template_name (str): The path to the template used to render the success page.
-    Methods:
-        get_context_data(**kwargs):
-            Adds additional context data to the template, including layout path, 
-            title, success message, and redirect URL.
-    """
-    template_name = 'common/unlogged/success_page.html'
-    
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context.update({
-            'layout_path': TemplateHelper.set_layout("layout_blank.html", context),
-            'title': 'Success!',
-            'message': 'Your account is created successfully!',
-            'redirect_url': reverse('login')
-        })
-        return context
-
 
 ###
-#
 #   Actions
 #
-## 
+
 
 @login_required
 @require_GET
-@permission_required('auth.change_user', raise_exception=True)
-def user_enable_disable(request, id):
-    instance = get_object_or_404(User, id=id)
-    instance.is_active = not instance.is_active
-    instance.save()
-    
-    next_url = request.GET.get('next', reverse('user'))
-    
-    return redirect(next_url)
-
-@login_required
-@require_GET
-@permission_required('auth.delete_user', raise_exception=True)
-def user_delete(request, id):
-    instance = get_object_or_404(User, id=id)
+@permission_required('user_app.can_delete_company', raise_exception=True)
+def company_delete(request, id):
+    instance = get_object_or_404(Company, id=id)
     instance.delete()
     
-    return redirect(request.get_full_path())
+    return redirect("companies")

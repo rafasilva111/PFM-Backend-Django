@@ -31,13 +31,27 @@
             {% endif %}
           </div>
 
-          <!-- Name field -->
-          {{ form.email.label }}
+
+          <!-- Invited field -->
+          {{ form.invited.label }}
           <div class="col-md-12 mt-2 mb-3">
-            {{ form.email }}
-            {% if form.email.errors %}
+            {{ form.invited }}
+            {% if form.invited.errors %}
             <div class="invalid-feedback d-block">
-              {% for error in form.email.errors %}
+              {% for error in form.invited.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Group field -->
+          {{ form.group.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.group }}
+            {% if form.group.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.group.errors %}
               {{ error }}
               {% endfor %}
             </div>

@@ -55,6 +55,8 @@ class Command(BaseCommand):
         """
         # Define groups and their permissions
         groups_permissions = {
+            User.UserType.PLACEHOLDER: [
+            ],
             User.UserType.NORMAL: [
                 # User permissions
                 "can_view_user","can_view_users"
@@ -67,7 +69,11 @@ class Command(BaseCommand):
                 # Recipe Audit Log permissions
                 "can_view_audit_log", "can_view_audit_logs"
             ],
-            User.UserType.STAFF: [
+            User.UserType.COMPANY_STAFF: [
+            ],
+            User.UserType.COMPANY_ADMIN: [
+            ],
+            User.UserType.APP_STAFF: [
                 # User permissions
                 "can_view_user","can_view_users","can_invite_user","can_edit_user","can_delete_user","can_disable_user",
                 # Task permissions
@@ -79,9 +85,13 @@ class Command(BaseCommand):
                 # Recipe Audit Log permissions
                 "can_view_audit_log", "can_view_audit_logs", "can_accept_audit_log"
             ],
-            User.UserType.SUPERUSER: [
+            User.UserType.APP_ADMIN: [
                 # User permissions
                 "can_view_user","can_view_users","can_invite_user","can_edit_user","can_delete_user","can_disable_user",
+                # Company permissions
+                "can_view_company","can_view_companies","can_create_company","can_edit_company","can_delete_company",
+                # Invite permissions
+                "can_view_invite","can_view_invites","can_edit_invite","can_delete_invite",
                 # Task permissions
                 "can_view_task","can_view_tasks","can_restart_task", "can_cancel_task", "can_create_task","can_edit_task","can_delete_task", "can_pause_task", "can_resume_task",
                 # Job permissions
@@ -90,7 +100,9 @@ class Command(BaseCommand):
                 "can_view_recipe","can_view_recipes", "can_edit_recipe", "can_delete_recipe", "can_verify_recipe"
                 # Recipe Audit Log permissions
                 "can_view_audit_log", "can_view_audit_logs", "can_delete_audit_log", "can_accept_audit_log"
-            ]
+                
+            ],
+            
         }
 
         # Predefined users to groups mapping
@@ -101,8 +113,8 @@ class Command(BaseCommand):
         
         users_to_groups = {
             User.UserType.NORMAL: [f"{name_c}@{name_c}.pt"],
-            User.UserType.STAFF: [f"{name_b}@{name_b}.pt" ],
-            User.UserType.SUPERUSER: [f"{name_a}@{name_a}.pt"]
+            User.UserType.APP_STAFF: [f"{name_b}@{name_b}.pt" ],
+            User.UserType.APP_ADMIN: [f"{name_a}@{name_a}.pt"]
         }
 
         # Step 1: Create groups and assign permissions
@@ -129,7 +141,7 @@ class Command(BaseCommand):
                     for email in emails:
                         try:
                             user = User.objects.get(email=email)
-                            user.user_type = group_name
+                            user.type = group_name
                             user.save()
                             user.groups.add(group)
                             self.stdout.write(f"Added user '{email}' to group '{group_name}'")

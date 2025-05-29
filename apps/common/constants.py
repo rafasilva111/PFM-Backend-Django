@@ -90,3 +90,10 @@ TESTING_ACCOUNT_C = 'c'
 TESTING_ACCOUNT_C_PASSWORD = environ.get('TESTING_ACCOUNT_C','c')
 
 
+"""
+
+    Email Constants
+
+"""
+
+INVITATION_EMAIL_SUBJECT = 'You were invited to join the GoodBites Backend!'

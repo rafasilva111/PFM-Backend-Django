@@ -290,7 +290,7 @@ def pull_recipes(logger,task, max_recipes=-1):
     logger.info(f"{task.items_processed} Recipes pulled ...")
     logger.info("")
     
-    return task, False
+    return task, True
     
 
 def pull_all_recipes_links(logger, task):

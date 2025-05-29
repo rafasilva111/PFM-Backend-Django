@@ -1,0 +1,114 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Invitation Details{% endblock %}
+
+{% block vendor_css %}
+{{ block.super }}
+<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock vendor_css %}
+
+{% block vendor_js %}
+{{ block.super }}
+<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock vendor_js %}
+
+{% block page_js %}
+{{ block.super }}
+<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock page_js %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+    <span class="text-muted fw-light">Invitations / </span> Invitation {{task.id}} Details
+</h4>
+
+<!-- Error Messages Container -->
+{% if messages %}
+<div class="col-12">
+    <div class="alert alert-danger">
+        {% for message in messages %}
+            <p>{{ message }}</p>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- Details -->
+<div class="row">
+    <!-- Task Detail Card -->
+    <div class="col-md-12 col-sm-12">
+        <div class="card overflow-hidden mb-4" style="height: auto;">
+            <div class="container-fluid d-flex align-items-center justify-content-between">
+                <h4 class="card-header">Invitation Details</h4>
+                <div>
+                    <!-- Top Options -->
+
+                    <!-- Resend Email -->
+                    {% if can_resend_invite %}
+                    <a href="{% url 'invite_resend' instance.id %}" class="btn btn-warning py-1">
+                        Resend Email
+                    </a>
+                    {% endif %}
+
+                    <!-- Edit Invitation -->
+                    {% if can_edit_invite %}
+                    <a href="{% url 'invite_edit' instance.id %}" class="btn btn-info py-1">
+                        Edit
+                    </a>
+                    {% endif %}
+                    
+                    <!-- Delete Invitation -->
+                    {% if can_delete_invite %}
+                    <a href="{% url 'invite_delete' instance.id %}" class="btn btn-danger py-1">
+                        Delete
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body task-details">
+                <div class="row pb-3">
+
+                    <!-- Company -->
+                    <div class="col-md-1">
+                        <h6>Company:</h6>
+                        <a href="{% url 'company_detail' instance.company.id %}" class="badge bg-label-primary me-1">
+                            {{ instance.company }}
+                        </a>
+                    </div>
+
+                    <!-- Invited --> 
+                    <div class="col-md-2">
+                        <h6>Invited:</h6>
+                        <span id="status" class="badge bg-label-primary me-1">{{ instance.invited }}</span>
+                    </div>
+
+                    <!-- Inviter --> 
+                    <div class="col-md-2">
+                        <h6>Inviter:</h6>
+                        <a href="{% url 'user_detail' instance.inviter.id %}" class="badge bg-label-primary me-1">
+                            {{ instance.inviter }}
+                        </a>
+                    </div>
+
+                </div>
+
+                <!-- Timing -->
+                <div class="row">
+
+                    <!-- Started at -->
+                    <div class="col-md-3">
+                        <h6>Started At:</h6>
+                        <p class="badge bg-label-primary  me-1">{{ instance.created_at }}</p>
+                    </div>
+
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}

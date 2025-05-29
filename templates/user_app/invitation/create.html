@@ -1,0 +1,70 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Tables - Basic Tables{% endblock %}
+
+{% block content %}
+
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">User /</span> Invite User
+</h4>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card">
+      <div class="card-body">
+        <form method="post">
+          {% csrf_token %}
+
+          <!-- Company field -->
+          {{ form.company.label_tag }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.company }}
+            {% if form.company.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.company.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+
+          <!-- Invited field -->
+          {{ form.invited.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.invited }}
+            {% if form.invited.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.invited.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <!-- Group field -->
+          {{ form.group.label }}
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.group }}
+            {% if form.group.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.group.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
+          <button type="submit" class="btn btn-primary">
+            Submit
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

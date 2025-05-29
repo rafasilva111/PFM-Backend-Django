@@ -291,7 +291,9 @@ class TaskForm(forms.ModelForm):
                 elif self.cleaned_data['parent_job_transform']:
                     instance.parent_job = self.cleaned_data['parent_job_transform']
                 
+                
                 instance.save()
+                instance.launch()
                 
             
                 return instance

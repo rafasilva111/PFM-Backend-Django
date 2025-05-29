@@ -17,7 +17,9 @@ from django.core.exceptions import ValidationError
 from django_celery_beat.models import CrontabSchedule, PeriodicTask
 from django.contrib.auth.forms import AuthenticationForm, UserCreationForm, PasswordResetForm,SetPasswordForm,  authenticate, get_user_model, password_validation
 from django.utils import timezone
-
+from django.conf import settings
+from django.utils.safestring import mark_safe
+from apps.common.models import  ProcessType
 ## 
 #   Api Swagger
 ##
@@ -36,7 +38,7 @@ from datetime import date,datetime
 ##
 #   Models
 #
-from apps.user_app.models import User,Group
+from apps.user_app.models import User, Group, Invitation, Company
 
 ##
 #   Contants
@@ -46,6 +48,11 @@ from apps.user_app.constants import REGISTER_MINIMUM_AGE
 from django_recaptcha.fields import ReCaptchaField
 from django_recaptcha.widgets import ReCaptchaV2Checkbox
 
+###
+#
+#       Auth Forms 
+#   
+##
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', widget=forms.TextInput(attrs={
         'placeholder': 'Enter your email or username',
@@ -59,6 +66,13 @@ class LoginForm(forms.Form):
         'class': 'form-check-input'
     }))
     captcha = ReCaptchaField(widget=ReCaptchaV2Checkbox)
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        " In Debug mode, we will skip the captcha field "
+        if settings.DEBUG:
+            self.fields['captcha'] = forms.CharField(required=False, widget=forms.HiddenInput())
     
 class RegisterForm(UserCreationForm):
     name = forms.CharField(
@@ -137,6 +151,10 @@ class RegisterForm(UserCreationForm):
         age = today.year - birthdate.year - ((today.month, today.day) < (birthdate.month, birthdate.day))
         return age
 
+##
+#   Password Reset Forms
+#
+
 class ResetForm(PasswordResetForm):
     email = forms.EmailField(widget=forms.EmailInput(attrs={
         'class': 'form-control',
@@ -171,24 +189,148 @@ class SetPasswordForm(SetPasswordForm):
             raise forms.ValidationError(("The two password fields didn’t match."))
         
         return confirm_password
+
+##
+#     Invitation Forms
+#
     
+class InvitationForm(forms.ModelForm):
     
-class UserInviteForm(forms.Form):
-    
-    email = forms.EmailField(
+    invited = forms.EmailField(
         label='Email:',
         widget=forms.TextInput(attrs={'class': 'form-control', 'value': '', 'placeholder': 'Enter the invited email'})  # Specify widget here
     )
     
-    def clean_email(self):
-        email = self.cleaned_data.get('email')
-        
-        # Check if the email already exists in the User model
-        if User.objects.filter(email=email).exists():
-            raise forms.ValidationError("This email address is already in use.")
-        
-        return email
+    group = forms.ModelChoiceField(
+        label='Group:',
+        queryset=Group.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'})
+    )
     
+    company = forms.ModelChoiceField(
+        queryset=Company.objects.all(),
+        label='Company:',
+        required=False,
+        disabled=True,
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+    )
+
+    
+    class Meta:
+        model = Invitation
+        fields = ['company','invited','group']
+        
+        
+    def __init__(self, user, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        " Initialize the form with the user and company if provided "
+
+            
+        " Invited Field"
+        self.fields['company'].initial = user.company
+        self.fields['company'].disabled = True
+
+        
+        " Group field "
+        if user.type == user.UserType.APP_ADMIN:
+            # Example: Only groups the user belongs to
+            self.fields['group'].queryset = Group.objects.filter(name__in=[
+                User.UserType.COMPANY_STAFF, User.UserType.COMPANY_ADMIN, User.UserType.APP_STAFF, User.UserType.APP_ADMIN
+            ])
+            
+        elif user.type == user.UserType.COMPANY_ADMIN:
+            # Example: Only groups the user belongs to
+            self.fields['group'].queryset = Group.objects.filter(name__in=[User.UserType.COMPANY_STAFF, User.UserType.COMPANY_ADMIN])
+            
+            
+            
+            
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        " Validate email format and uniqueness "
+        if User.objects.filter(email=self.cleaned_data['invited']).exists():
+            self.add_error('invited', f"This email address ({self.cleaned_data['invited']}) is already in use.")
+        
+        if Invitation.objects.filter(invited=self.cleaned_data['invited']).exists():
+            self.add_error(
+                'invited',
+                f"This email address ({self.cleaned_data['invited']}) has already been invited. \
+                Please ask the recipient to check their inbox or spam folder for the invitation email. \
+                If you need to resend the invitation, please do so from the invitation management page."
+            )
+        
+        return cleaned_data
+    
+    def save(self, user):
+        
+        instance = super().save(False)
+        instance.inviter = user
+        instance.company = user.company
+        instance.save()
+        
+        return instance
+
+
+class InvitationEditForm(forms.ModelForm):
+    
+    invited = forms.EmailField(
+        label='Email:',
+        widget=forms.TextInput(attrs={'class': 'form-control', 'value': '', 'placeholder': 'Enter the invited email'})  # Specify widget here
+    )
+    
+    group = forms.ModelChoiceField(
+        label='Group:',
+        queryset=Group.objects.all(),
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'})
+    )
+    
+    company = forms.ModelChoiceField(
+        queryset=Company.objects.all(),
+        label='Company:',
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+    )
+
+    
+    class Meta:
+        model = Invitation
+        fields = ['company','invited','group']
+        
+        
+    def __init__(self, user, create= False, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        " Group field "
+        if user.type == user.UserType.APP_ADMIN:
+            # Example: Only groups the user belongs to
+            self.fields['group'].queryset = Group.objects.filter(name__in=[
+                User.UserType.COMPANY_STAFF, User.UserType.COMPANY_ADMIN, User.UserType.APP_STAFF, User.UserType.APP_ADMIN
+            ])
+            
+        elif user.type == user.UserType.COMPANY_ADMIN:
+            # Example: Only groups the user belongs to
+            self.fields['group'].queryset = Group.objects.filter(name__in=[User.UserType.COMPANY_STAFF, User.UserType.COMPANY_ADMIN])
+            
+        
+        " Invited  Field"
+        self.fields['invited'].disabled = True
+            
+            
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        
+        return cleaned_data
+    
+    def save(self):
+        
+        instance = super().save(False)
+        instance.save()
+        
+        return instance
+
 class UserRegisterByInviteForm(UserCreationForm):
 
     
@@ -250,10 +392,10 @@ class UserRegisterByInviteForm(UserCreationForm):
             
         if company:
             self.fields['company'].initial = company  # Pre-fill email
-    
-    
 
-
+##
+#   User Forms
+#
 
 class UserEditForm(forms.ModelForm):
 
@@ -280,9 +422,7 @@ class UserEditForm(forms.ModelForm):
         if not user.is_staff:
             self.fields['email'].widget.attrs['readonly'] = 'readonly'
             self.fields['type'].widget.attrs['readonly'] = 'readonly'
-            
-    
-            
+
     def save(self, commit=True):
         # Check if type has changed
         instance = super(UserEditForm, self).save(commit=False)
@@ -308,3 +448,27 @@ class UserEditForm(forms.ModelForm):
         if commit:
             instance.save()
         return instance
+
+
+##
+#   Company Forms
+#
+class CompanyForm(forms.ModelForm):
+    name = forms.CharField(
+        widget=forms.TextInput(attrs={
+            'placeholder': 'Company Name',
+            'class': 'form-control'
+        })
+    )
+    processes = forms.MultipleChoiceField(
+        choices=ProcessType.choices,
+        widget=forms.CheckboxSelectMultiple(attrs={'class': 'form-check-input'}),
+        required=False,
+        label='Processes:'
+    )
+    
+    processes.widget.template_name = 'widgets/checkbox_select.html'
+
+    class Meta:
+        model = Company
+        fields = ['name', 'processes']

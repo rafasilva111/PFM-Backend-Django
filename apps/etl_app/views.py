@@ -1291,3 +1291,6 @@ def download_db(request, id):
     else:
         messages.error(request, 'Database file not found.')
         return redirect(request.META.get('HTTP_REFERER', '/'))
+    
+    
+

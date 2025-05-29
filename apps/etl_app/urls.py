@@ -56,4 +56,9 @@ urlpatterns = [
     path("task/<int:id>/log/download", download_log, name="task_log_download"),
     path("task/<int:id>/db/download", download_db, name="task_db_download"),
 
+    ##
+    #   Miscellaneous
+    ##
+    
+    path("terms", TaskTableView.as_view(), name="terms"),
 ]

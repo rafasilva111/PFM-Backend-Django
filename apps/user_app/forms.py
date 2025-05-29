@@ -314,7 +314,7 @@ class InvitationEditForm(forms.ModelForm):
             self.fields['group'].queryset = Group.objects.filter(name__in=[User.UserType.COMPANY_STAFF, User.UserType.COMPANY_ADMIN])
             
         
-        " Invited  Field"
+        " Invited Field"
         self.fields['invited'].disabled = True
             
             
@@ -333,6 +333,13 @@ class InvitationEditForm(forms.ModelForm):
 
 class UserRegisterByInviteForm(UserCreationForm):
 
+    company = forms.ModelChoiceField(
+        queryset=Company.objects.all(),
+        label='Company:',
+        required=False,
+        widget=forms.Select(attrs={'class': 'form-select form-select-lg'}),
+        help_text='Select the company you are registering for.'
+    )
     
     name = forms.CharField(
         label="Name:",
@@ -352,13 +359,6 @@ class UserRegisterByInviteForm(UserCreationForm):
             }
         ))
     
-    sex = forms.ChoiceField(
-        label="Sex:",
-        choices=User.SexType.choices, 
-        help_text='Cron hour field', 
-        widget=forms.Select(attrs={'class': 'form-select form-select-lg'})
-    )
-    
     password1 = forms.CharField(
         label="Password:",
         widget=forms.PasswordInput(
@@ -377,21 +377,52 @@ class UserRegisterByInviteForm(UserCreationForm):
             }
         ))
     
+    terms_and_conditions = forms.BooleanField(
+        label="I agree to the terms and conditions",
+        required=True,
+        widget=forms.CheckboxInput(attrs={'class': 'form-check-input'})
+    )
+    
     class Meta:
         model = User
-        fields = ['name','password1', 'password2', 'email','sex']
+        fields = ['company', 'name','password1', 'password2', 'email']
 
-    def __init__(self, *args, **kwargs):
-        email = kwargs.pop('email', None)
-        company = kwargs.pop('company', None)
+    def __init__(self, token, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        try:
+            invitation = Invitation.objects.get(token=token)
+            company = invitation.company
+            email = invitation.invited
+        except Invitation.DoesNotExist:
+            raise ValidationError("The invitation link is invalid or has expired. Please request a new invitation or contact support for assistance.")
+        
 
-        if email:
-            self.fields['email'].initial = email  # Pre-fill email
+        user = User.objects.filter(email=invitation.invited).first()
             
-        if company:
-            self.fields['company'].initial = company  # Pre-fill email
+        if user:
+            raise ValidationError(f"An account with the email address {email} already exists. Please sign in or use the password reset option if you forgot your password.")
+        
+        " Company Field"
+        self.fields['company'].initial = company
+        self.fields['company'].disabled = True
+
+        " Email Field"
+        self.fields['email'].initial = email
+        self.fields['email'].disabled = True
+    
+    def clean(self):
+        cleaned_data = super().clean()
+
+        " Validate email format and uniqueness "
+        if User.objects.filter(email=self.cleaned_data['email']).exists():
+            self.add_error('email', f"This email address ({self.cleaned_data['email']}) is already in use. Please sign in instead.")
+
+        if not self.cleaned_data.get('terms_and_conditions'):
+            self.add_error('terms_and_conditions', "You must agree to the terms and conditions to register.")
+        
+        return cleaned_data
+
 
 ##
 #   User Forms

@@ -187,7 +187,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     
     username = models.CharField(max_length=255, null=False)
     description = models.CharField(max_length=255, default='',blank=True)
-    birth_date = models.DateTimeField(null=False)
+    birth_date = models.DateTimeField(null=True)
     img_source = models.CharField(max_length=255, default='',blank=True)
     email = models.EmailField(
         verbose_name='email address',

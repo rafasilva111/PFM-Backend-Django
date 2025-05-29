@@ -29,7 +29,7 @@
             </a>
           </div>
           <!-- /Logo -->
-          <h4 class="mb-2">Welcome to LiveView 🚀</h4>
+          <h4 class="mb-2">Welcome to GoodBites 🚀</h4>
           <p class="mb-4">Make manage you're business easy!</p>
 
           <form method="POST">
@@ -40,24 +40,6 @@
               <label for="email" class="form-label">{{ form.name.label }}</label>
               {{ form.name }}
               {% for error in form.name.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-
-            <!-- Sex Field -->
-            <div class="mb-3">
-              <label for="email" class="form-label">{{ form.sex.label }}</label>
-              {{ form.sex }}
-              {% for error in form.sex.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-
-            <!-- Birth Date Field -->
-            <div class="mb-3">
-              <label for="email" class="form-label">{{ form.birth_date.label }}</label>
-              {{ form.birth_date }}
-              {% for error in form.birth_date.errors %}
                 <div class="invalid-feedback d-block">{{ error }}</div>
               {% endfor %}
             </div>
@@ -80,8 +62,6 @@
               {% endfor %}
             </div>
 
-            
-
             <!-- Password1 Field -->
             <div class="mb-3">
               <label for="email" class="form-label">{{ form.password1.label }}</label>
@@ -100,17 +80,19 @@
               {% endfor %}
             </div>
 
-            
-            <!--
+            <!-- Terms and Conditions -->
             <div class="mb-3">
               <div class="form-check">
-                <input class="form-check-input" type="checkbox" id="terms-conditions" name="terms">
-                <label class="form-check-label" for="terms-conditions">
-                  I agree to
-                  <a href="javascript:void(0);">privacy policy & terms</a>
+                {{ form.terms_and_conditions }}
+                <label class="form-check-label" for="{{ form.terms_and_conditions.id_for_label }}">
+                  I agree to the <a href="{% url 'terms_and_conditions' %}" target="_blank">terms and conditions</a>
                 </label>
               </div>
-            </div> -->
+              {% for error in form.terms_and_conditions.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+
             <button class="btn btn-primary d-grid w-100">
               Sign up
             </button>

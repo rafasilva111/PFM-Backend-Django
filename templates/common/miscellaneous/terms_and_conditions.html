@@ -1,0 +1,101 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+  Register - Invite
+{% endblock %}
+
+{% block page_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="container-xxl">
+    <div class="authentication-wrapper authentication-basic container-p-y">
+        <!-- Register Card -->
+        <div class="col-md-12 col-sm-12">
+            <div class="card">
+            <div class="card-body">
+                <div class="container my-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-5">
+                    <h1 class="mb-4 text-primary">Terms &amp; Conditions</h1>
+                    <p class="text-muted">
+                        Last updated: <strong>May 29, 2025</strong>
+                    </p>
+
+                    <h2 class="mt-4">1. Introduction</h2>
+                    <p>
+                        Welcome to <strong>GoodBites</strong> (“we”, “us”, “our”). By accessing or using our website and backend services related to health, food, recipes and user profiles (the “Service”), you agree to these Terms &amp; Conditions.
+                    </p>
+
+                    <h2 class="mt-4">2. Eligibility & Account Registration</h2>
+                    <ul>
+                        <li>You must be 18 years or older to use our Service.</li>
+                        <li>To access certain features, you must register an account and provide a valid email address.</li>
+                        <li>You are responsible for maintaining the confidentiality of your account credentials and for all activities under your account.</li>
+                    </ul>
+
+                    <h2 class="mt-4">3. User Data & Privacy</h2>
+                    <p>
+                        By using the Service, you consent to our <a href="/privacy-policy" class="text-decoration-none">Privacy Policy</a>, which explains:
+                    </p>
+                    <ul>
+                        <li>What personal data we collect (e.g., email, profile details).</li>
+                        <li>How we use, store, and protect your data.</li>
+                        <li>Your rights under applicable data protection laws (GDPR).</li>
+                    </ul>
+
+                    <h2 class="mt-4">4. User Content</h2>
+                    <p>Users may submit:</p>
+                    <ul>
+                        <li>Recipes, ingredients, routines, and related content.</li>
+                        <li>Comments and feedback on recipes.</li>
+                    </ul>
+                    <p>You retain ownership of what you post but grant us a perpetual, worldwide, royalty-free license to display, distribute, and modify it as necessary to provide the Service.</p>
+
+                    <h2 class="mt-4">5. Prohibited Conduct</h2>
+                    <p>When using the Service, you agree not to:</p>
+                    <ul>
+                        <li>Post unlawful, harmful, defamatory, or infringing content.</li>
+                        <li>Interfere with or disrupt the Service or its security features.</li>
+                        <li>Attempt to gain unauthorized access to any part of the Service.</li>
+                    </ul>
+
+                    <h2 class="mt-4">6. Intellectual Property</h2>
+                    <p>All content, trademarks, logos, and software on the Service are our property or licensed to us. You may not reproduce, distribute, or create derivative works without express permission.</p>
+
+                    <h2 class="mt-4">7. Disclaimers & Limitation of Liability</h2>
+                    <p>The Service is provided “as-is” and “as available.” We make no warranties regarding accuracy, availability, or fitness for a particular purpose.</p>
+                    <p>To the maximum extent permitted by law, we disclaim all liability for any indirect, incidental, or consequential damages arising from your use of the Service.</p>
+
+                    <h2 class="mt-4">8. Governing Law & Jurisdiction</h2>
+                    <p>These Terms are governed by the laws of Portugal. Any dispute arising hereunder will be subject to the exclusive jurisdiction of the Portuguese courts.</p>
+
+                    <h2 class="mt-4">9. Changes to These Terms</h2>
+                    <p>We reserve the right to modify these Terms at any time. We will notify you of significant changes via email or by posting a notice on our site. Continued use of the Service after changes constitutes acceptance.</p>
+
+                    <h2 class="mt-4">10. Contact Us</h2>
+                    <address>
+                        <strong>GoodBites</strong><br />
+                        Email: <a href="mailto:rafael.francisco111@gmail.com" class="text-decoration-none">rafael.francisco111@gmail.com</a><br />
+                        Address: Lisbon, Portugal
+                    </address>
+                    </div>
+
+                    <div class="card-footer text-center">
+                        <a href="{{ previous_page }}" class="btn btn-secondary">
+                            Back
+                        </a>
+                    </div>
+                </div>
+                </div>
+            </div>
+            </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}

@@ -40,7 +40,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 from django.views.generic.edit import FormView
 from django.urls import reverse, reverse_lazy
-
+from django.contrib.messages import get_messages
 from django.contrib.auth import login as auth_login
 from django.contrib.auth.views import PasswordResetConfirmView as BasePasswordResetConfirmView,PasswordResetView ,PasswordContextMixin,INTERNAL_RESET_SESSION_TOKEN
 import logging
@@ -137,12 +137,13 @@ class LoginView(TemplateView):
         return context
 
     def get(self, request):
+        
         if request.user.is_authenticated:
             return redirect('home')
         
         context = self.get_context_data()
         
-        return render(request, self.template_name, context)
+        return self.render_to_response(context)
 
     def post(self, request):
         """
@@ -606,48 +607,37 @@ class UserRegisterView(TemplateView):
                 HttpResponse: Redirects to the success page if the form is valid,
                               otherwise re-renders the form with errors.
     """
-    template_name = 'user_app/auth/invite_register.html'
+    template_name = 'user_app/auth/register_invite.html'
     form_class = UserRegisterByInviteForm
     
     def get_context_data(self, **kwargs):
-        """
-        Override the get_context_data method to provide additional context data for the template.
-        This method initializes the context using the TemplateLayout and sets the layout path.
-        It retrieves the 'token' from the URL kwargs and uses it to fetch the corresponding Invitation object.
-        If the token is not provided or invalid, a SuspiciousOperation exception is raised.
-        If the invitation exists, it pre-fills the form with the invitation's email and company.
-        Args:
-            **kwargs: Arbitrary keyword arguments passed to the method.
-        Returns:
-            dict: The context dictionary with additional data for the template.
-        Raises:
-            SuspiciousOperation: If the token is not provided or invalid.
-        """
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         context['layout_path']  = TemplateHelper.set_layout("layout_blank.html", context)
+        return context
+    
+    
+    def get(self, request, *args, **kwargs):
+        
+        context = self.get_context_data()
         
         token = self.kwargs.get('token', None)
         
         if not token:
             raise SuspiciousOperation("Token not provided")
-        
-        # Get Invitation
-        try:
-            invitation = Invitation.objects.get(token=token)
-        except Invitation.DoesNotExist:
-            
-            # Check if user is already registered
-            try:
-                user = User.objects.get(email=invitation.email)
-                # todo: User is already registered. Show message and redirect to login
-                
-            except User.DoesNotExist:
-                raise SuspiciousOperation("Token is Invalid")
-            
-        form = self.form_class(email=invitation.email,company=invitation.company)
-        context['form'] = form
 
-        return context
+        try:
+            instance_form = self.form_class(
+                token=token
+            )
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect(reverse('login'))
+
+        context.update({
+            'form': instance_form
+        })
+        
+        return self.render_to_response(context)
 
     def post(self, request, *args, **kwargs):
         """
@@ -661,16 +651,25 @@ class UserRegisterView(TemplateView):
             **kwargs: Additional keyword arguments.
         Returns:
             HttpResponse: A redirect to the user registration success page if the form is valid,
-                          otherwise the rendered form with error messages.
+                        otherwise the rendered form with error messages.
         """
-        instance_form = self.form_class(request.POST)
+        
+        token = self.kwargs.get('token', None)
+        
+        try:
+            instance_form = self.form_class(
+                    data=request.POST,
+                    token = token
+                )
+        except ValidationError as e:
+            messages.error(request, str(e))
+            return redirect(reverse('login'))
         
         if instance_form.is_valid():
-            
             instance_form.save()
-            print(reverse('user_register_success'))
             return redirect(reverse('user_register_success'))
-
+        
+        
         context = self.get_context_data()
         context['form'] = instance_form
         
@@ -695,6 +694,7 @@ class UserRegisterSuccessView(TemplateView):
             'layout_path': TemplateHelper.set_layout("layout_blank.html", context),
             'title': 'Success!',
             'message': 'Your account is created successfully!',
+            'redirect_text': 'Back to Login',
             'redirect_url': reverse('login')
         })
         return context
@@ -754,7 +754,7 @@ def invite_resend(request, id):
 
 
 class PasswordResetView(PasswordResetView):
-    template_name = 'common/auth/reset_password/password_reset.html'  # Assuming your template path
+    template_name = 'user_app/auth/reset_password/password_reset.html'  # Assuming your template path
     form_class = ResetForm
     success_url = reverse_lazy('password_reset_done')
 
@@ -781,11 +781,13 @@ class PasswordResetDoneView(TemplateView):
     def get_context_data(self, **kwargs):
         # A function to init the global layout. It is defined in web_project/__init__.py file
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
-        context['layout_path'] = TemplateHelper.set_layout("layout_blank.html", context)
-        context['title'] = 'Reset your password'
-        context['message'] = 'We’ve emailed you instructions for setting your password, if an account exists with the email you entered. You should receive them shortly.'
-        context['redirect_url'] = reverse('login')
-        context['redirect_text'] = 'Back to Login'
+        context.update({
+            'layout_path': TemplateHelper.set_layout("layout_blank.html", context),
+            'title': 'Reset your password',
+            'message': 'We’ve emailed you instructions for setting your password, if an account exists with the email you entered. You should receive them shortly.',
+            'redirect_url': reverse('login'),
+            'redirect_text': 'Back to Login'
+        })
         return context     
 
 class PasswordResetConfirmView(PasswordContextMixin, FormView):
@@ -794,7 +796,7 @@ class PasswordResetConfirmView(PasswordContextMixin, FormView):
     post_reset_login_backend = None
     reset_url_token = "set-password"
     success_url = reverse_lazy("password_reset_complete")
-    template_name = "common/auth/reset_password/password_reset_confirm.html"
+    template_name = "user_app/auth/reset_password/password_reset_confirm.html"
     title = _("Enter new password")
     token_generator = default_token_generator
 

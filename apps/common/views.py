@@ -120,7 +120,14 @@ class DashboardsView(TemplateView):
         
         return context
 
-## TODO For dev usege LoginRequiredMixin is not required
+
+
+    
+###
+#
+#   Miscellaneous
+#
+##
 
 @method_decorator(login_required, name="dispatch")
 class ReadMeView(TemplateView):
@@ -139,6 +146,16 @@ class ReadMeView(TemplateView):
         })
         
     
+        return context
+
+class TermsAndConditionsView(TemplateView):
+    template_name = "common/miscellaneous/terms_and_conditions.html"
+    
+    def get_context_data(self, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context['layout_path']  = TemplateHelper.set_layout("layout_blank.html", context)
+        # Add previous page URL to context if available
+        context['previous_page'] = self.request.META.get('HTTP_REFERER')
         return context
     
 @login_required

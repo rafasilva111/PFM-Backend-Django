@@ -13,8 +13,9 @@ from django.urls import  path, include
 #   Views 
 #
 
-from apps.common.views import DashboardsView,ReadMeView, total_task_chart_data,total_task_report_chart_data
-from apps.user_app.views import LoginView,RegisterView,LogoutView,PasswordResetView,PasswordResetDoneView,PasswordResetConfirmView,PasswordResetCompleteView
+from apps.common.views import DashboardsView, ReadMeView,TermsAndConditionsView, total_task_chart_data,total_task_report_chart_data
+from apps.user_app.views import LoginView,RegisterView,LogoutView,\
+    PasswordResetView,PasswordResetDoneView,PasswordResetConfirmView,PasswordResetCompleteView
 
 ##
 #   Views 
@@ -50,6 +51,7 @@ urlpatterns = [
     ##
 
     path("readme", ReadMeView.as_view(), name="readme"),
+    path("terms_and_conditions", TermsAndConditionsView.as_view(), name="terms_and_conditions"),
     
     path("total-task-chart-data", total_task_chart_data, name="total_task_chart_data"),
     path("total-task-report-chart-data", total_task_report_chart_data, name="total_task_report_chart_data"),

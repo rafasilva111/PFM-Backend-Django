@@ -57,6 +57,13 @@ def extract_data_from_link(logger, recipe_link):
     " Extract html response from the recipe link "
     base_response = requests.get(recipe_link, headers=BASE_HEADERS)
     html = BeautifulSoup(base_response.content, 'html.parser')
+    
+    " Check if page was successfully loaded "
+    if base_response.status_code != 200:
+        logger.error(f"Failed to load page: {recipe_link} with Recipe Link leads to status code: {base_response.status_code}")
+        logger.info("")
+        __errors += 1
+        return __errors, __warnings
 
     " Source Link "
     recipe_db.link = recipe_link
@@ -241,6 +248,8 @@ def pull_recipes(logger,task, max_recipes=-1):
     task.errors = 0
     
     OFFSET = None
+    
+    task.step = 909
     
     logger.info("")
     logger.info("Starting to pull Recipes")

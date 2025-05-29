@@ -293,7 +293,8 @@ class TaskForm(forms.ModelForm):
                 
                 
                 instance.save()
-                instance.launch()
+                if instance.status == Task.Status.WAITING:
+                    instance.launch()
                 
             
                 return instance

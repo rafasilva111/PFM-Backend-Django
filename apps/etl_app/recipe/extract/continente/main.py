@@ -249,8 +249,6 @@ def pull_recipes(logger,task, max_recipes=-1):
     
     OFFSET = None
     
-    task.step = 909
-    
     logger.info("")
     logger.info("Starting to pull Recipes")
     logger.info("")

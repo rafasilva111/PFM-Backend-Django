@@ -112,7 +112,7 @@ def transform_recipe(logger, task, recipe):
             __errors += 1
             
             logger.info(f"Skipping recipe...")
-            
+            logger.info("")
             _recipe.delete_instance()
             _recipe.tags.clear()
             
@@ -123,6 +123,7 @@ def transform_recipe(logger, task, recipe):
         _ingredient_quantity.ingredient = _ingredient
         _ingredient_quantity.save()
         
+    logger.info("")
     
     return __errors, __warnings
     

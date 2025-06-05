@@ -16,18 +16,18 @@ class NutritionInformationSerializer(serializers.ModelSerializer):
 class PreparationSerializer(serializers.ModelSerializer):
     class Meta:
         model = Preparation
-        fields = '__all__'
+        fields = ['id', 'step', 'description']
         
 
 class TagSerializer(serializers.ModelSerializer):
     class Meta:
         model = Tag
-        fields = '__all__'
+        fields = ['id', 'text']
         
 class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
-        fields = '__all__'
+        fields = ['id','name']
 
 class IngredientQuantitySerializer(serializers.ModelSerializer):
     
@@ -35,8 +35,7 @@ class IngredientQuantitySerializer(serializers.ModelSerializer):
     
     class Meta:
         model = IngredientQuantity
-        fields = '__all__'
-        read_only_fields = [ 'user','recipe']
+        fields = ['id', 'quantity_original', 'quantity_normalized', 'units_normalized', 'extra_quantity', 'extra_units', 'ingredient']
 
 
 class RecipeSerializer(serializers.ModelSerializer):
@@ -132,7 +131,7 @@ class SimpleRecipeSerializer(RecipeSerializer):
     
     class Meta:
         model = Recipe
-        fields = ['id','title','description','img_source','verified','difficulty','tags','portion','time','likes','saves','views','rating','source_rating','created_at','updated_at','created_by','saved','liked'] 
+        fields = ['id','title','description','image','verified','difficulty','tags','portion_lower','portion_upper','portion_units','time','likes','saves','views','rating','source_rating','created_at','updated_at','created_by','saved','liked'] 
     
 
 

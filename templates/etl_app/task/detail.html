@@ -123,7 +123,7 @@
                         me-1">{{ instance.get_status_display }}</span>
                     </div>
 
-                    <!-- Status --> 
+                    <!-- Step --> 
                     {% if instance.step != 0 %}
                     <div class="col-md-2">
                         <h6>Step:</h6>
@@ -131,19 +131,11 @@
                     </div>
                     {% endif %}
 
-                    <!-- Status --> 
-                    {% if instance.debug %}
+                    <!-- Debug Mode --> 
+                    {% if instance.debug_mode %}
                     <div class="col-md-2">
                         <h6>Debug mode:</h6>
-                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug }}</span>
-                    </div>
-                    {% endif %}
-
-                    <!-- Debug Mode -->
-                    {% if instance.debug %}
-                    <div class="col-md-2">
-                        <h6>Debug Mode:</h6>
-                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug }}</span>
+                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug_mode }}</span>
                     </div>
                     {% endif %}
 
@@ -167,7 +159,7 @@
                     {% endif %}
 
                     <!-- Duration -->
-                    {% if instance.duration %}
+                    {% if instance.duration and instance.finished_at  %}
                     <div class="col-md-3">
                         <h6>Duration:</h6>
                         <p class="badge bg-label-primary  me-1">{{ instance.duration }}</p>

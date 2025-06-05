@@ -1,5 +1,5 @@
 import logging
-from os import makedirs, path, rename, listdir, remove
+import os
 from celery import shared_task
 from django.utils import timezone
 from django.conf import settings
@@ -30,7 +30,7 @@ def configure_logging(log_folder):
     
     # Create the log folder if it doesn't exist
     log_folder_path = f"{settings.BASE_DIR}/{log_folder}"
-    makedirs(log_folder_path, exist_ok=True)
+    os.makedirs(log_folder_path, exist_ok=True)
     
     _info_log_filename = f"{log_folder_path}/info__{date}.log"
     _error_log_filename = f"{log_folder_path}/errors__{date}.log"
@@ -124,6 +124,7 @@ def start_db(logger, task, models, path, database_proxy, reset=False):
         logger.info("Resetting Database...")
         database.drop_tables(models)
 
+
     " Create all tables in the database "
     database.create_tables(models)
     
@@ -194,3 +195,32 @@ def start_sub_db(logger, task, models, database_proxy):
     logger.info("")
     # Return the new database instance
     return task, database
+
+
+from selenium.webdriver.support.wait import WebDriverWait
+from selenium.webdriver.firefox.service import Service
+from selenium import webdriver
+
+PAGE_LOAD_TIMEOUT = 60  # seconds
+
+def create_driver(debug_mode=False):
+    
+
+    if debug_mode:
+        driver_path = os.path.join(os.getcwd(), "/snap/bin/firefox.geckodriver")
+    else:
+        driver_path = "/app/bin/geckodriver"
+    
+    if not os.path.exists(driver_path):
+        raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
+    
+    service = Service(driver_path)
+    options = webdriver.FirefoxOptions()
+    options.add_argument("--window-size=1920,1080")
+    
+    if not debug_mode:
+        options.add_argument("--headless")
+    
+    driver = webdriver.Firefox(service=service, options=options)
+    driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
+    return driver

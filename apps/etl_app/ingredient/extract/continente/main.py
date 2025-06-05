@@ -1,34 +1,23 @@
-"""
-Import necessary modules and libraries
-"""
+
 from django.utils import timezone
 import requests
 import unidecode
 from bs4 import BeautifulSoup
 from time import sleep	
 
-from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-from selenium.webdriver.firefox.service import Service
-
-"""
-Import custom functions and constants
-"""
 from apps.etl_app.functions import start_db
-from apps.etl_app.constants import extract_continente_ingredients_db,continente_ingredients_images_folder	
-from apps.etl_app.ingredient.extract.continente.models import Tag, NutritionInformation, Ingredient, database_proxy, IngredientLink
+from apps.etl_app.ingredient.extract.continente.models import Tag, Ingredient, database_proxy, IngredientLink, Image, IngredientTagThrough
+from apps.etl_app.constants import EXTRACT_CONTINENTE_INGREDIENTS_DB, CONTINENTE_INGREDIENTS_IMAGES_FOLDER
+from selenium.common.exceptions import TimeoutException, WebDriverException
+from apps.etl_app.functions import create_driver
+import time
 
-"""
-Define the through model for Ingredient and Tag relationship
-"""
-IngredientTagThrough = Ingredient.tags.get_through_model()
 
-"""
-List of models to be used in the extraction process
-"""
-models_ = [Ingredient, Tag, NutritionInformation, Ingredient, IngredientTagThrough, IngredientLink]
+
+models_ = [Ingredient, Tag, IngredientTagThrough, IngredientLink, Image]
 
 """
 Define constants for the scraping process
@@ -40,6 +29,11 @@ BASE_HEADERS = {
 COMPANY_NAME = "continente"
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
+
+PAGE_LOAD_TIMEOUT = 60  # seconds
+MAX_RETRIES = 3
+RETRY_DELAY = 5  # seconds
+RESET_INTERVAL = 1000
 
 " Maps "
 
@@ -184,7 +178,7 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     # prepare to deal whit tabs ( check if base_tabs already loaded if not call
     # function again whit more sleep time)
     base_html_tab = html.find('ul',
-                              class_='col-sm-4 col-md-3 tabNav mResTabNav')
+                        class_='col-sm-4 col-md-3 tabNav mResTabNav')
 
     if base_html_tab is None:
         return extract_data_from_link(logger, driver, ingredient_link, sleep_time + 1, False)
@@ -204,135 +198,126 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     " Title "
     ingredient_db.title = html.find('h1', class_='pwc-h3 col-h3 product-name pwc-font--primary-extrabold mb-0').text.strip()
 
+    " Category "
+    category_elements = html.find_all('li', attrs={'itemprop': 'itemListElement'})
+    ingredient_db.category = " > ".join([el.get_text(strip=True) for el in category_elements[1:]])
+        
     " Brand "
     brand = html.find('a', class_='ct-pdp--brand col-pdp--brand')
     if brand:
         ingredient_db.brand = brand.text.strip()
 
     " Size "
+    ingredient_db.size = html.find('span',class_='ct-pdp--unit col-pdp--unit').text.strip()
 
-    text = html.find('span',
-                     class_='ct-pdp--unit col-pdp--unit').text.strip()
-
-    text = text.split(" ")
-    if len(text) == 2:
-        ingredient_db.size = text[1]
-    
-    if len(text) == 3:
-        ingredient_db.size_unit = text[2]
 
     " Price per unit "
+    ingredient_db.price_per_unit = html.find('span', class_='ct-price-formatted').text.strip()
 
-    ingredient_db.price_per_unit = html.find('span',
-                                             class_='ct-price-formatted').text.replace("€", "").strip()
+    base_html_bulk = html.find('div',class_='pwc-tile--price-secondary col-tile--price-secondary')
 
-    base_html_bulk = html.find('div',
-                               class_='pwc-tile--price-secondary col-tile--price-secondary')
+    ingredient_db.price_bulk = base_html_bulk.find('span',class_='ct-price-value').text.strip().replace("€", "")
 
-    ingredient_db.price_bulk = base_html_bulk.find('span',
-                                                   class_='ct-price-value').text.replace("€", "").strip()
-
-    ingredient_db.bulk_unit = base_html_bulk.find('span',
-                                                  class_='pwc-m-unit').text.replace("/", "").strip()
+    ingredient_db.bulk_unit = base_html_bulk.find('span',class_='pwc-m-unit').text.strip().replace("/", "")
 
     " Description "
-    ingredient_db.description = html.find('div',
-                                          class_='ct-pdp--short-description col-pdp--short-description').text.strip()
+    ingredient_db.description = html.find('div',class_='ct-pdp--short-description col-pdp--short-description').text.strip()
 
-    " Image "
+    " Tabs "
+    tabs = html.find_all('li', class_='mResTabNavTab')
+    tabs_ = {}
+    for tab in tabs:
+        tabs_.update({tab.text.strip(): tab.find('a')['href'][1:]})
 
-    file_storage = unidecode.unidecode(ingredient_db.title).replace(" ", "_")
-    image_source_link = html.find('img', class_='ct-product-image')['src']
-    img_source = f'{continente_ingredients_images_folder}/{file_storage}.png'
-    ingredient_db.img = img_source
-    try:
-        with open(img_source, "wb") as f:
-            f.write(requests.get(image_source_link).content)
-    except Exception as e:
-        logger.warning(e)
-        warnings = warnings + 1
-
-    " Caracteristicas and  Informação adicional Tab "
-    tabs = html.find_all("div", class_="simplebar-content")
-    try:
-
-        # Iterate through the values in the list and set the corresponding attributes in the model
-        for tab in tabs:
-            infos = tab.find_all("p")
-            counter = 0
-            while counter < (len(infos) - 1):
-
-                title = infos[counter].text.strip()
-                text = infos[counter + 1].text.strip()
-                # Use the map
-                attribute_name = caracteristics_and_info_name_map.get(title)
-
-                # Set the attribute value in the model
-                if attribute_name:
-                    setattr(ingredient_db, attribute_name, text)
-                    counter += 2
-                else:
-                    counter += 1
-
-    except Exception as e:
-        logger.warning("Ingredient doesn't have a caracteristics and info tab.")
-        warnings = warnings + 1
-
-    " Informação Nutricional "
-    tabs = html.find("div", class_="nutrients-table")
-    if tabs:
-        try:
-            text = tabs.text.split("\n\n\n")
-
-            # Create an instance of the model
-            nutrition_info = NutritionInformation()
-
-            # Iterate through the values in the list and set the corresponding attributes in the model
-            for value in text[2:]:
-                nutrient, quantity, unit = value.strip().split('\n')
-
-                # Use the map
-                attribute_name = nutrient_name_map.get(nutrient.lower())
-
-                # Set the attribute value in the model
-                if attribute_name:
-                    setattr(nutrition_info, attribute_name, quantity)
-                nutrition_info.save()
-                ingredient_db.nutrition_information = nutrition_info
-
-        except Exception as e:
-            logger.warning("Ingredient doesn't have a nutrition tab.")
-            warnings = warnings + 1
-    else:
-        logger.info("Ingredient doesn't have a nutrition tab.")
-
-    " Informação legal "
-
-    tabs = html.find("div", class_="description tab-row-header")
-    if tabs:
-        try:
-            text = tabs.text.replace(" ", " ").strip()
-            text = text.split("\n\n\n")
-
-            # Iterate through the values in the list and set the corresponding attributes in the model
-            for value in text[1:-1]:
-                title, desc = value.strip().split('\n', 1)
-
-                # Use the map
-                attribute_name = legal_name_map.get(title)
-
-                # Set the attribute value in the model
-                if attribute_name:
-                    setattr(ingredient_db, attribute_name, desc)
-
-        except Exception as e:
-            logger.warning("Ingredient doesn't have Informação legal tab.")
-            warnings = warnings + 1
-    else:
-        logger.info("Ingredient doesn't have Informação legal tab.")
+    for key, value in tabs_.items():
         
-    logger.info("")
+        match key:
+            case  "Sobre este Produto":
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="simplebar-content")
+                if tab_container:
+                    ingredient_db.about_the_product = tab_container.text.strip()
+
+            case "Características":
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="simplebar-content")
+                if tab_container:
+                    ingredient_db.caracteristics = tab_container.text.strip()
+                
+            case 'Outras Informações':
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="simplebar-content")
+                if tab_container:
+                    ingredient_db.other_information = tab_container.text.strip()
+                
+            case 'Informação Nutricional':
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="nutritional-information-area")
+                if tab_container:
+                    ingredient_db.nutrition_information = tab_container.text.strip()
+                
+            case 'Informação Legal':
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="simplebar-content")
+                if tab_container:
+                    ingredient_db.legal_info = tab_container.text.strip()
+                
+            case 'Informação Adicional':
+                tab_container = html.find("div", attrs={'id': value}).find("div", class_="simplebar-content")
+                if tab_container:
+                    ingredient_db.legal_info = tab_container.text.strip()
+                
+            case _:
+                logger.warning(f"Tab {key} not implemented, skipping...")
+
+    " Save the Ingredient "
     ingredient_db.save()
+    
+    
+    " Image "
+    images_carrousel = html.find('div', class_='row no-gutters product-images-container')
+    images = images_carrousel.find_all('img', class_='ct-product-image')
+    
+    counter = 0
+    for image in images:
+        
+        image_db = Image()
+        file_storage = unidecode.unidecode(ingredient_db.title).replace(" ", "_")
+        if counter > 0:
+            file_storage += f"_{counter}"
+            
+        image_source_link = image['src']
+        img_source = f'{CONTINENTE_INGREDIENTS_IMAGES_FOLDER}/{file_storage}.png'
+        image_db.path = img_source
+        try:
+            with open(img_source, "wb") as f:
+                f.write(requests.get(image_source_link).content)
+        except Exception as e:
+            logger.warning(e)
+            warnings = warnings + 1
+            continue
+        
+        image_db.ingredient = ingredient_db
+        image_db.save()
+        
+        counter += 1
+    
+    " Tags "
+    product_container = html.find('div', class_='product-images--wrapper col-product-images-wrapper')
+    tags_container = product_container.find('div', class_='ct-product-tile-badge ct-product-tile-badge--general')
+    
+    if tags_container:
+        tags_container_imgs = tags_container.find_all('img')
+        
+        for tag_img in tags_container_imgs:
+            tag_title = tag_img['data-original-title'].strip()
+            if not tag_title:
+                continue
+            
+            # Normalize the tag title
+            tag_title = unidecode.unidecode(tag_title).replace(" ", "_").lower()
+            
+            # Check if the tag already exists
+            tag, created = Tag.get_or_create(title=tag_title)
+            
+            # Add the tag to the ingredient
+            ingredient_db.tags.add(tag)
+    
     
     return warnings, errors
 
@@ -364,59 +349,104 @@ def pull_ingredients(logger, task):
     """
     
     
-    " Initialize the warnings and errors counters "
-    warnings = 0
-    errors = 0
+    " Initialize the Control variables "    
+    OFFSET = None
+    FIRST_TIME = True
     
     logger.info("")
     logger.info("Starting to pull Recipes")
-    
-    total_recipes = Ingredient.select().count()
-    
-    logger.info(f"Found {total_recipes} recipes on DB...")
+    logger.info("")
+    logger.info(f"Recipe {task.process} is on step {task.step}...")
     logger.info("")
     
-    service = Service("/app/bin/geckodriver")
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
+    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
     
-    firefox_options = webdriver.FirefoxOptions()
-    zoom_level = 1.5
-    firefox_options.add_argument(f'--zoom={zoom_level}')
-    firefox_options.add_argument(f'--headless')
+    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+    if task.step != 0:
+        instances_in_db = Ingredient.select().count()
+        if instances_in_db > task.step:
+            # Delete tasks until step matches recipes_in_db
+            instances_to_delete = Ingredient.select().order_by(Ingredient.id.desc())
+            for t in instances_to_delete:
+                if task.step == instances_in_db:
+                    break
+                t.tags.clear()
+                t.delete_instance()
+                instances_in_db -= 1
+    
+    
+    " Initialize the Selenium WebDriver and Firefox options "
+    
+    driver = create_driver(task.debug_mode)  # Initial driver
 
-    max_ingredients = -1
+    for idx, ingredient_link in enumerate(IngredientLink.select().where(IngredientLink.id > task.step)):
+        
+        # Reset browser at fixed intervals
+        if idx > 0 and idx % RESET_INTERVAL == 0:
+            logger.info(f"Restarting WebDriver at item {ingredient_link.id}")
+            try:
+                driver.quit()
+            except Exception:
+                pass
+            driver = create_driver()
 
-    with webdriver.Firefox(service=service,options=firefox_options) as driver:
-        driver.maximize_window()
+        if OFFSET and ingredient_link.id > OFFSET:
+            task.owner_job.create_job_trigger_history(
+                type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                action=JobTriggerHistory.Action.REST,
+            )
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {ingredient_link.id}...")
+            return task, False
 
-        counter = 0
-        for ingredient_link in IngredientLink.select().where(IngredientLink.id > total_recipes):
-            if max_ingredients != -1 and counter == max_ingredients:
+        logger.info(f"Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                _errors, _warnings = extract_data_from_link(
+                    logger, driver, ingredient_link.link, first_time=FIRST_TIME
+                )
+                task.warnings += _warnings
+                task.errors += _errors
                 break
-            else:
-                counter += 1
+            except TimeoutException:
+                logger.warning(f"Timeout while extracting {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
+                if attempt == MAX_RETRIES:
+                    logger.error(f"Failed to extract {ingredient_link.link} after {MAX_RETRIES} attempts")
+                    task.increment_errors()
+                else:
+                    time.sleep(RETRY_DELAY)
+            except WebDriverException as e:
+                logger.error(f"WebDriver error while extracting {ingredient_link.link}: {str(e)}")
+                task.increment_errors()
+                break
+            except Exception as e:
+                logger.exception(f"Unexpected error while extracting {ingredient_link.link}")
+                task.increment_errors()
+                break
 
-            logger.info(f"Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+        task.step += 1
+        task.items_processed += 1
+        task.save()
 
-            warnigs_, errors_ = extract_data_from_link(logger, driver, ingredient_link.link, first_time = counter == 1)
-            warnings += warnigs_
-            errors += errors_
-            
-    
-    " Update Task Statistics"
-    task.items = Ingredient.select().count()
-    task.items_warnings = warnings
-    task.items_errors = errors
-    task.save()
+        FIRST_TIME = False
+
+    " Final cleanup "
+    try:
+        driver.quit()
+    except Exception:
+        pass
     
     " Log the completion of the extraction process "
-    logger.info("All Recipes pulled ...")
+    logger.info(f"{task.items_processed} Recipes pulled ...")
     logger.info("")
-    logger.info("Pull Recipes summary:")
-    logger.info(f"{task.print_items_summary()}")
-    logger.info("")
+    
+    return task, True
 
 
-def pull_ingredients_links(logger, task, continue_mode=False):
+def pull_ingredients_links(logger, task):
     """
     Extracts ingredient links from the Continente website and stores them in the database.
     This function navigates through the Continente website to retrieve ingredient links 
@@ -446,10 +476,6 @@ def pull_ingredients_links(logger, task, continue_mode=False):
         Exception: If there are issues with parsing the HTML or extracting data.
     """
 
-
-    " Initialize the warnings and errors counters "
-    warnings = 0
-    errors = 0
 
     " Gets all Ingredients's Links from Continente "
     logger.info("Starting to pull Ingredient's Links...")
@@ -488,9 +514,6 @@ def pull_ingredients_links(logger, task, continue_mode=False):
     if 'Lojas de Marcas' in categories:
         categories.pop('Lojas de Marcas')
 
-    if 'Bebé' in categories:
-        categories.pop('Bebé')
-
     if 'Jardim, Bricolage e Auto' in categories:
         categories.pop('Jardim, Bricolage e Auto')
 
@@ -521,28 +544,21 @@ def pull_ingredients_links(logger, task, continue_mode=False):
         
         logger.info("")
         logger.info(f"Extracting Ingredient's Links from category: {key}")
-        logger.info("")
+        
 
         category_response = requests.get(value)
         html = BeautifulSoup(category_response.content, 'html.parser')
         try:
-            max_ingredients = int(
-            html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
+            max_ingredients = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
+            logger.info(f"category has {max_ingredients} ingredients")
         except Exception:
-            warnings += 1
             logger.warning("Unable to Extract this category...")
+            task.increment_warnings()
             continue
-        # todo max recipes
-
-        base_data_url = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")[
-            'data-url']
-
-        " Prepare base url "
-        if continue_mode:
-            start = IngredientLink.select().where(IngredientLink.category == key).count()
-        else:
-            start = 0
-
+        logger.info("")
+        
+        base_data_url = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")['data-url']
+        start = 0
         size = 24
 
         base_data_url = base_data_url.split("&")
@@ -556,14 +572,15 @@ def pull_ingredients_links(logger, task, continue_mode=False):
             category_response = requests.get(base_data_url)
             html = BeautifulSoup(category_response.content, 'html.parser')
 
-            base_data_url = base_data_url.replace(extra, "")
-
             ingredients_link = html.find_all("div", class_="ct-pdp-link col-pdp-link")
             
             if not ingredients_link:
-                logger.warning(f"No more ingredients found on link {base_data_url}")
-                warnings += 1
+                logger.info(f"No more ingredients found on link {base_data_url}")
+                break
+            base_data_url = base_data_url.replace(extra, "")
             
+            
+            links_added = 0
             for ingredient_link in ingredients_link:
 
                 ingredient_link = IngredientLink(
@@ -573,78 +590,79 @@ def pull_ingredients_links(logger, task, continue_mode=False):
                     category = key
                     )
                 ingredient_link.save()
+                links_added += 1
 
-            start += size
-            logger.info(f"Added {start} ingredients links from page {start // size}")
+            start += links_added
+            logger.info(f"Added {links_added} ingredients links, total {start} links found so far...")
             
     " Update Task Statistics"
     task.links = IngredientLink.select().count()
-    task.links_warnings = warnings
-    task.links_errors = errors
     task.save()
     
     " Log the completion of the extraction process "
+    logger.info("")
     logger.info("All Ingredient's Links pulled ...")
     logger.info("")
-    logger.info("Pull Ingredient's Links summary:")
-    logger.info(f"{task.print_links_summary()}")
-    logger.info("")
+    
+    return task
     
 
-
-
-
-def __extract_continente_ingredients(logger, task, continue_mode):
-       
-    " Log the start of the extraction process "
-    logger.info(f"Extracting all recipes from {task.company}...")
-    logger.info("")
+def __extract_continente_ingredients(logger, task, resume):
+    
+    " Log the start of the extraction process"
+    logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
+    
+    " Initialize the warnings and errors "
+    if resume:
+        task.errors = 0
+        task.warnings = 0
         
+
     " Starts the db "
-    logger.info("Starting extract db...")
-    start_db(
+    logger.info(f"Initializing {task.type} database ...")
+    task, database = start_db(
         logger=logger,
         task=task,
         models=models_,
-        path=extract_continente_ingredients_db,
-        database_proxy=database_proxy
-        )
+        path=EXTRACT_CONTINENTE_INGREDIENTS_DB,
+        database_proxy=database_proxy,
+        reset=not resume # we want to reset the database if we are not resuming
+    )
+    logger.info("")
+    
     
 
     " Pull all ingredients links "
-    pull_ingredients_links(logger, task, continue_mode)
+    # We only want to pull recipes links if step is 0
+    # This is because we want to pull all recipes links only once
+    if task.step == 0:
+        task = pull_ingredients_links(logger, task)
+    
     
 
-    " Pulls ingredient from above links "
-    pull_ingredients(logger, task)
-    
-    " Calculate total summary "
-    task.warnings = task.links_warnings + task.items_warnings
-    task.errors = task.links_errors + task.items_errors
-    task.save()
-    
+    " Pulls Ingredients from above links "
+    task, completed = pull_ingredients(logger, task)
+        
     
     " Log the completion of the extraction process "
-    logger.info("Pull links summary:")
-    logger.info(f"{task.print_links_summary()}")
+    logger.info("Summary:")
+    logger.info(f"Ingredients Links Found: {task.links}")
+    logger.info(f"Ingredients: {task.items_processed}")
     logger.info("")
-    
-    logger.info("Pull recipes summary:")
-    logger.info(f"{task.print_items_summary()}")
-    logger.info("")
-    
-    logger.info("")
-    logger.info("Total summary:")
-    logger.info(f"{task.print_total_summary()}")
-    logger.info("")
+    logger.info(f"Total errors: {task.errors}")
+    logger.info(f"Total warnings: {task.warnings}")
     
     
     " Finish task "
-    task.finish(kill_celery_task=False)
+    if completed:
+        task.finish(kill_celery_task=False)
+    else:
+        task.pause()
     
     
     " Log the completion of the extraction process "
-    logger.info(f"Done...")
+    logger.info("")
+    logger.info(f"> Done...")
     logger.info("")
     
 

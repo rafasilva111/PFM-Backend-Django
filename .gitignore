@@ -195,3 +195,7 @@ nginx/ssl-secrets/ssl_domain.crt
 nginx/ssl-secrets/ssl_domain.key
 
 TODO
+
+geckodriver
+
+.env.dev.full_local

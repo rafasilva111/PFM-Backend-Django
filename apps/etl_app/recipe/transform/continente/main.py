@@ -17,10 +17,6 @@ transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, Nutrit
 
 def transform_recipe(logger, task, recipe):
     
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
-    
     " Recipe "
     logger.info(f"Transforming Recipe {recipe.id}.")
     
@@ -104,27 +100,33 @@ def transform_recipe(logger, task, recipe):
         _ingredient_quantity.extra_quantity,_ingredient_quantity.extra_units, _ingredient, \
         _errors, _warnings = normalize_quantity(logger, ingredient.text)
         _ingredient_quantity.recipe = _recipe
-        __errors += _errors
-        __warnings += _warnings
+        task.errors += _errors
+        task.warnings += _warnings
         
         if _ingredient == None:
             logger.error(f"Transformation of Ingredient Quantity ( {_ingredient_quantity.quantity_original} ) lead to a None Ingredient.")
-            __errors += 1
+            task.increment_errors()
             
             logger.info(f"Skipping recipe...")
             
+            for iq in _recipe.ingredients:
+                iq.delete_instance()
+            for ut in _recipe.useful_tools:
+                ut.delete_instance()
+                
             _recipe.delete_instance()
             _recipe.tags.clear()
             
-            return __errors, __warnings
+            return task
         
         _ingredient, created = Ingredient_T.get_or_create(name = _ingredient)
         
         _ingredient_quantity.ingredient = _ingredient
         _ingredient_quantity.save()
         
+    task.items_processed += 1
     
-    return __errors, __warnings
+    return task
     
     
 def transform_recipes(logger, task, resume):
@@ -174,11 +176,8 @@ def transform_recipes(logger, task, resume):
             logger.info("")
             return task, False
         
-        _errors, _warnings = transform_recipe(logger, task, recipe)
-        task.warnings += _warnings
-        task.errors += _errors
+        task = transform_recipe(logger, task, recipe)
         task.step += 1
-        task.items_processed += 1
         task.save()
 
     
@@ -219,6 +218,11 @@ def __transform_continente_recipes(logger, task, resume):
         database_proxy=database_proxy_E
     )
     logger.info("")
+    
+    
+    " Calculate the number of recipes expected to be loaded "
+    task.items_expected = Recipe_E.select().count()
+    task.save()
     
     " Transform Elements "
     task, completed = transform_recipes(logger, task, resume)

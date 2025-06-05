@@ -9,7 +9,7 @@
 
 from datetime import datetime, timedelta
 from django.utils import timezone
-
+import json
 from django.db.models.functions import Random
 from django.db.models import Count, Avg, OuterRef, Subquery
 from django.db.models import Q
@@ -53,7 +53,7 @@ from django.core.paginator import Paginator
 #   Models
 #
 
-from apps.recipe_app.models import Recipe,RecipeBackground, RecipeReport, Comment
+from apps.recipe_app.models import Recipe, RecipeReport, Comment
 from apps.user_app.models import User
 
 ##
@@ -121,21 +121,44 @@ class RecipeView(APIView):
         }
     )
     def get(self,request):
-        # TODO user shouldnt be able to see private account recipes
         
+        " Retrieve the Authed User "
         user = request.user
-        # Get args
-        id = int(request.query_params.get('id', -1))
-
-        # Validate args
-        if id == -1:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Recipe report Id not supplied.").data,status=status.HTTP_400_BAD_REQUEST)
         
-        # Retrieve the instance
+        " Validate the parameters "
+        id = request.query_params.get('id')
+        if not id or not id.isdigit():
+            return Response(
+            ErrorResponseSerializer.from_params(
+                type=ERROR_TYPES.ARGS.value,
+                message="Recipe Id not supplied or invalid."
+            ).data,
+            status=status.HTTP_400_BAD_REQUEST
+            )
+        id = int(id)
+        
+        " Retrieve the instance "
         try:
-            recipe = Recipe.objects.get(id=id)  
+            recipe = Recipe.objects.get(id=id)
+            
+            " Prevent access to private recipes "
+            if not recipe.is_public and recipe.created_by != user:
+                return Response(
+                    ErrorResponseSerializer.from_params(
+                        type=ERROR_TYPES.PERMISSION.value,
+                        message="You don't have permission to view this recipe."
+                    ).data,
+                    status=status.HTTP_403_FORBIDDEN
+                )
+            
         except Recipe.DoesNotExist:
-            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                ErrorResponseSerializer.from_params(
+                    type=ERROR_TYPES.MISSING_MODEL.value,
+                    message="User couldn't be found by this id."
+                ).data,
+                status=status.HTTP_400_BAD_REQUEST
+                )
     
         return Response(RecipeSerializer(recipe, context={'user': user}).data, status=status.HTTP_200_OK)
             
@@ -305,10 +328,11 @@ class RecipeListView(APIView):
         page_size = int(request.GET.get('page_size', 5))
         
         by = request.GET.get('by')
-        user_id = request.GET.get('user_id')
+        created_by = request.GET.get('created_by')
         commented_by = request.GET.get('commented_by')
         search_string = request.GET.get('search_string')
         search_tag = request.GET.get('search_tag')
+        ingredients = request.GET.get('ingredients')
         
 
         # Validate args
@@ -322,18 +346,12 @@ class RecipeListView(APIView):
             search_tag = None
 
         # Query building
-        if user_id:
+        if created_by:
             try:
-                user = User.objects.get(id=user_id)
+                user = User.objects.get(id=created_by)
             except User.DoesNotExist:
                 return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
             query = Recipe.objects.filter(created_by=user)
-        elif commented_by:
-            try:
-                user = User.objects.get(id=commented_by)
-            except User.DoesNotExist:
-                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data, status=status.HTTP_400_BAD_REQUEST)
-            query = Recipe.objects.filter(comments__user=user).distinct()
         else:
             query = Recipe.objects.all().order_by('id')
 
@@ -346,27 +364,35 @@ class RecipeListView(APIView):
 
         if search_tag:
             query = query.filter(tags__title__icontains=search_tag)
+            
+        if ingredients:
+            ingredients = ingredients.split(',')
+            query = query.annotate(
+                matched_ingredient_count=Count(
+                    'ingredients',
+                    filter=Q(ingredients__ingredient__name__in=ingredients),
+                    distinct=True
+                )
+            ).filter(matched_ingredient_count=len(ingredients))
 
+                
         # Apply sorting
-        if by:
-            if by == RecipeSortingTypes.DATE:
+        match by:
+            case None:
+                pass
+            case RecipeSortingTypes.DATE:
                 query = query.order_by('created_at')
-                
-            elif by == RecipeSortingTypes.RANDOM:
+            case RecipeSortingTypes.RANDOM:
                 query = query.annotate(random_number=Random()).order_by('random_number')
-                
-            elif by == RecipeSortingTypes.VERIFIED:
+            case RecipeSortingTypes.VERIFIED:
                 query = query.filter(verified=True)
-                
-            elif by == RecipeSortingTypes.LIKES:
+            case RecipeSortingTypes.LIKES:
                 query = query.annotate(liked_count=Count('users_liked')).order_by('-liked_count')
-                
-            elif by == RecipeSortingTypes.SAVES:
+            case RecipeSortingTypes.SAVES:
                 query = query.annotate(saved_count=Count('users_saved')).order_by('-saved_count')
-                
-            elif by == RecipeSortingTypes.CLASSIFICATION:
+            case RecipeSortingTypes.CLASSIFICATION:
                 query = query.annotate(avg_rating=Avg('ratings__rating')).order_by('avg_rating')
-        
+    
         query = query.distinct()
                 
 
@@ -389,7 +415,7 @@ class RecipeListView(APIView):
                 ).data,
                 status=status.HTTP_200_OK
             )
-        
+
 
 ###
 #   Recipe Report

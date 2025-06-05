@@ -246,6 +246,8 @@ def _launch_task(task_id, resume=True):
     logger, task.log_path = configure_task_logging(task)
     task.status = Task.Status.RUNNING
     task.save()
+    
+    print(f"Task {task.id} log path: {task.log_path}")
 
     # Determine task behavior based on task type
     
@@ -279,7 +281,7 @@ def _launch_task(task_id, resume=True):
 
             match task.process:
                 case ProcessType.INGREDIENTS:
-                    _extract_ingredients(logger,task, resume)
+                    _extract_ingredients(logger, task, resume)
                 case ProcessType.RECIPES:
                     _extract_recipes(logger, task, resume)
                 

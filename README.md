@@ -1,203 +1,244 @@
 # GoodBites Backend App
 
-Docker will make your life a bit easier when it comes to deployment and CI/CD. This method can be used to deploy most stacks with Nginx and Postgres, ie. Flask, django-rest, FastAPI, NodeJS...
+This is the backend application for **GoodBites**, powered by Django, PostgreSQL, and Docker. This setup supports efficient local development and production deployment using Docker, WSL, and optional VS Code integration.
 
-## Installation Dev Usage
+## 🧰 Requirements
 
-Requirements:
+* [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
+* [Docker](https://www.docker.com/)
+* [VS Code](https://code.visualstudio.com/)
+* Python 3.10+
+* PostgreSQL
 
-code
-wsl
+---
 
+## ⚙️ Full Local Development Setup
 
-### Prepare wsl enviroment
-- > Activate wsl
-
-```bash
-wsl
-```
-
-- > Install python3.10
-
-```bash
-sudo apt-get install python3.10
-```
-
-- > Install dependencies
-
-```bash
-sudo apt-get update && apt-get clean && apt-get install -y libpq-dev && apt-get install -y gcc
-```
-
-
-
-### Setup Code Python dev setup
+### 1. Prepare WSL Environment
 
 ```bash
 wsl
 ```
 
-- > Go to dir
+Install Python and dependencies:
 
 ```bash
-cd path/to/your/PFM-Backend-Django
+sudo apt-get update
+sudo apt-get install -y python3.10 python3.10-venv libpq-dev gcc postgresql
 ```
 
-- > Open FLASK_API/app code whit code
+### 2. Clone the Repository
 
 ```bash
-code .
+git clone https://github.com/rafasilva111/PFM-Backend-Django.git
+cd PFM-Backend-Django
 ```
 
-- > Create .vscode dir
-
-```bash
-mkdir .vscode
-```
-
-- > Create launch.json in .vscode like:
-
-```bash
-{
-  "version": "0.2.0",
-  "configurations": [
-      {
-          "name": "Python: Django",
-          "type": "debugpy",
-          "request": "launch",
-          "program": "${workspaceFolder}/manage.py",
-          "args": [
-              "runserver",
-              "--noreload",
-              "--nothreading"
-          ],
-          "django": true,
-          "env": {
-              "SECRET_KEY": "lkdf@###lf583^2#KE-ri1$HkX@90i10",
-              "DEBUG": "True",
-              "DBNAME": "goodbites",
-              "DBUSER": "postgres",
-              "DBPASS": "password",
-              "DBHOST": "localhost",
-              "DBPORT": "5432",
-              "STATICFILES": "/static/",
-              "MEDIAFILES": "/media/",
-              "ACCESS_TOKEN_LIFETIME": "500",
-              "REFRESH_TOKEN_LIFETIME": "100",
-              "DJANGO_SETTINGS_MODULE": "app.settings"
-          }
-      }
-  ]
-}
-```
-
-- > Create python interpreter( in code )
+### 3. Python Virtual Environment Setup
 
 ```bash
 python3.10 -m venv venv
-```
-
-- > Exit code and ACTIVATE PYTHON ENV:
-
-```bash
 source venv/bin/activate
-```
-
-- > Install requirements ( opening agaian code )
-
-```bash
 pip install -r requirements.txt
 ```
 
-- > Select correct interperter in VSCode
+### 4. VS Code Integration (Optional)
 
-on VSCODE toppem search bar
+Create `.vscode/launch.json`:
 
-\> Select interpreter
-
-### Create Database
-
-- > activate wsl
-
-```bash
-wsl
+```json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Python: Django",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+            "runserver",
+            "0.0.0.0:8000"
+            ],
+            "django": true,
+            "envFile": "${workspaceFolder}/.env.dev"  // Specify your .env file path ( use .env.dev.full_local as example )
+        },
+        {
+            "name": "Gunicorn ASGI (UvicornWorker)",
+            "type": "python",
+            "request": "launch",
+            "module": "gunicorn",
+            "args": [
+            "config.asgi:application",
+            "--bind", "0.0.0.0:8000",
+            "-k", "uvicorn.workers.UvicornWorker",
+            "-w", "1"
+            ],
+            "envFile": "${workspaceFolder}/.env.dev"  // Specify your .env file path ( use .env.dev.full_local as example )
+        },
+        {
+            "name": "Test Command",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "create_groups",
+                "--assign-test-users"
+            ],
+            "django": true,
+            "envFile": "${workspaceFolder}/.env.dev"   // Specify your .env file path ( use .env.dev.full_local as example )
+        },
+        {
+            "name": "Run pyTests case",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/manage.py",
+            "args": [
+                "test",
+                "apps.api.tests.UsersToFollowViewTestCase"
+            ],
+            "console": "integratedTerminal",
+            "envFile": "${workspaceFolder}/.env.dev"   // Specify your .env file path ( use .env.dev.full_local as example )
+        }
+    ]
+}
 ```
 
-- > install postgresql
+### 5. Database Setup
 
-```bash
-sudo apt-get install python3.10
-```
+#### 5.1. Docker Database Setup
 
-- > activate service
+Start PostgreSQL:
 
 ```bash
 sudo service postgresql start
-
 ```
 
-
-- > execute script create_databses.py ( sry for the pain )
+Run the database setup script:
 
 ```bash
 python3.10 create_databases.py
 ```
 
+#### 5.2. Local Database Setup
 
-#### Troubleshooting:
-
-In cade DB user needs to be reseted:
-
-https://stackoverflow.com/questions/10845998/i-forgot-the-password-i-entered-during-postgresql-installation
-
-
-## Installation Prod Usage
+Update bash:
 
 ```bash
-docker-compose build
-docker-compose up -d
+sudo apt update
 ```
-You would be able to access
 
-[localhost:8008](http://localhost:8008/)
+Install PostgreSQL:
 
-## Usage
+```bash
+sudo apt install postgresql postgresql-contrib
+```
 
-Go to django shell
+Run PostgreSQL Service:
+
+```bash
+sudo service postgresql start
+```
+
+Set PostgreSQL Service to start with the machine ( optional ):
+
+```bash
+sudo service postgresql enable
+```
+
+Run the database setup script:
+
+```bash
+python3.10 create_databases.py
+```
+
+### 6. Redis Setup
+
+#### 6.1. Docker Redis Setup
+
+Start Redis:
+
+```bash
+sudo service Redis start
+```
+
+#### 6.2. Local Redis Setup
+
+Update bash:
+
+```bash
+sudo apt update
+```
+
+Install PostgreSQL:
+
+```bash
+sudo apt install postgresql postgresql-contrib
+```
+
+Run PostgreSQL Service:
+
+```bash
+sudo service postgresql start
+```
+
+Set PostgreSQL Service to start with the machine ( optional ):
+
+```bash
+sudo service postgresql enable
+```
+
+
+### Shell Access
+
+Django shell:
+
 ```bash
 docker exec -it django python manage.py shell
 ```
 
-Go to postgresql
+PostgreSQL access:
+
 ```bash
-
-```
-wsl --install -d Debian
-
-more at [here](https://docs.docker.com/get-started/overview/)
-## Contributing
-You can do whatever you want with this repo.
-
-
 psql -U postgres -h localhost -d goodbites
+```
 
+---
+
+## 💡 Useful Commands
+
+Start RabbitMQ:
+
+```bash
 docker run -d -p 5672:5672 rabbitmq
+```
 
+Start Celery:
+
+```bash
 celery -A config.celery worker --loglevel=INFO
-
 celery -A config.celery flower
-
-celery -A config.celery beat --loglevel=info
-
 celery -A config.celery beat --loglevel=debug --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
 
+Reset WSL DNS (if needed):
+
+```bash
 sudo rm /etc/resolv.conf
 sudo bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
 sudo bash -c 'echo "[network]" > /etc/wsl.conf'
 sudo bash -c 'echo "generateResolvConf = false" >> /etc/wsl.conf'
 sudo chattr +i /etc/resolv.conf
+```
 
-scp -i C:\Users\rafae\.ssh\ssh_key.pem projetofoodmanager-6087f7b4c412.json azureuser@172.162.241.76:/tmp
+Transfer file to remote server:
 
-# list all containers ip's
+```bash
+scp -i ~/.ssh/ssh_key.pem file.json user@host:/tmp
+```
+
+List all Docker container IPs:
+
+```bash
 docker ps -q | xargs -n 1 docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
+```
+

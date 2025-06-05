@@ -40,7 +40,7 @@
 
     <!-- Recipe App -->
     <li class="menu-item {% if 'recipe' in request.resolver_match.url_name or 'audit_log' in request.resolver_match.url_name %}active open{% endif %}">
-      <a class="menu-link menu-toggle">
+      <a class="menu-link menu-toggle"  href="#">
         <i class="menu-icon tf-icons bx bx-receipt"></i>
         <div class="text-truncate" >Recipe</div>
       </a>
@@ -65,7 +65,7 @@
 
     <!-- Users -->
     <li class="menu-item {% if 'user' in request.resolver_match.url_name or 'invites' in request.resolver_match.url_name %}active open{% endif %}">
-      <a class="menu-link menu-toggle">
+      <a class="menu-link menu-toggle" href="#">
         <i class="menu-icon tf-icons bx bx-male"></i>
         <div class="text-truncate" >User</div>
       </a>
@@ -114,14 +114,14 @@
     </li>
 
     <li class="menu-item {% if 'schema-swagger-ui' == request.resolver_match.url_name %}active{% endif %}">
-      <a href="{% url 'home' %}" class="menu-link" target="_blank">
+      <a href="{% url 'schema-swagger-ui' %}" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Swagger )</div>
       </a>
     </li>
 
     <li class="menu-item {% if 'schema-redoc' == request.resolver_match.url_name %}active{% endif %}">
-      <a href="{% url 'home' %}" class="menu-link" target="_blank">
+      <a href="{% url 'schema-redoc' %}" class="menu-link" target="_blank">
         <i class="menu-icon tf-icons bx bx-file"></i>
         <div class="text-truncate" data-i18n="Api Documentation">Api Documentation ( Redoc )</div>
       </a>

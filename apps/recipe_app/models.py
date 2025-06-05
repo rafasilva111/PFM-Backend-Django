@@ -79,6 +79,8 @@ class Recipe(BaseModel):
         
     verified = models.BooleanField(default=False)
     
+    is_public = models.BooleanField(default=True, null=False)
+    
     users_liked = models.ManyToManyField(User, related_name='liked_recipes', blank=True)
     users_saved = models.ManyToManyField(User, related_name='saved_recipes', blank=True)
 

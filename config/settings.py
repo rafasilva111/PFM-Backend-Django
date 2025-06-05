@@ -76,6 +76,7 @@ INSTALLED_APPS = [
     "apps.user_app",
     "apps.etl_app",
     "apps.recipe_app",
+    "apps.ingredient_app",
     "apps.api",
     
 ]

@@ -27,11 +27,11 @@ class UserSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'name', 'username', 'description', 'birth_date', 'img_source', 'email',
             'user_portion', 'created_at', 'fmc_token', 'activity_level', 'height', 'weight',
-            'age', 'profile_type', 'user_type', 'sex','verified','password','follows_c','followers_c'
+            'age', 'profile_type', 'type', 'sex','verified','password','follows_c','followers_c'
         ]
-       
         
-        read_only_fields = ['id', 'verified', 'user_type', 'age', 'created_date']
+        
+        read_only_fields = ['id', 'verified', 'type', 'age', 'created_date']
         extra_kwargs = {
             'password': {'write_only': True},
         }
@@ -101,7 +101,7 @@ class UserPatchSerializer(UserSerializer):
         model = User
         fields = [
             'name', 'username', 'description', 'img_source','old_password','password' ,'age','birth_date',
-            'user_portion', 'fmc_token', 'activity_level', 'height', 'weight', 'profile_type', 'user_type', 'sex'
+            'user_portion', 'fmc_token', 'activity_level', 'height', 'weight', 'type', 'sex'
         ]
         read_only_fields = ['age', 'birth_date']
     

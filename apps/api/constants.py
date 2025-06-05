@@ -10,14 +10,15 @@ from django.db import models
 
 
 class ERROR_TYPES(models.TextChoices):
-    ARGS = 'ARGS', 'Error in arguments'
-    PAGINATION = 'PAGINATION', 'Error in pagination'
-    LOGICAL = 'LOGICAL', 'Error in using faulty data to app logic'
-    CONSTRAINT = 'CONSTRAINTS', 'Error in a constraint'
-    MISSING_MODEL = 'MISSING_MODEL', 'Error find model'
-    MISSING = 'MISSING', 'Error model missing something.'
-    RESOURCE_LIMIT = 'RESOURCE_LIMIT', 'Error in resource limit.'
-    INTERNAL = 'INTERNAL', 'Internal server error.'
+    ARGS = 'ARGS', 'Invalid or missing arguments provided.'
+    PAGINATION = 'PAGINATION', 'Pagination parameters are incorrect or out of range.'
+    LOGICAL = 'LOGICAL', 'Logical error due to invalid data or application state.'
+    CONSTRAINT = 'CONSTRAINTS', 'Database or business rule constraint violation.'
+    PERMISSION = 'PERMISSION', 'Insufficient permissions to perform this action.'
+    MISSING_MODEL = 'MISSING_MODEL', 'Requested model instance not found.'
+    MISSING = 'MISSING', 'Required data or resource is missing.'
+    RESOURCE_LIMIT = 'RESOURCE_LIMIT', 'Resource usage limit has been exceeded.'
+    INTERNAL = 'INTERNAL', 'An unexpected internal server error occurred.'
 
 """
 

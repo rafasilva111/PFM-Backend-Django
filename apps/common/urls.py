@@ -69,7 +69,7 @@ urlpatterns = [
     #   
     ##
     
-    #path("api/v1/", include("apps.api.urls")),
+    path("api/v1/", include("apps.api.urls")),
 
     
     ###

@@ -21,8 +21,7 @@ def _extract_recipes(logger, task, resume):
     
     if ProcessType.RECIPES.value not in task.company.processes:
         logger.error(f"Company of task does not have a Recipe's process.")
-        task.errors += 1
-        task.save()
+        task.increment_errors()
         return
         
     if task.company.name == COMPANY_PINGO_DOCE:
@@ -33,6 +32,5 @@ def _extract_recipes(logger, task, resume):
 
     else:
         logger.error(f"Company of task does not have a Recipe's process implemented.")
-        task.errors += 1
-        task.save()
+        task.increment_errors()
         return

@@ -9,7 +9,7 @@ from bs4 import BeautifulSoup
 from apps.etl_app.functions import start_db
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
-from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, continente_recipes_images_folder
+from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_RECIPES_IMAGES_FOLDER
 
 
 " Define the through model for Recipe and Tag relationship "
@@ -105,7 +105,7 @@ def extract_data_from_link(logger, recipe_link):
     recipe_steps_raw = html.find('img', class_='image')
     
     image_source_link = RecipeLinks.get(RecipeLinks.link == recipe_link).image_link
-    img_source = f'{continente_recipes_images_folder}/{file_storage}.png'
+    img_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{file_storage}.png'
     recipe_db.img = img_source
     try:
         with open(img_source, "wb") as f:
@@ -228,7 +228,7 @@ def extract_data_from_link(logger, recipe_link):
     return __errors, __warnings
 
 
-def pull_recipes(logger,task, max_recipes=-1):
+def pull_recipes(logger,task):
     """
     Extracts recipe data from the Continente website and updates the task statistics.
     This function iterates through recipe links stored in the database, extracts data
@@ -242,17 +242,14 @@ def pull_recipes(logger,task, max_recipes=-1):
         None
     """
     
-    
-    " Initialize the warnings and errors counters "
-    task.warnings = 0
-    task.errors = 0
-    
+
+    " Initialize the Control variables "    
     OFFSET = None
     
     logger.info("")
     logger.info("Starting to pull Recipes")
     logger.info("")
-    logger.info(f"Recipe extraction is on step {task.step}...")
+    logger.info(f"Recipe {task.process} is on step {task.step}...")
     logger.info("")
     
     " Get the Threshold Stopping condition"
@@ -262,16 +259,16 @@ def pull_recipes(logger,task, max_recipes=-1):
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
-        recipes_in_db = Recipe.select().count()
-        if recipes_in_db > task.step:
+        instances_in_db = Recipe.select().count()
+        if instances_in_db > task.step:
             # Delete tasks until step matches recipes_in_db
-            tasks_to_delete = Recipe.select().order_by(Recipe.id.desc())
-            for t in tasks_to_delete:
-                if task.step == recipes_in_db:
+            instances_to_delete = Recipe.select().order_by(Recipe.id.desc())
+            for t in instances_to_delete:
+                if task.step == instances_in_db:
                     break
                 t.tags.clear()
                 t.delete_instance()
-                recipes_in_db -= 1
+                instances_in_db -= 1
         
     " Extract data from each recipe link "
     for recipe_link in RecipeLinks.select().where(RecipeLinks.id > task.step):
@@ -300,37 +297,8 @@ def pull_recipes(logger,task, max_recipes=-1):
     return task, True
     
 
-def pull_all_recipes_links(logger, task):
-    """
-    Extracts all recipe links from the Continente website using a GraphQL API.
-    This function retrieves recipe links in a paginated manner and stores them in the database.
-    It also updates the task statistics and logs the progress and summary of the extraction process.
-    Args:
-        logger (logging.Logger): Logger instance for logging information and progress.
-        task (Task): Task object to track the progress and statistics of the extraction process.
-        continue_mode (bool, optional): If True, resumes from the last processed page. Defaults to False.
-    Raises:
-        requests.exceptions.RequestException: If there is an issue with the HTTP request.
-        KeyError: If the expected keys are missing in the API response.
-    Notes:
-        - The function uses a GraphQL query to fetch recipe data.
-        - The `OFFSET` constant determines the number of recipes fetched per page.
-        - The `BASE_HEADERS` and `BASE_URL` constants are used for API requests and constructing recipe links.
-        - The function logs warnings and errors encountered during the process.
-    Workflow:
-        1. Initializes warnings and errors counters.
-        2. Logs the start of the extraction process.
-        3. Constructs the GraphQL query and sends paginated requests to the API.
-        4. Parses the response and saves recipe links to the database.
-        5. Updates task statistics and logs the summary of the extraction process.
-    """
-    
-    
-    " Initialize the warnings and errors "
-    task.warnings = 0
-    task.errors = 0
-    
-
+def pull_all_recipes_links(logger, task):    
+        
     " Gets all Recipe's Links from Continente "
     logger.info("Starting to get all Recipe's Links...")
     logger.info("")
@@ -428,7 +396,7 @@ def pull_all_recipes_links(logger, task):
 def __extract_continente_recipes(logger, task, resume = False):
     
     " Log the start of the extraction process"
-    logger.info(f"Initializing the {task.type} all recipes from {task.company}...")
+    logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
     
     " Initialize the warnings and errors "
     if resume:
@@ -436,7 +404,7 @@ def __extract_continente_recipes(logger, task, resume = False):
         task.warnings = 0
 
     " Starts the db "
-    logger.info("Initializing Extract database ...")
+    logger.info(f"Initializing {task.type} database ...")
     task, database = start_db(
         logger=logger,
         task=task,
@@ -468,6 +436,7 @@ def __extract_continente_recipes(logger, task, resume = False):
     
     
     " Finish task "
+    logger.info(f"{completed}")
     if completed:
         task.finish(kill_celery_task=False)
     else:

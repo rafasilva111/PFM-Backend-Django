@@ -28,14 +28,14 @@ main_db = "./recipe/transform/transform_recipes.db"
 
 """ Ingredients """
 
-extract_continente_ingredients_db = f"apps/etl_app/ingredient/extract/continente/dbs"
-continente_ingredients_images_folder = f"apps/etl_app/ingredient/extract/continente/images"
+EXTRACT_CONTINENTE_INGREDIENTS_DB = f"apps/etl_app/ingredient/extract/continente/dbs"
+CONTINENTE_INGREDIENTS_IMAGES_FOLDER = f"apps/etl_app/ingredient/extract/continente/images"
 
 
 """ Recipes """
 
 EXTRACT_CONTINENTE_RECIPES_DB = f"apps/etl_app/recipe/extract/continente/dbs"
-continente_recipes_images_folder = f"apps/etl_app/recipe/extract/continente/images"
+CONTINENTE_RECIPES_IMAGES_FOLDER = f"apps/etl_app/recipe/extract/continente/images"
 
 
 """ Pingo Doce """

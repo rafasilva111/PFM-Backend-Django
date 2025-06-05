@@ -484,9 +484,6 @@ class Task(BaseTask):
             self.celery_task_id = _launch_task.delay(self.id, resume).id
             self.save()
             
-        
-        
-        
     def purge(self):
         """
         Deletes task logs associated with this task.
@@ -541,10 +538,10 @@ class Task(BaseTask):
     def pause(self):
         if self.status == Task.Status.RUNNING:
             # stop celery task
-            self.__kill_current_celery_task()
             self.paused_at = timezone.now()
             self.status = Task.Status.PAUSED
             self.save()
+            self.__kill_current_celery_task()
 
     def resume(self):
         
@@ -589,6 +586,29 @@ class Task(BaseTask):
     
     def get_type_process_display(self):
         return f"{self.type} - {self.process}"
+    
+    
+    def increment_step(self):
+        """
+        Increments the step of the task.
+        """
+        self.step += 1
+        self.save()
+    
+    def increment_errors(self):
+        """
+        Increments the error count of the task.
+        """
+        self.errors += 1
+        self.save()
+        
+    def increment_warnings(self):
+        """
+        Increments the warning count of the task.
+        """
+        self.warnings += 1
+        self.save()
+    
     
     def __kill_current_celery_task(self):
         """

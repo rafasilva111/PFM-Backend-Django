@@ -11,6 +11,7 @@ from drf_yasg import openapi
 ##
 
 from apps.user_app.api_views import LoginView,AuthView,UserView,UserListView,CustomTokenRefreshView
+from apps.recipe_app.api_views import RecipeView,RecipeListView
 
 from rest_framework_simplejwt.views import (
     TokenRefreshView,
@@ -47,24 +48,28 @@ urlpatterns = [
     #   Auth
     ##
     
-    path('auth', AuthView.as_view(), name="auth"), # Get, Register, Logout Session
-    path('auth/login', LoginView.as_view(), name="login"), # Log in Session
-    path('auth/refresh', CustomTokenRefreshView.as_view(), name='token_refresh'),
+    path('auth', AuthView.as_view(), name="api_auth"), # Get, Register, Logout Session
+    path('auth/login', LoginView.as_view(), name="api_login"), # Log in Session
+    path('auth/refresh', CustomTokenRefreshView.as_view(), name='api_token_refresh'),
     
     ###
     #   User
     ##
     
-    path('user', UserView.as_view(), name="user"), # get, post, put, delete user
-    path('user/list', UserListView.as_view(), name="user_list"), # get users
+    path('user', UserView.as_view(), name="api_user"), # get, post, put, delete user
+    path('user/list', UserListView.as_view(), name="api_user_list"), # get users
     
     
     
     ###
     #
-    #   Task App
+    #   Recipe App
     #
     ##
+    
+    path('recipe', RecipeView.as_view(), name="api_recipe"), # CRUD Recipe
+    path('recipe/list', RecipeListView.as_view(), name="api_recipe_list"), # List Recipes
+    
     
     # todo
     # check all tasks

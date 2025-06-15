@@ -2,7 +2,6 @@ from django.db import models
 from django.db.models import Avg, Count
 from apps.user_app.models import User
 from apps.common.models import BaseModel
-import urllib.parse
 
 ###
 #   Recipe Models
@@ -87,15 +86,6 @@ class Recipe(BaseModel):
 
     def get_average_rating(self):
         return self.ratings.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0.0
-    
-    def get_image_url(self):
-        """
-        Returns the image URL for the recipe.
-        """
-        if self.image:
-            encoded_path = urllib.parse.quote(self.image, safe='')
-            return f"https://firebasestorage.googleapis.com/v0/b/project-food-manager.firebasestorage.app/o/{encoded_path}?alt=media&token=711bb47a-dac0-43ae-82b2-189299641377"
-        return None
 
     @property
     def likes(self):

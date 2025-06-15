@@ -19,12 +19,13 @@ class CustomDateFormatField(serializers.DateField):
         except ValueError:
             raise serializers.ValidationError("Invalid date format. Please use the format 'DD/MM/YYYY'.")
 
+
 class UserSerializer(serializers.ModelSerializer):
         
     class Meta:
         model = User
         fields = [
-            'id', 'name', 'username', 'description', 'birth_date', 'image', 'email',
+            'id', 'name', 'username', 'description', 'birth_date', 'img_source', 'email',
             'user_portion', 'created_at', 'fmc_token', 'activity_level', 'height', 'weight',
             'age', 'profile_type', 'type', 'sex','verified','password','follows_c','followers_c'
         ]
@@ -85,25 +86,13 @@ class UserSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         validated_data.pop('password', None)
         return super().update(instance, validated_data)
+    
+    
 
 class UserSimpleSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['id','name','description','image','type']
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    
-    recipes_created = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = User
-        fields = ['id','name','username','description','image','profile_type','user_type','follows_c','followers_c','recipes_created']   
-        
-        
-    def get_recipes_created(self, obj):
-
-        return obj.created_recipes.count()    
-
+        fields = ['id','name','description','img_source','type']
 
 class UserPatchSerializer(UserSerializer):
     old_password = serializers.CharField(write_only=True, required=False)
@@ -111,7 +100,7 @@ class UserPatchSerializer(UserSerializer):
     class Meta:
         model = User
         fields = [
-            'name', 'username', 'description', 'image','old_password','password' ,'age','birth_date',
+            'name', 'username', 'description', 'img_source','old_password','password' ,'age','birth_date',
             'user_portion', 'fmc_token', 'activity_level', 'height', 'weight', 'type', 'sex'
         ]
         read_only_fields = ['age', 'birth_date']
@@ -127,4 +116,5 @@ class UserPatchSerializer(UserSerializer):
             raise serializers.ValidationError("Missing old_password, to update current password.")
         
         return data
-
+    
+    

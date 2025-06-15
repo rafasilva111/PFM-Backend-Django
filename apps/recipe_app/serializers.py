@@ -147,7 +147,7 @@ class RecipePatchSerializer(RecipeSerializer):
             'id': {'required': False},
             'title': {'required': False},
             'description': {'required': False},
-            'image': {'required': False},
+            'img_source': {'required': False},
             'verified': {'required': False},
             'difficulty': {'required': False},
             'ingredients': {'required': False},

@@ -16,7 +16,6 @@ from django.core.mail import send_mail
 
 # Third-party imports
 from multiselectfield import MultiSelectField
-import random
 
 # Local imports
 from apps.common.models import BaseModel, ProcessType
@@ -143,11 +142,33 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     """
     User model that extends AbstractBaseUser and PermissionsMixin.
+
+    Attributes:
+        name (str): The name of the user.
+        img_source (str): The source URL for the user's profile image.
+        email (str): The email address of the user, used as the unique identifier.
+        created_at (datetime): The date and time when the user was created.
+        updated_at (datetime): The date and time when the user was last updated.
+        is_active (bool): Indicates whether the user account is active.
+        is_staff (bool): Indicates whether the user has staff privileges.
+        is_superuser (bool): Indicates whether the user has superuser privileges.
+        groups (ManyToManyField): The groups the user belongs to.
+        user_permissions (ManyToManyField): The permissions the user has.
+        user_type (str): The type of user, either 'Normal' or 'Admin'.
+        sex (str): The sex of the user, either 'Male' or 'Female'.
+
+    Properties:
+        age (int): The age of the user calculated from the birth_date.
+
+    Meta:
+        permissions (list): Custom permissions for the User model.
+
+    Methods:
+        __str__: Returns a string representation of the user.
     """
 
     name = models.CharField(max_length=40, null=False)
-    username = models.CharField(max_length=255, null=False)
-    image = models.CharField(max_length=255, default=f"avatar_{random.randint(1, 10)}", blank=True)
+    img_source = models.CharField(max_length=255, default="", blank=True)
     email = models.EmailField(verbose_name="email address", max_length=255, unique=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -157,15 +178,17 @@ class User(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
-    security_group = models.ManyToManyField(Group, related_name="users", blank=True)
+    groups = models.ManyToManyField(Group, related_name="user_set", blank=True)
     user_permissions = models.ManyToManyField(
         Permission, related_name="user_set", blank=True
     )
 
     objects = UserManager()
     
+    username = models.CharField(max_length=255, null=False)
     description = models.CharField(max_length=255, default='',blank=True)
     birth_date = models.DateTimeField(null=True)
+    img_source = models.CharField(max_length=255, default='',blank=True)
     email = models.EmailField(
         verbose_name='email address',
         max_length=255,
@@ -261,8 +284,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.id} - {self.name}"
-    
-        
+
 class Invitation(models.Model):
     """
     Invitation model represents an invitation sent to a user via email.

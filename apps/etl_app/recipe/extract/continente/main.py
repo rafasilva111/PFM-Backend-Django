@@ -3,7 +3,6 @@ import json
 import pickle
 import requests
 import unidecode
-import re
 from bs4 import BeautifulSoup
 
 " Import custom functions and constants "
@@ -101,25 +100,16 @@ def extract_data_from_link(logger, recipe_link):
     # logo não é possível fazer scraping, apenas com selenium :(
 
     " Image "
-    image_container = html.find('figure', class_='recipeImage aspect-ratio--4-3')
-    site_image_source = f"https://feed.continente.pt{image_container.find('img')['src']}"
-    site_image_source = site_image_source.replace("&format=webp","&format=jpg")
-    pattern = r'/([^\/?]+\.jpg)'
-    match = re.search(pattern, site_image_source)
-    filename = match.group(1)
+
+    file_storage = unidecode.unidecode(recipe_db.title).replace(" ", "_")
+    recipe_steps_raw = html.find('img', class_='image')
     
-    app_image_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{filename}'
-    recipe_db.img = app_image_source
+    image_source_link = RecipeLinks.get(RecipeLinks.link == recipe_link).image_link
+    img_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{file_storage}.png'
+    recipe_db.img = img_source
     try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        with open(app_image_source, "wb") as f:
-            response = requests.get(site_image_source, headers=headers)
-            
-            if response.status_code != 200:
-                logger.error(f"Failed to download image from {site_image_source} with status code: {response.status_code}")
-                __errors += 1
-            
-            f.write(response.content)
+        with open(img_source, "wb") as f:
+            f.write(requests.get(image_source_link).content)
     except Exception as e:
         logger.error(f"Error extracting preparation steps: {e}")
         __errors += 1

@@ -46,7 +46,7 @@ DEBUG = ENVIRONMENT == "dev"
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),"172.19.128.1"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None)]
     
 
 CSRF_TRUSTED_ORIGINS = [
@@ -73,14 +73,10 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt.token_blacklist",
     "drf_yasg",
     "apps.common",
-    "apps.group_app",
     "apps.user_app",
     "apps.etl_app",
     "apps.recipe_app",
     "apps.ingredient_app",
-    "apps.calendar_app",
-    "apps.shopping_app",
-    "apps.notification_app",
     "apps.api",
     
 ]

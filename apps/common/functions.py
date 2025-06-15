@@ -3,7 +3,6 @@ from firebase_admin import storage
 from django.conf import settings
 import os
 
-
 def send_image_to_firebase(image_content, image_destination):
 
     # Get the bucket object
@@ -13,7 +12,7 @@ def send_image_to_firebase(image_content, image_destination):
     blob = bucket.blob(image_destination)
 
     # Upload the image content directly
-    blob.upload_from_string(image_content, content_type='image/jpeg')
+    blob.upload_from_string(image_content, content_type='image/png')
 
 
 

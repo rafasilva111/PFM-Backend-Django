@@ -3,6 +3,8 @@ from playhouse.shortcuts import model_to_dict
 import pickle
 
 " Import custom functions and constants "
+from apps.common.constants import COMPANY_IMAGES_ROOT_PATH, COMPANY_CONTINENTE
+from apps.common.functions import send_image_to_firebase
 from apps.recipe_app.serializers import RecipeSerializer
 from apps.recipe_app.models import RecipeAuditLog, Recipe, Tag, UsefulTool, Preparation, Ingredient, IngredientQuantity, NutritionInformation
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
@@ -405,6 +407,7 @@ def load_recipe(logger, task, recipe):
     
     return __errors, __warnings
 
+
 def persist_recipe(logger, task, recipe, recipe_t):
     
     " Initialize the warnings and errors "
@@ -417,9 +420,7 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     
     recipe.description = recipe_t['description']
-    recipe.image = recipe_t['image']
-    recipe.video = recipe_t['video']
-    
+
     recipe.difficulty = recipe_t['difficulty']
     recipe.portion_lower = recipe_t['portion_lower']
     recipe.portion_upper = recipe_t['portion_upper']
@@ -429,6 +430,15 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     recipe.source_rating = recipe_t['source_rating']
     recipe.source_link = recipe_t['source_link']
+    
+    recipe_img_name = recipe_t['image'].split('/')[-1]
+    recipe.image = f"{COMPANY_IMAGES_ROOT_PATH}{COMPANY_CONTINENTE}/Recipes/{recipe_img_name}"
+    
+    send_image_to_firebase(
+        open(recipe_t['image'], "rb").read(),
+        recipe.image
+    )
+    recipe.video = recipe_t['video']
     
     recipe.save()
     

@@ -372,7 +372,6 @@ class CalendarView(APIView):
         
         # Validate Serializer
         if not serializer.is_valid():
-            print("here")
             return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
 
         
@@ -488,7 +487,7 @@ class CalendarEntryListCheckView(APIView):
 ###
 #   Calendar Ingredients
 ##
-   
+
 class CalendarIngredientsListView(APIView):
     permission_classes = [IsAuthenticated]
 

@@ -199,3 +199,5 @@ TODO
 geckodriver
 
 .env.dev.full_local
+
+apps/etl_app/recipe/extract/continente/images/

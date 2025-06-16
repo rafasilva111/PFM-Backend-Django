@@ -17,5 +17,5 @@ def send_image_to_firebase(image_content, image_destination):
 
 
 
-def lower_and_underescore(text):
+def lower_and_underscore(text):
     return text.lower().replace(' ', '_')

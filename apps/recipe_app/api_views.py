@@ -672,7 +672,7 @@ class RecipeReportListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeReport(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeReport(records_page, many=True), endpoint_name="api_calendar_list").data,
             status=status.HTTP_200_OK
         )
 
@@ -828,7 +828,7 @@ class CommentListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(
-            ListResponseSerializer.build_(request,page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="comment_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = CommentSerializer(records_page, many=True),endpoint_name="api_comment_list").data,
             status=status.HTTP_200_OK)
 
 class CommentLikeView(APIView):
@@ -955,7 +955,7 @@ class RecipesLikedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(request,page, paginator, serializer=SimpleRecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="recipes_liked").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=SimpleRecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="api_recipes_liked").data,
             status=status.HTTP_200_OK
         )
     
@@ -1080,7 +1080,7 @@ class RecipesSavedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(request,page, paginator, serializer=SimpleRecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=SimpleRecipeSerializer(records_page, many=True,context={'user':user}), endpoint_name="api_calendar_list").data,
             status=status.HTTP_200_OK
         )
     
@@ -1273,7 +1273,7 @@ class RecipesCreatedView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="recipes_created").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=RecipeSerializer(records_page, many=True), endpoint_name="api_recipes_created").data,
             status=status.HTTP_200_OK
         )
 

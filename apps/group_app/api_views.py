@@ -361,7 +361,7 @@ class GroupListView(APIView):
 
         
         return Response(
-            ListResponseSerializer.build_(request,page,paginator,serializer = GroupSerializer(query, many=True),endpoint_name="user_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = GroupSerializer(query, many=True),endpoint_name="api_user_list").data,
             status=status.HTTP_200_OK)
 
 ###
@@ -535,7 +535,7 @@ class GroupInvitesView(APIView):
 
         
         return Response(
-            ListResponseSerializer.build_(request,page,paginator,serializer = GroupInviteSerializer(query, many=True),endpoint_name="group_invites").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = GroupInviteSerializer(query, many=True),endpoint_name="api_group_invites").data,
             status=status.HTTP_200_OK)
 
 

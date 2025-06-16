@@ -12,15 +12,15 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='CalendarEntry',
+            name='Notification',
             fields=[
                 ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
                 ('created_at', models.DateTimeField(auto_now_add=True)),
                 ('updated_at', models.DateTimeField(auto_now=True)),
-                ('portion', models.IntegerField(null=True)),
-                ('realization_date', models.DateTimeField()),
-                ('checked_done', models.BooleanField(default=False)),
-                ('tag', models.CharField(choices=[('Breakfast', 'Pequeno Almoço'), ('Morning Snack', 'Lanche da manhã'), ('Lunch', 'Almoço'), ('Afternoon Snack', 'Lanche da tarde'), ('Dinner', 'Jantar'), ('Supper', 'Ceia'), ('Other', 'Other')], default='Other', max_length=15)),
+                ('title', models.CharField(max_length=255)),
+                ('message', models.CharField(max_length=255)),
+                ('seen', models.BooleanField(default=False)),
+                ('type', models.IntegerField(default=-1)),
             ],
             options={
                 'abstract': False,

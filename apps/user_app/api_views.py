@@ -367,7 +367,7 @@ class UserListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(
-            ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="user_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="api_user_list").data,
             status=status.HTTP_200_OK)
     
     

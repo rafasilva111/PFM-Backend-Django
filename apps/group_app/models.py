@@ -10,7 +10,7 @@ class Group(BaseModel):
     """
     
     name = models.CharField(max_length=255, null=False)
-    users = models.ManyToManyField(User, related_name='groups')
+    users = models.ManyToManyField(User, related_name='app_groups')
     admins = models.ManyToManyField(User, related_name='admined_groups')
     owner = models.ForeignKey(User, related_name='owned_groups', on_delete=models.CASCADE)
     img_source = models.CharField(max_length=255, null=True)\

@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from apps.common.models import ProcessType
 from apps.user_app.models import Company,User
 from apps.common.constants import FIREBASE_STORAGE_COMPANY_BUCKET,COMPANY_PINGO_DOCE,COMPANY_CONTINENTE,COMPANY_PINGO_DOCE_DEFAULT_USER_PASSWORD,COMPANY_CONTINENTE_DEFAULT_USER_PASSWORD, COMPANY_IMAGES_ROOT_PATH
-from apps.common.functions import lower_and_underescore, send_image_to_firebase
+from apps.common.functions import lower_and_underscore, send_image_to_firebase
 from django.utils import timezone
 
 
@@ -16,7 +16,7 @@ class Command(BaseCommand):
         ## Pingo Doce
 
         # Check for Company Model
-        username = lower_and_underescore(COMPANY_PINGO_DOCE)      
+        username = lower_and_underscore(COMPANY_PINGO_DOCE)      
         company_images_bucket = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{username}"
         
         try:

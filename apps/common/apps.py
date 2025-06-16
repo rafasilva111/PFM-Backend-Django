@@ -12,6 +12,6 @@ class DashboardsConfig(AppConfig):
 # Initialize Firebase Admin SDK
 cred = credentials.Certificate(f"{settings.BASE_DIR}/apps/common/secrets/project-food-manager-firebase.json")
 firebase_admin.initialize_app(cred, {
-    'storageBucket': 'project-food-manager.appspot.com'  # Replace with your actual bucket name
+    'storageBucket': 'project-food-manager.firebasestorage.app'
 })
 

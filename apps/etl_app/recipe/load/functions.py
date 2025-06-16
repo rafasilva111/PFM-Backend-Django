@@ -3,6 +3,8 @@ from playhouse.shortcuts import model_to_dict
 import pickle
 
 " Import custom functions and constants "
+from apps.common.constants import FIREBASE_STORAGE_COMPANY_BUCKET, COMPANY_CONTINENTE
+from apps.common.functions import send_image_to_firebase, lower_and_underscore
 from apps.recipe_app.serializers import RecipeSerializer
 from apps.recipe_app.models import RecipeAuditLog, Recipe, Tag, UsefulTool, Preparation, Ingredient, IngredientQuantity, NutritionInformation
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
@@ -287,10 +289,10 @@ def load_recipe(logger, task, recipe):
                 __recipe.save()
 
         # Process incoming tags
-        for title, item in incoming_tags_dict.items():
-            if title in existing_tags_dict:
+        for text, item in incoming_tags_dict.items():
+            if text in existing_tags_dict:
                 # Update existing tag and check for changes
-                tag_obj = existing_tags_dict[title]
+                tag_obj = existing_tags_dict[text]
 
                 for field in ['text']:
                     if hasattr(Tag, field):
@@ -311,12 +313,12 @@ def load_recipe(logger, task, recipe):
                         __errors += 1
             else:
                 # Create new tag
-                _tag, created = Tag.objects.get_or_create(title=title)
+                _tag, created = Tag.objects.get_or_create(text=text)
                 __recipe.tags.add(_tag)
                 __recipe.save()
                 mapped_fields['tags'].append({
                     "added": {
-                        "title": title
+                        "text": text
                     }
                 })
         
@@ -405,6 +407,7 @@ def load_recipe(logger, task, recipe):
     
     return __errors, __warnings
 
+
 def persist_recipe(logger, task, recipe, recipe_t):
     
     " Initialize the warnings and errors "
@@ -417,9 +420,7 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     
     recipe.description = recipe_t['description']
-    recipe.image = recipe_t['image']
-    recipe.video = recipe_t['video']
-    
+
     recipe.difficulty = recipe_t['difficulty']
     recipe.portion_lower = recipe_t['portion_lower']
     recipe.portion_upper = recipe_t['portion_upper']
@@ -429,6 +430,19 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     recipe.source_rating = recipe_t['source_rating']
     recipe.source_link = recipe_t['source_link']
+    
+    recipe_img_name = recipe_t['image'].split('/')[-1]
+    recipe.image = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{lower_and_underscore(COMPANY_CONTINENTE)}/recipes/{recipe_img_name}"
+    
+    try:
+        send_image_to_firebase(
+            open(recipe_t['image'], "rb").read(),
+            recipe.image
+        )
+    except FileNotFoundError as exception:
+        logger.error("Failed to found Image.", exc_info=(type(exception), exception, exception.traceback))        
+        __errors +=1
+    recipe.video = recipe_t['video']
     
     recipe.save()
     

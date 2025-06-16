@@ -385,6 +385,6 @@ class ShoppingListsView(APIView):
             return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.PAGINATION.value,message="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
         
         return Response(
-            ListResponseSerializer.build_(request,page,paginator,serializer = ShoppingListSerializer(records_page, many=True),endpoint_name="user_list").data,
+            ListResponseSerializer.build_(request,page,paginator,serializer = ShoppingListSerializer(records_page, many=True),endpoint_name="api_user_list").data,
             status=status.HTTP_200_OK)
     

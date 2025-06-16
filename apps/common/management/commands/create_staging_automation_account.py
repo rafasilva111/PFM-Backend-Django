@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from apps.user_app.models import Company,User
 from apps.common.constants import AUTOMATION_ACCOUNT_DEFAULT_USER_PASSWORD,AUTOMATION_ACCOUNT
-from apps.common.functions import lower_and_underescore
+from apps.common.functions import lower_and_underscore
 from django.utils import timezone
 
 class Command(BaseCommand):
@@ -13,15 +13,15 @@ class Command(BaseCommand):
 
         try:
             automation_account = User.objects.get(
-                username=lower_and_underescore(AUTOMATION_ACCOUNT),
-                email = f'{lower_and_underescore(AUTOMATION_ACCOUNT)}@example.com'
+                username=lower_and_underscore(AUTOMATION_ACCOUNT),
+                email = f'{lower_and_underscore(AUTOMATION_ACCOUNT)}@example.com'
                 )
 
         except User.DoesNotExist:
 
             automation_account, created = User.objects.get_or_create(
-                username=lower_and_underescore(AUTOMATION_ACCOUNT),
-                email=f'{lower_and_underescore(AUTOMATION_ACCOUNT)}@example.com',
+                username=lower_and_underscore(AUTOMATION_ACCOUNT),
+                email=f'{lower_and_underscore(AUTOMATION_ACCOUNT)}@example.com',
                 type=User.UserType.APP_STAFF,
                 defaults={
                     'name': AUTOMATION_ACCOUNT,

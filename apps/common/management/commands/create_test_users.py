@@ -1,7 +1,7 @@
 from django.core.management.base import BaseCommand
 from apps.user_app.models import User,Company
 from apps.common.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_A_PASSWORD, TESTING_ACCOUNT_B, TESTING_ACCOUNT_B_PASSWORD, TESTING_ACCOUNT_C, TESTING_ACCOUNT_C_PASSWORD
-from apps.common.functions import lower_and_underescore
+from apps.common.functions import lower_and_underscore
 from django.utils import timezone
 from django.core.management import call_command
 
@@ -20,7 +20,7 @@ class Command(BaseCommand):
             return
 
         # A
-        name_a = lower_and_underescore(TESTING_ACCOUNT_A)
+        name_a = lower_and_underscore(TESTING_ACCOUNT_A)
         
         try:
             testing_account_a = User.objects.get(
@@ -42,7 +42,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Successfully created testing account A'))
         
         # B
-        name_b = lower_and_underescore(TESTING_ACCOUNT_B)
+        name_b = lower_and_underscore(TESTING_ACCOUNT_B)
 
         try:
             testing_account_b = User.objects.get(
@@ -63,7 +63,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Successfully created testing account B'))
         
         # C
-        name_c = lower_and_underescore(TESTING_ACCOUNT_C)
+        name_c = lower_and_underscore(TESTING_ACCOUNT_C)
 
         try:
             testing_account_c = User.objects.get(

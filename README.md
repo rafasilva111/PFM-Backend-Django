@@ -1,30 +1,81 @@
-# GoodBites Backend App
+# 🍽️ GoodBites Backend
 
-This is the backend application for **GoodBites**, powered by Django, PostgreSQL, and Docker. This setup supports efficient local development and production deployment using Docker, WSL, and optional VS Code integration.
-
-## 🧰 Requirements
-
-* [WSL](https://learn.microsoft.com/en-us/windows/wsl/)
-* [Docker](https://www.docker.com/)
-* [VS Code](https://code.visualstudio.com/)
-* Python 3.10+
-* PostgreSQL
+Welcome to the backend of **GoodBites**, a modern food-focused platform designed for real-time interaction and efficient task processing.  
+This backend is built with Django, PostgreSQL, Celery, Redis, and Channels, and is fully containerized using Docker for ease of development and deployment.
 
 ---
 
-## ⚙️ Full Local Development Setup
+## 🔧 Tech Stack
 
-### 1. Prepare WSL Environment
+| Technology     | Description                                                                  |
+|----------------|------------------------------------------------------------------------------|
+| **Django**     | High-level Python web framework for rapid development and clean architecture |
+| **Firebase**   | Optional integration for push notifications, analytics, or storage           |
+| **PostgreSQL** | Reliable and powerful open-source relational database                        |
+| **Celery**     | Asynchronous task queue for background processing and scheduling             |
+| **Redis**      | In-memory data store used as Celery broker and for caching                   |
+| **Channels**   | Adds WebSocket and async support to Django for real-time features            |
+| **Docker**     | Ensures consistent environments for development, testing, and deployment     |
+| **WSL**        | Linux environment on Windows for native-like Docker and development support  |
+| **VS Code**    | Optional IDE integration for streamlined development                         |
+
+---
+
+## ✨ General Features
+
+- 🔐 **User Authentication & Permissions**
+- 🔄 **Real-time Updates via WebSockets**
+- 🧠 **Asynchronous Tasks with Celery + Redis**
+- 🗓️ **Scheduled Jobs with Celery Beat**
+- 🛠️ **Powerful Django Admin Dashboard**
+- 🛠️ **ETL Functionality for Data Extraction, Transformation & Loading Workflows**
+- 🌐 **Automated Web Scraping with Selenium & BeautifulSoup for Dynamic and Static Content**
+- 📦 **Containerized for Easy Setup and Deployment**
+- 🔍 **API-ready Architecture (REST)**
+- 🧪 **Integrated Testing Tools (Pytest, unittest)**
+- 📚 **Well-Structured Developer Documentation with Sphinx**
+- 🌐 **DNS Configuration and HTTPS Support for Secure Production Deployment (NameCheap)**
+- 📧 **Email Integration for Notifications, Verification & Password Reset (MailTrap)**
+- 🔐 **Bot Protection via CAPTCHA Integration (reCAPTCHA)**
+
+## ✨ App Features
+
+- 👤 **User Management (Create, Update, Delete, Block)**
+- 🛡️ **Group/Permissions Management**
+- ✅ **Task Management**
+- 🧑‍💼 **Jobs Management**
+- 📖 **Recipes Management**
+- 🥕 **Ingredients Management**
+- 📅 **Calendar Management**
+- 🛒 **Shopping Lists Management**
+- 📲 **Notification Lists Management**
+- 🧴 **Dispensary Lists Management**
+
+
+🛠️ Management refers to full CRUD operations (Create, Read, Update, Delete), along with essential supporting functionality such as filtering, searching, sharing, notifications, role-based access control, and any additional domain-specific features required for each entity.
+
+---
+
+## 🧰 Prerequisites
+
+- Python 3.10+
+- PostgreSQL (via Docker or local)
+- Redis (via Docker or local)
+- RabbitMQ (via Docker or local)
+- Docker + Docker Compose
+- [WSL](https://learn.microsoft.com/en-us/windows/wsl/) for Windows users
+- [VS Code](https://code.visualstudio.com/) (optional but recommended)
+
+---
+
+## ⚙️ Local Development Setup
+
+### 1. Setup WSL + System Dependencies
 
 ```bash
 wsl
-```
-
-Install Python and dependencies:
-
-```bash
-sudo apt-get update
-sudo apt-get install -y python3.10 python3.10-venv libpq-dev gcc postgresql
+sudo apt update
+sudo apt install -y python3.10 python3.10-venv libpq-dev gcc postgresql redis
 ```
 
 ### 2. Clone the Repository
@@ -34,7 +85,7 @@ git clone https://github.com/rafasilva111/PFM-Backend-Django.git
 cd PFM-Backend-Django
 ```
 
-### 3. Python Virtual Environment Setup
+### 3. Create and Activate Virtual Environment
 
 ```bash
 python3.10 -m venv venv
@@ -42,203 +93,105 @@ source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 4. VS Code Integration (Optional)
+### 4. Setup Environment Variables
 
-Create `.vscode/launch.json`:
+Copy and modify `.env.dev.full_local` to `.env.dev`:
 
-```json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "Python: Django",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/manage.py",
-            "args": [
-            "runserver",
-            "0.0.0.0:8000"
-            ],
-            "django": true,
-            "envFile": "${workspaceFolder}/.env.dev"  // Specify your .env file path ( use .env.dev.full_local as example )
-        },
-        {
-            "name": "Gunicorn ASGI (UvicornWorker)",
-            "type": "python",
-            "request": "launch",
-            "module": "gunicorn",
-            "args": [
-            "config.asgi:application",
-            "--bind", "0.0.0.0:8000",
-            "-k", "uvicorn.workers.UvicornWorker",
-            "-w", "1"
-            ],
-            "envFile": "${workspaceFolder}/.env.dev"  // Specify your .env file path ( use .env.dev.full_local as example )
-        },
-        {
-            "name": "Test Command",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/manage.py",
-            "args": [
-                "create_groups",
-                "--assign-test-users"
-            ],
-            "django": true,
-            "envFile": "${workspaceFolder}/.env.dev"   // Specify your .env file path ( use .env.dev.full_local as example )
-        },
-        {
-            "name": "Run pyTests case",
-            "type": "debugpy",
-            "request": "launch",
-            "program": "${workspaceFolder}/manage.py",
-            "args": [
-                "test",
-                "apps.api.tests.UsersToFollowViewTestCase"
-            ],
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env.dev"   // Specify your .env file path ( use .env.dev.full_local as example )
-        }
-    ]
-}
+```bash
+cp .env.dev.full_local .env.dev
 ```
 
-### 5. Database Setup
+Update values as needed.
 
-#### 5.1. Docker Database Setup
-
-Start PostgreSQL:
+### 5. Run Database Setup
 
 ```bash
 sudo service postgresql start
+python create_databases.py
 ```
 
-Run the database setup script:
+### 6. Start Redis
 
 ```bash
-python3.10 create_databases.py
+sudo service redis-server start
 ```
 
-#### 5.2. Local Database Setup
-
-Update bash:
+### 7. Run the Development Server
 
 ```bash
-sudo apt update
+python manage.py migrate
+python manage.py runserver
 ```
 
-Install PostgreSQL:
+---
+
+## 🧪 Testing
+
+To run tests:
 
 ```bash
-sudo apt install postgresql postgresql-contrib
+python manage.py test
 ```
 
-Run PostgreSQL Service:
+Or use pytest if configured:
 
 ```bash
-sudo service postgresql start
+pytest
 ```
 
-Set PostgreSQL Service to start with the machine ( optional ):
+---
+
+## 🐳 Docker Setup
+
+To run the entire stack with Docker:
 
 ```bash
-sudo service postgresql enable
+docker-compose up --build
 ```
 
-Run the database setup script:
+Access Django at: [http://localhost:8000](http://localhost:8000)
 
-```bash
-python3.10 create_databases.py
-```
+---
 
-### 6. Redis Setup
+## 📁 VS Code Integration (Optional)
 
-#### 6.1. Docker Redis Setup
-
-Start Redis:
-
-```bash
-sudo service Redis start
-```
-
-#### 6.2. Local Redis Setup
-
-Update bash:
-
-```bash
-sudo apt update
-```
-
-Install PostgreSQL:
-
-```bash
-sudo apt install postgresql postgresql-contrib
-```
-
-Run PostgreSQL Service:
-
-```bash
-sudo service postgresql start
-```
-
-Set PostgreSQL Service to start with the machine ( optional ):
-
-```bash
-sudo service postgresql enable
-```
-
-
-### Shell Access
-
-Django shell:
-
-```bash
-docker exec -it django python manage.py shell
-```
-
-PostgreSQL access:
-
-```bash
-psql -U postgres -h localhost -d goodbites
-```
+Use `.vscode/launch.json` for debugging and development directly from VS Code. Enable `devcontainers` if using Remote - WSL or Docker.
 
 ---
 
 ## 💡 Useful Commands
 
-Start RabbitMQ:
-
 ```bash
+# Start RabbitMQ (if used)
 docker run -d -p 5672:5672 rabbitmq
+
+# Celery workers and beat scheduler
+celery -A config.celery worker --loglevel=info
+celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+# Access PostgreSQL
+psql -U postgres -h localhost -d goodbites
+
+# Access Django shell
+docker exec -it django python manage.py shell
 ```
 
-Start Celery:
+---
 
-```bash
-celery -A config.celery worker --loglevel=INFO
-celery -A config.celery flower
-celery -A config.celery beat --loglevel=debug --scheduler django_celery_beat.schedulers:DatabaseScheduler
-```
+## 📦 Deployment
 
-Reset WSL DNS (if needed):
+- Use Gunicorn + UvicornWorker for ASGI compatibility.
+- Nginx or Caddy recommended as reverse proxy.
+- Environment variables and secrets should be managed using `.env` files or a secret manager.
 
-```bash
-sudo rm /etc/resolv.conf
-sudo bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
-sudo bash -c 'echo "[network]" > /etc/wsl.conf'
-sudo bash -c 'echo "generateResolvConf = false" >> /etc/wsl.conf'
-sudo chattr +i /etc/resolv.conf
-```
+---
 
-Transfer file to remote server:
+## 📜 License
 
-```bash
-scp -i ~/.ssh/ssh_key.pem file.json user@host:/tmp
-```
+© 2025 GoodBites. All rights reserved.
 
-List all Docker container IPs:
+This software and all associated files are the exclusive property of [Your Name].  
+Unauthorized copying, distribution, use, or modification of any part of this project is strictly prohibited without prior written permission.
 
-```bash
-docker ps -q | xargs -n 1 docker inspect -f '{{.Name}} - {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}'
-```
-
+This code is licensed for private use only.  
+Commercial or public use, including derivative works, is not allowed.

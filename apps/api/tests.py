@@ -3,7 +3,7 @@ from rest_framework import status
 import sys
 import os
 
-from apps.api.views import AuthView,LoginView
+from apps.user_app.api_views import AuthView,LoginView
 from apps.api.constants import ERROR_TYPES,RESPONSE_CODES
 from apps.user_app.models import User
 from apps.user_app.serializers import SimpleUserSerializer, UserSerializer

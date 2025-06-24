@@ -78,6 +78,23 @@ sudo apt update
 sudo apt install -y python3.10 python3.10-venv libpq-dev gcc postgresql redis
 ```
 
+If you encounter errors like:
+
+```
+E: Unable to locate package python3.10
+E: Couldn't find any package by glob 'python3.10'
+E: Unable to locate package python3.10-venv
+E: Couldn't find any package by glob 'python3.10-venv'
+```
+
+run the following commands first:
+
+```bash
+sudo apt install -y software-properties-common
+sudo add-apt-repository ppa:deadsnakes/ppa
+sudo apt update
+```
+
 ### 2. Clone the Repository
 
 ```bash

@@ -8,6 +8,14 @@
 
 from django.contrib import admin
 from django.urls import  path, include
+from django.views.static import serve
+from django.conf import settings
+
+##
+#   Third Party
+#
+
+import os
 
 ##
 #   Views 
@@ -16,7 +24,7 @@ from django.urls import  path, include
 from apps.common.views import DashboardsView, ReadMeView,TermsAndConditionsView, total_task_chart_data,total_task_report_chart_data
 from apps.user_app.views import LoginView,RegisterView,LogoutView,\
     PasswordResetView,PasswordResetDoneView,PasswordResetConfirmView,PasswordResetCompleteView
-
+from django.views.generic import TemplateView
 ##
 #   Views 
 #
@@ -55,6 +63,12 @@ urlpatterns = [
     
     path("total-task-chart-data", total_task_chart_data, name="total_task_chart_data"),
     path("total-task-report-chart-data", total_task_report_chart_data, name="total_task_report_chart_data"),
+    
+    path('docs/', TemplateView.as_view(template_name='index.html')),
+    path('docs/<path:path>', serve, {
+        'document_root': os.path.join(settings.BASE_DIR, 'docs/build/html'),
+    }),
+    
     
     ###
     #   Admin Routes
@@ -96,6 +110,7 @@ urlpatterns = [
     ##
     
     path("", include("apps.recipe_app.urls")),
+    
     
 ]
 

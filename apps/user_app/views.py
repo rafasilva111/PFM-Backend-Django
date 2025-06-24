@@ -12,6 +12,7 @@ from web_project import TemplateLayout
 ##
 #   Django 
 #
+
 from django.shortcuts import render,redirect,get_object_or_404
 from django.utils.decorators import method_decorator
 from django.contrib.auth.decorators import login_required,permission_required
@@ -111,77 +112,93 @@ logger = logging.getLogger(__name__)
 
 class LoginView(TemplateView):
     """
-    View for handling user login.
-    Attributes:
-        template_name (str): Path to the login template.
-        form_class (LoginForm): Form class for login.
-    Methods:
-        get_context_data(**kwargs):
-            Adds additional context data to the template context.
-        post(request):
-            Handles POST requests for user login. Authenticates the user and logs them in if credentials are valid.
-            Sets session expiry based on the 'remember_me' option.
+    Manages the display and processing of the login form, authenticates users, and manages session expiry based on the 'remember me' option.
+
+    Attributes
+    ----------
+    template_name : str
+        Path to the login template.
+    form_class : Type[LoginForm]
+        The form class used for user login.
     """
+
     template_name = 'user_app/auth/login.html'
     form_class = LoginForm
 
     def get_context_data(self, **kwargs):
-        
-        
-        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        """
+        Adds additional context data to the template context, including the login form and layout path.
 
+        Parameters
+        ----------
+        **kwargs : dict
+            Additional keyword arguments.
+
+        Returns
+        -------
+        dict
+            The context dictionary for rendering the template.
+        """
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         context.update({
-            'layout_path' : TemplateHelper.set_layout("layout_blank.html", context),
+            'layout_path': TemplateHelper.set_layout("layout_blank.html", context),
             'form': self.form_class(),
         })
         return context
 
     def get(self, request):
-        
+        """
+        Handles GET requests. If the user is already authenticated, redirects to the home page; otherwise, renders the login form.
+
+        Parameters
+        ----------
+        request : HttpRequest
+            The HTTP request object.
+
+        Returns
+        -------
+        HttpResponse
+            Redirects to the home page if authenticated, otherwise renders the login form.
+        """
         if request.user.is_authenticated:
             return redirect('home')
-        
         context = self.get_context_data()
-        
         return self.render_to_response(context)
 
     def post(self, request):
         """
-        Handle POST requests for user login.
-        This method processes the login form, authenticates the user, and manages session expiry based on the 'remember me' option.
-        Args:
-            request (HttpRequest): The HTTP request object containing POST data.
-        Returns:
-            HttpResponse: Redirects to the next URL or home page if authentication is successful.
-                          Renders the login template with form errors if authentication fails or form is invalid.
+        Handles POST requests for user login. Authenticates the user using the provided email and password,
+        manages session expiry based on the 'remember me' option, and redirects appropriately.
+
+        Parameters
+        ----------
+        request : HttpRequest
+            The HTTP request object containing POST data.
+
+        Returns
+        -------
+        HttpResponse
+            Redirects to the next URL or home page if authentication is successful.
+            Renders the login template with form errors if authentication fails or the form is invalid.
         """
         instance_form = self.form_class(request.POST)
         if instance_form.is_valid():
             email = instance_form.cleaned_data['email']
             password = instance_form.cleaned_data['password']
-            remember_me  = instance_form.cleaned_data['remember_me']
+            remember_me = instance_form.cleaned_data['remember_me']
             user = authenticate(request, email=email, password=password)
             if user is not None:
                 login(request, user)
-
                 if remember_me:
-                    # If remember_me is checked, set a longer session expiry time
                     request.session.set_expiry(settings.SESSION_COOKIE_AGE)
                 else:
-                    # If remember_me is not checked, use the default session expiry time
-                    request.session.set_expiry(0)  # Expire at browser close
-                
-                # Redirect to the next URL or home page after successful login
+                    request.session.set_expiry(0)
                 next_url = request.GET.get('next', reverse('home'))
                 return redirect(next_url)
             else:
-                # Add an error to the form if authentication fails
                 instance_form.add_error("password", "Invalid email or password")
-                
-        # If form is invalid or authentication failed, pass form with errors back to template
         context = self.get_context_data()
         context['form'] = instance_form
-        
         return render(request, self.template_name, context)
 
 class RegisterView(View):

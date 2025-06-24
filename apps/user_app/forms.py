@@ -62,10 +62,14 @@ class LoginForm(forms.Form):
         'placeholder': 'Enter your email or username',
         'class': 'form-control'
     }))
-    password = forms.CharField(label='Password', widget=forms.PasswordInput(attrs={
-        'placeholder': '********************',
-        'class': 'form-control'
-    }))
+    password = forms.CharField(
+        label='Password',
+        widget=forms.PasswordInput(attrs={
+            'placeholder': '********************',
+            'class': 'form-control',
+            'autocomplete': 'off'
+        })
+    )
     remember_me = forms.BooleanField(label='Remember Me', required=False, widget=forms.CheckboxInput(attrs={
         'class': 'form-check-input'
     }))

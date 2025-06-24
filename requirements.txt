@@ -104,6 +104,7 @@ django_extensions
 drf_yasg
 channels_redis
 sphinx
+sphinx-autobuild
 sphinx-autoapi
 sphinx_rtd_theme
 django-multiselectfield
@@ -111,3 +112,4 @@ selenium
 django-recaptcha
 uvicorn
 django-ratelimit
+pytest-django

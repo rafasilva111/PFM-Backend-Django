@@ -112,7 +112,7 @@ pip install -r requirements.txt
 
 ### 4. Setup Environment Variables
 
-Copy and modify `.env.dev.full_local` to `.env.dev`:
+Copy and modify `.env.dev.full_local` to `.env`:
 
 ```bash
 cp .env.dev.full_local .env
@@ -201,10 +201,23 @@ pytest
 
 ## 🐳 Docker Setup
 
-To run the entire stack with Docker:
+
+### 1. Generate SSL Secrets (Optional):
 
 ```bash
-docker-compose up --build
+sh generate_ssl_secrets.sh
+```
+
+### 2. Copy and modify `.env.dev.docker` to `.env`:
+
+```bash
+cp .env.dev.docker .env
+```
+
+### 3. To run the entire stack with Docker:
+
+```bash
+docker-compose up -d
 ```
 
 Access Django at: [http://localhost:8000](http://localhost:8000)

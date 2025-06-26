@@ -148,7 +148,7 @@ psql -U postgresql -h localhost
 
 ```sql
 CREATE DATABASE goodbites;
-´´´
+```
 
 ### 8. Run Reddis Service
 

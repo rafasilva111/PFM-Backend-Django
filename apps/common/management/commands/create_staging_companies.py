@@ -65,7 +65,7 @@ class Command(BaseCommand):
         ## Continente
 
         # Check for Company Model
-        username = lower_and_underescore(COMPANY_CONTINENTE)      
+        username = lower_and_underscore(COMPANY_CONTINENTE)      
         company_images_bucket = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{username}"
         
         try:
@@ -83,7 +83,7 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS('Successfully created the default company'))
 
         # Check for Company default User
-        username = lower_and_underescore(COMPANY_CONTINENTE)  
+        username = lower_and_underscore(COMPANY_CONTINENTE)  
         company_image_path = f"{company_images_bucket}/{PROFILE_IMAGE_NAME}"
         
         continente_user, created = User.objects.get_or_create(

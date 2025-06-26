@@ -60,14 +60,15 @@ logger = logging.getLogger(__name__)
 class LoginForm(forms.Form):
     email = forms.EmailField(label='Email', widget=forms.TextInput(attrs={
         'placeholder': 'Enter your email or username',
-        'class': 'form-control'
+        'class': 'form-control',
+        'autocomplete': 'email'
     }))
     password = forms.CharField(
         label='Password',
         widget=forms.PasswordInput(attrs={
             'placeholder': '********************',
             'class': 'form-control',
-            'autocomplete': 'off'
+            'autocomplete': 'current-password',
         })
     )
     remember_me = forms.BooleanField(label='Remember Me', required=False, widget=forms.CheckboxInput(attrs={

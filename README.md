@@ -75,10 +75,10 @@ This backend is built with Django, PostgreSQL, Celery, Redis, and Channels, and 
 ```bash
 wsl
 sudo apt update
-sudo apt install -y python3.10 python3.10-venv libpq-dev gcc postgresql redis
+sudo apt install -y python3.10 python3.10-venv libpq-dev gcc postgresql redis rabbitmq
 ```
 
-If you encounter errors like:
+#### 1.2. If you encounter errors like:
 
 ```
 E: Unable to locate package python3.10
@@ -87,7 +87,7 @@ E: Unable to locate package python3.10-venv
 E: Couldn't find any package by glob 'python3.10-venv'
 ```
 
-run the following commands first:
+#### Run the following commands first:
 
 ```bash
 sudo apt install -y software-properties-common
@@ -115,25 +115,66 @@ pip install -r requirements.txt
 Copy and modify `.env.dev.full_local` to `.env.dev`:
 
 ```bash
-cp .env.dev.full_local .env.dev
+cp .env.dev.full_local .env
 ```
 
 Update values as needed.
 
-### 5. Run Database Setup
+### 5. Run Database Service
 
 ```bash
 sudo service postgresql start
-python create_databases.py
 ```
 
-### 6. Start Redis
+### 6. Create PostgreSQL User
+
+```bash
+sudo -u postgres psql
+```
+
+```sql
+\password ( # enter password or change the .env.dev file)
+````
+
+```sql
+\q
+````
+
+### 7. Create Database
+
+```bash
+psql -U postgresql -h localhost
+```
+
+```sql
+CREATE DATABASE goodbites;
+´´´
+
+### 8. Run Reddis Service
 
 ```bash
 sudo service redis-server start
 ```
 
-### 7. Run the Development Server
+### 8. Run RabbitMQ Service
+
+```bash
+sudo service rabbitmq-server start
+```
+
+### 10. Run Celery Workers ( open new terminal )
+
+```bash
+celery -A config.celery worker --loglevel=info
+```
+
+### 11. Run Celery Beat Scheduler ( open new terminal )
+
+```bash
+celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+```
+
+### 9. Run the Development Server
 
 ```bash
 python manage.py migrate
@@ -150,7 +191,7 @@ To run tests:
 python manage.py test
 ```
 
-Or use pytest if configured:
+Or use pytest:
 
 ```bash
 pytest

@@ -2,7 +2,7 @@ from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from apps.user_app.models import User
 from apps.common.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_B,  TESTING_ACCOUNT_C
-from apps.common.functions import lower_and_underescore
+from apps.common.functions import lower_and_underscore
 
 
 
@@ -107,9 +107,9 @@ class Command(BaseCommand):
 
         # Predefined users to groups mapping
         
-        name_a = lower_and_underescore(TESTING_ACCOUNT_A)
-        name_b = lower_and_underescore(TESTING_ACCOUNT_B)
-        name_c = lower_and_underescore(TESTING_ACCOUNT_C)
+        name_a = lower_and_underscore(TESTING_ACCOUNT_A)
+        name_b = lower_and_underscore(TESTING_ACCOUNT_B)
+        name_c = lower_and_underscore(TESTING_ACCOUNT_C)
         
         users_to_groups = {
             User.UserType.NORMAL: [f"{name_c}@{name_c}.pt"],

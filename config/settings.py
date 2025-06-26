@@ -99,7 +99,6 @@ MIDDLEWARE = [
 
 
 ROOT_URLCONF = "apps.common.urls"
-teste = print(os.path.join(BASE_DIR, "docs", "build", "html"))
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",

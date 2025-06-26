@@ -46,7 +46,7 @@ DEBUG = ENVIRONMENT == "dev"
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),"172.19.128.1"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),"172.19.128.1","172.162.241.76"]
     
 
 CSRF_TRUSTED_ORIGINS = [

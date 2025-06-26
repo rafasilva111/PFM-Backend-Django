@@ -133,12 +133,12 @@ sudo -u postgres psql
 ```
 
 ```sql
-\password ( # enter password or change the .env.dev file)
-````
+\password ( enter "password" or change it on .env file )
+```
 
 ```sql
 \q
-````
+```
 
 ### 7. Create Database
 

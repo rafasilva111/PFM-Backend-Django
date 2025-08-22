@@ -339,7 +339,7 @@ def pull_recipes(logger,task):
     
 
     " Initialize the Control variables "    
-    OFFSET = None
+    OFFSET = task.step
     
     logger.info("")
     logger.info("Starting to pull Recipes")

@@ -256,7 +256,7 @@ def tansform_recipes_ai(logger, task):
     ingredients_json = json.dumps(ingredient_dicts, ensure_ascii=False, indent=4)
    
     # Configure API Key
-    genai.configure(api_key="AIzaSyBcQ1m55sL7UxjRBeO57g8aZXccqJjC18s")
+    genai.configure(api_key="")
 
     # Create the model
     model = genai.GenerativeModel(model_name="gemini-1.5-flash")

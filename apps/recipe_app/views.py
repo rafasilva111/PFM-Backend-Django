@@ -184,15 +184,9 @@ class RecipeDetailView(PermissionRequiredMixin, TemplateView):
 
 @login_required
 @require_GET
-def recipe_edit(request, id):
-
-    return redirect(request.path)
-
-@login_required
-@require_GET
 def recipe_delete(request, id):
     
-    instance = get_object_or_404(Task, id=id)
+    instance = get_object_or_404(Recipe, id=id)
     instance.delete()
 
     return redirect('recipes')
@@ -573,8 +567,6 @@ class RecipeReportCreateView(PermissionRequiredMixin, TemplateView):
         form_data = request.POST.copy()
         form_data['recipe'] = kwargs.get('id') 
         form_data['user'] = request.user.id 
-        print(form_data['user']  )
-        print(form_data)
         form = RecipeReportForm(form_data) 
 
         if form.is_valid():

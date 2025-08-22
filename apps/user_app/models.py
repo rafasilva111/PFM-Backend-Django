@@ -59,7 +59,7 @@ class Company(BaseModel):
     processes = MultiSelectField(
         choices=ProcessType.choices,
         max_length=40,  # Adjust based on expected selections
-        default=None,
+        default=list
     )
 
     def __str__(self):

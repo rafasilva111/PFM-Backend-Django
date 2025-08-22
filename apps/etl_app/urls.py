@@ -12,7 +12,7 @@ from django.urls import  path
 #   Views 
 #
 
-from apps.etl_app.views import JobTableView, JobCreateView , JobDetailView, JobEditView, job_delete, job_enable, job_disable, job_force_start\
+from apps.etl_app.views import JobTableView, JobCreateView , JobDetailView, JobEditView, job_delete, job_enable, job_disable, job_force_start,job_issues_data\
     , TaskTableView, TaskDetailView, TaskCreateView, TaskEditView, task_delete, task_restart, task_cancel, task_pause, task_resume, download_log, download_db
 
 
@@ -38,6 +38,7 @@ urlpatterns = [
     path("job/<int:id>/delete", job_delete, name="job_delete"),
     path("job/<int:id>/log/clear", download_log, name="job_log_clear"),
     path("job/<int:id>/log/download", download_log, name="job_log_download"),
+    path("job/<int:id>/issues/data", job_issues_data, name="job_issues_data"),
     
     ###
     #   Tasks

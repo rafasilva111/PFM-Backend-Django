@@ -20,17 +20,15 @@ def _extract_recipes(logger, task, resume):
     """
     
     if ProcessType.RECIPES.value not in task.company.processes:
-        logger.error(f"Company of task does not have a Recipe's process.")
-        task.increment_errors()
+        task.increment_errors(logger, f"Company of task does not have a Recipe's process.")
         return
         
     if task.company.name == COMPANY_PINGO_DOCE:
-        __extract_pingo_doce(logger,task)
+        return __extract_pingo_doce(logger,task)
 
     elif task.company.name == COMPANY_CONTINENTE:
-        __extract_continente_recipes(logger, task, resume)
+        return __extract_continente_recipes(logger, task, resume)
 
     else:
-        logger.error(f"Company of task does not have a Recipe's process implemented.")
-        task.increment_errors()
+        task.increment_errors(logger, f"Company of task does not have a Recipe's process.")
         return

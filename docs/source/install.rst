@@ -1,94 +1,148 @@
-=============
-Installation
-=============
-
-.. note:: For things with the following it means type it at the command line and hit enter::
-
-    $ ls -al
-
-Before you start
-================
-
-Do you have pip, virtualenv, virtualenvwrapper, and git-scm installed? If not, you'll need to get those on your machine before proceeding.
-
-If you need to install pip::
-
-    $ curl -O https://raw.github.com/pypa/pip/master/contrib/get-pip.py
-    $ python get-pip.py
-    
-If you need to install virtualenv::
-
-    $ pip install virtualenv
-    
-If you need to install virtualenvwrapper::
-
-    $ pip install virtualenvwrapper
-
-If you need to install git:
-
-    * http://git-scm.com
-
-The Basics
-===========
-
-Create a virtualenv for this project. We do this so we isolate all our work from the rest of Python on our computer::
-
-    $ mkvirtualenv dpkenv
-
-Now we clone django-party-pack and go into django-party-pack::
-
-    $ git clone https://pydanny@github.com/pydanny/django-party-pack.git
-    $ cd django-party-pack
-    
-Now let's install our dependencies::
-
-    $ pip install -r requirements.txt
-    
-This may take a few minutes. Feel free to go get some coffee. :)
-
-Settings setup
-===============
-
-We're going to follow what Django BDFL Jacob Kaplan-Moss `advocates as best practices for dealing with settings`_. That means we're going to ignore the manage.py file in the root of our Django project and use the django-admin.py script. In order to do that, we need to take a few more steps.
-
-First, we add some virtualenv bits to allow us to access the settings properly::
-
-    $ echo "export DJANGO_SETTINGS_MODULE=settings.dev" >> $VIRTUAL_ENV/bin/postactivate
-    $ echo "unset DJANGO_SETTINGS_MODULE" >> $VIRTUAL_ENV/bin/postdeactivate
-    
-This will allow you to eschew passing in --settings= into management commands.
-
-Now we add to the virtualenv paths our pollaxe project::
-
-    add2virtualenv <<path to django-party-pack repo>>/pollaxe
-
-Running standard Django Commands
-================================
-
-Try out the project::
-
-    $ django-admin.py syncdb
-    $ django-admin.py runserver
-
-Running django-coverage
-========================
-
-Simply run this command::
-
-    $ django-admin.py test
-
-Now open the pollaxe/coverage/index.html file in your favorite browser.
-
-    
-Building these sphinx docs
+⚙️ Local Development Setup
 ==========================
 
-Want to have a local copy of these documents? Easy! Change to our docs directory::
+1. Setup WSL + System Dependencies
+----------------------------------
 
-    $ cd docs
+.. code-block:: bash
 
-Now we generate the sphinx docs in html format::
+   wsl
+   sudo apt update
+   sudo apt install -y python3.10 python3.10-venv libpq-dev gcc postgresql redis rabbitmq
 
-    $ make html
+1.2. If you encounter errors like:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. _`advocates as best practices for dealing with settings`: http://www.slideshare.net/jacobian/the-best-and-worst-of-django/51
+.. code-block:: text
+
+   E: Unable to locate package python3.10
+   E: Couldn't find any package by glob 'python3.10'
+   E: Unable to locate package python3.10-venv
+   E: Couldn't find any package by glob 'python3.10-venv'
+
+Run the following commands first:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. code-block:: bash
+
+   sudo apt install -y software-properties-common
+   sudo add-apt-repository ppa:deadsnakes/ppa
+   sudo apt update
+
+2. Clone the Repository
+-----------------------
+
+.. code-block:: bash
+
+   git clone https://github.com/rafasilva111/PFM-Backend-Django.git
+   cd PFM-Backend-Django
+
+3. Create and Activate Virtual Environment
+------------------------------------------
+
+.. code-block:: bash
+
+   python3.10 -m venv venv
+   source venv/bin/activate
+   pip install -r requirements.txt
+
+4. Setup Environment Variables
+------------------------------
+
+Copy and modify `.env.dev.full_local` to `.env`:
+
+.. code-block:: bash
+
+   cp .env.dev.full_local .env
+
+Update values as needed.
+
+5. Run Database Service
+-----------------------
+
+.. code-block:: bash
+
+   sudo service postgresql start
+
+6. Create PostgreSQL User
+-------------------------
+
+.. code-block:: bash
+
+   sudo -u postgres psql
+
+.. code-block:: sql
+
+   \password  -- ( enter "password" or change it on .env file )
+   \q
+
+7. Create Database
+------------------
+
+.. code-block:: bash
+
+   psql -U postgresql -h localhost
+
+.. code-block:: sql
+
+   CREATE DATABASE goodbites;
+
+8. Run Redis Service
+--------------------
+
+.. code-block:: bash
+
+   sudo service redis-server start
+
+9. Run RabbitMQ Service
+-----------------------
+
+.. code-block:: bash
+
+   sudo service rabbitmq-server start
+
+10. Run Celery Workers (open new terminal)
+------------------------------------------
+
+.. code-block:: bash
+
+   celery -A config.celery worker --loglevel=info
+
+11. Run Celery Beat Scheduler (open new terminal)
+-------------------------------------------------
+
+.. code-block:: bash
+
+   celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+
+12. Run the Development Server
+------------------------------
+
+.. code-block:: bash
+
+   python manage.py migrate
+   python manage.py runserver
+
+🐳 Docker Setup
+===============
+
+1. Generate SSL Secrets (Optional)
+----------------------------------
+
+.. code-block:: bash
+
+   sh generate_ssl_secrets.sh
+
+2. Copy and modify `.env.dev.docker` to `.env`
+----------------------------------------------
+
+.. code-block:: bash
+
+   cp .env.dev.docker .env
+
+3. To run the entire stack with Docker
+--------------------------------------
+
+.. code-block:: bash
+
+   docker-compose up -d

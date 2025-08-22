@@ -9,6 +9,8 @@ import json
 import time
 import uuid
 from datetime import datetime
+import unicodedata
+import re
 
 import shutil
 
@@ -121,7 +123,11 @@ def start_db(logger, task, models, path, database_proxy, reset=False):
 
     " If reset is True, drop all tables in the database "
     if reset:
-        logger.info("Resetting Database...")
+        if logger:
+            logger.info("Resetting Database...")
+        else:
+            print("Resetting Database...")
+            
         database.drop_tables(models)
 
 
@@ -148,23 +154,24 @@ def start_sub_db(logger, task, models, database_proxy):
     if task.parent_task:
         database = SqliteDatabase(task.parent_task.sql_path)
 
-    elif task.owner_job.parent_job:
-        if task.owner_job.parent_job.current_task:
-            database = SqliteDatabase(task.owner_job.parent_job.current_task.sql_path)
-        else:
-            logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
-            task.errors += 1
-            task.save()
-            return task, None
+    elif task.owner_job:
+        if task.owner_job.parent_job:
+            if task.owner_job.parent_job.current_task:
+                database = SqliteDatabase(task.owner_job.parent_job.current_task.sql_path)
+            else:
+                logger.error("Parent job does not have a current task with a SQL file. Most likely the Job has not been run yet.")
+                task.errors += 1
+                task.save()
+                return task, None
         
-    elif task.owner_job.parent_task:
-        if task.owner_job.parent_task.sql_path:
-            database = SqliteDatabase(task.owner_job.parent_task.sql_path)
-        else:
-            logger.error("Parent task does not have a SQL file. Most likely the Task has not been run yet.")
-            task.errors += 1
-            task.save()
-            return task, None
+        elif task.owner_job.parent_task:
+            if task.owner_job.parent_task.sql_path:
+                database = SqliteDatabase(task.owner_job.parent_task.sql_path)
+            else:
+                logger.error("Parent task does not have a SQL file. Most likely the Task has not been run yet.")
+                task.errors += 1
+                task.save()
+                return task, None
         
     elif task.parent_job:
         if task.parent_job.current_task:
@@ -224,3 +231,23 @@ def create_driver(debug_mode=False):
     driver = webdriver.Firefox(service=service, options=options)
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver
+
+def normalize_text(text):
+    # Normalize and remove accents/diacritics
+    normalized = unicodedata.normalize('NFD', text)
+    without_accents = ''.join(
+        c for c in normalized if unicodedata.category(c) != 'Mn'
+    )
+    # Replace spaces with underscores
+    with_underscores = without_accents.replace(' ', '_')
+    # Remove any characters that are not alphanumeric or underscore
+    clean_text = re.sub(r'[^\w]', '', with_underscores)
+    return clean_text.strip().lower()
+
+
+def strip_markdown_json(text):
+        text = text.strip()
+        m = re.search(r"```json\s*(.*?)```", text, re.DOTALL)
+        if m:
+            text = m.group(1)
+        return text

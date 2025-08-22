@@ -45,8 +45,9 @@ class Recipe(BaseModel):
     company = CharField()
     title = CharField(null=False)
     description = CharField(null=False)
+    
     image = CharField(null=True)
-    video = CharField(null=True)
+    video_link = CharField(null=True)
 
     difficulty = CharField(null=True)
     portion_lower = CharField(null=True)
@@ -54,6 +55,8 @@ class Recipe(BaseModel):
     portion_units = CharField(null=True)
     time = CharField(null=True)
     time_units = CharField(null=True)
+    
+    valid = BooleanField(default=True)
 
     preparation = BlobField(null=False)
     nutrition_information = ForeignKeyField(NutritionInformation, backref='recipe', null=True, on_delete='CASCADE')
@@ -80,6 +83,8 @@ class IngredientQuantity(BaseModel):
 
     ingredient = ForeignKeyField(Ingredient, backref='ingredient_base')
     recipe = ForeignKeyField(Recipe, backref='ingredients', on_delete='CASCADE')
+    
+    ai = BooleanField(default=False)
 
     class Meta:
         db_table = 'ingredient_quantity'

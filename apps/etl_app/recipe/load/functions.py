@@ -1,6 +1,7 @@
 " Import necessary modules "
 from playhouse.shortcuts import model_to_dict
 import pickle
+import traceback
 
 " Import custom functions and constants "
 from apps.common.constants import FIREBASE_STORAGE_COMPANY_BUCKET, COMPANY_CONTINENTE
@@ -18,20 +19,16 @@ transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, Nutrit
 
 def load_recipe(logger, task, recipe):
     
-    " Initialize the warnings and errors "
-    
-    __errors = 0
-    __warnings = 0
     
     " Recipe "
     
     logger.info(f"Loading Recipe {recipe}.")
     
     recipe_t = model_to_dict(recipe, backrefs=True, recurse=True)
-    
+    #https://feed.continente.pt/receitas/yammi/granizado-limao-hortela-xl
     __recipe, created = Recipe.objects.get_or_create(
         created_by=task.company.user_account,
-        title=recipe.title
+        source_link=recipe.source_link
     )
     
     if created:
@@ -64,30 +61,29 @@ def load_recipe(logger, task, recipe):
         _useful_tools = recipe_t.pop('useful_tools')
         _tag_recipe_through = recipe_t.pop('tagrecipethrough_set')
         
+        recipe_t['image'] = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{lower_and_underscore(COMPANY_CONTINENTE)}/recipes/{recipe_t['image'].split('/')[-1]}"
+        
         " Check for changes in Recipe fields "
         for field in recipe_t.keys():
             
             if hasattr(Recipe, field):
-                peewee_value = getattr(recipe, field)
+                peewee_value = recipe_t[field]
                 django_value = getattr(__recipe, field)
         
                 if peewee_value != django_value:
-                    
                     mapped_fields[field] = {"old": django_value, "new": peewee_value}
-                    
                     setattr(__recipe, field, peewee_value)
-                    
                     __recipe.save()
+                    
             else:
                 # Log an error if the field does not exist in the Django Recipe model
-                logger.error(f"Field {field} does not exist in Django Recipe model.")
-                
-                # Increment the error count
-                __errors += 1
+                task.increment_errors(
+                    logger = logger,
+                    message = f"Field {field} does not exist in Django Recipe model."
+                )
         
         
         " Check for changes in Preparation "
-        
         mapped_fields['preparation'] = []
 
         # Create a dictionary for existing preparation steps for quick lookup
@@ -126,8 +122,10 @@ def load_recipe(logger, task, recipe):
                             setattr(prep_obj, field, peewee_value)
                             prep_obj.save()
                     else:
-                        logger.error(f"Field {field} does not exist in Django Preparation model.")
-                        __errors += 1
+                        task.increment_errors(
+                            logger = logger,
+                            message = f"Field {field} does not exist in Django Preparation model."
+                        )
             else:
                 # Create new preparation step
                 new_prep = Preparation.objects.create(
@@ -136,7 +134,7 @@ def load_recipe(logger, task, recipe):
                     description=item.get('description', '')
                 )
                 mapped_fields['preparation'].append({
-                    "added": {
+                    "created": {
                         "step": item['step'],
                         "description": item.get('description', '')
                     }
@@ -186,8 +184,10 @@ def load_recipe(logger, task, recipe):
                             setattr(ingredient_obj, field, peewee_value)
                             ingredient_obj.save()
                     else:
-                        logger.error(f"Field {field} does not exist in Django IngredientQuantity model.")
-                        __errors += 1
+                        task.increment_errors(
+                            logger = logger,
+                            message = f"Field {field} does not exist in Django IngredientQuantity model."
+                        )
             else:
                 # Create new ingredient and quantity
 
@@ -204,7 +204,7 @@ def load_recipe(logger, task, recipe):
                     extra_units=item.get('extra_units')
                 )
                 mapped_fields['ingredients_quantity'].append({
-                    "added": {
+                    "created": {
                         "ingredient": ingredient_name,
                         "quantity_original": item.get('quantity_original'),
                         "quantity_normalized": item.get('quantity_normalized'),
@@ -216,7 +216,6 @@ def load_recipe(logger, task, recipe):
 
         
         " Check for changes in Useful Tools "
-        
         mapped_fields['useful_tools'] = []
 
         # Create dictionaries for quick lookup of existing and incoming useful tools
@@ -255,15 +254,17 @@ def load_recipe(logger, task, recipe):
                             setattr(useful_tool_obj, field, peewee_value)
                             useful_tool_obj.save()
                     else:
-                        logger.error(f"Field {field} does not exist in Django UsefulTool model.")
-                        __errors += 1
+                        task.increment_errors(
+                            logger = logger,
+                            message = f"Field {field} does not exist in Django UsefulTool model."
+                        )
             else:
                 # Create new useful tool
                 _useful_tool, created = UsefulTool.objects.get_or_create(text=text)
                 _useful_tool.recipes.add(__recipe)
                 _useful_tool.save()
                 mapped_fields['useful_tools'].append({
-                    "added": {
+                    "created": {
                         "text": text
                     }
                 })
@@ -282,7 +283,7 @@ def load_recipe(logger, task, recipe):
                 mapped_fields['tags'].append({
                     "deleted": {
                         "id": tag_obj.id,
-                        "text": text
+                        "text": title
                     }
                 })
                 __recipe.tags.remove(tag_obj)
@@ -309,15 +310,17 @@ def load_recipe(logger, task, recipe):
                             setattr(tag_obj, field, peewee_value)
                             tag_obj.save()
                     else:
-                        logger.error(f"Field {field} does not exist in Django Tag model.")
-                        __errors += 1
+                        task.increment_errors(
+                            logger = logger,
+                            message = f"Field {field} does not exist in Django Tag model."
+                        )
             else:
                 # Create new tag
                 _tag, created = Tag.objects.get_or_create(text=text)
                 __recipe.tags.add(_tag)
                 __recipe.save()
                 mapped_fields['tags'].append({
-                    "added": {
+                    "created": {
                         "text": text
                     }
                 })
@@ -325,28 +328,30 @@ def load_recipe(logger, task, recipe):
         
                     
         " Check for changes in Nutrition Information "
-        
         mapped_fields['nutrition_information'] = []
 
         if _nutrition_information:
             if __recipe.nutrition_information:
                 # Update existing Nutrition Information and check for changes
                 for field, peewee_value in _nutrition_information.items():
+                    peewee_value_float = float(peewee_value)
                     if hasattr(NutritionInformation, field):
                         django_value = getattr(__recipe.nutrition_information, field, None)
-                        if peewee_value != django_value:
+                        if peewee_value_float != django_value:
                             mapped_fields['nutrition_information'].append({
                                 "updated": {
                                     "field": field,
                                     "old": django_value,
-                                    "new": peewee_value
+                                    "new": peewee_value_float
                                 }
                             })
                             setattr(__recipe.nutrition_information, field, peewee_value)
                             __recipe.nutrition_information.save()
                     else:
-                        logger.error(f"Field {field} does not exist in Django NutritionInformation model.")
-                        __errors += 1
+                        task.increment_errors(
+                            logger = logger,
+                            message = f"Field {field} does not exist in Django NutritionInformation model."
+                        )
             else:
                 # Create new Nutrition Information
                 new_nutrition_info = NutritionInformation.objects.create(
@@ -370,7 +375,7 @@ def load_recipe(logger, task, recipe):
                 __recipe.save()
 
                 mapped_fields['nutrition_information'].append({
-                    "added": {
+                    "created": {
                         "nutrition_information": _nutrition_information
                     }
                 })
@@ -389,7 +394,16 @@ def load_recipe(logger, task, recipe):
                 __recipe.save()
                 
                 for field, changes in mapped_fields.items():
-                    create_audit_log(RecipeAuditLog.Type.Update, task, __recipe,field=field, old_value=changes['old'], new_value=changes['new']) 
+                    if isinstance(changes, list):
+                        for change in changes:
+                            if 'created' in change:
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=None, new_value=change['created'], update_sub_type=RecipeAuditLog.UpdateType.Create)
+                            elif 'deleted' in change:
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['deleted'], new_value=None, update_sub_type=RecipeAuditLog.UpdateType.Delete)
+                            elif 'updated' in change:
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['updated']['old'], new_value=change['updated']['new'], update_sub_type=RecipeAuditLog.UpdateType.Update)
+                    else:
+                        create_audit_log(RecipeAuditLog.Type.Update, task, __recipe,field=field, old_value=changes['old'], new_value=changes['new'], update_sub_type=RecipeAuditLog.UpdateType.Update) 
                     
             else:
                 # If recipe is not verified, check for created AuditLog and update it
@@ -398,27 +412,23 @@ def load_recipe(logger, task, recipe):
                 if audit_logs_created_count == 1:
                     create_audit_log(RecipeAuditLog.Type.Create, task, __recipe)                
                 else:
-                    logger.error(f"Recipe {recipe.id} has changes isn't verified, and no created AuditLog. There are {audit_logs_created_count} Create Audit Logs it should be one.")
-                    __errors += 1
+                    task.increment_errors(
+                        logger = logger,
+                        message = f"Recipe {recipe.id} has changes isn't verified, and no created AuditLog. There are {audit_logs_created_count} Create Audit Logs it should be one."
+                    )
         
         
             
     logger.info("")
     
-    return __errors, __warnings
-
-
+    
 def persist_recipe(logger, task, recipe, recipe_t):
-    
-    " Initialize the warnings and errors "
-    __errors = 0
-    __warnings = 0
-    
+       
     " Recipe "
     
     logger.info(f"Persisting Recipe {recipe.id}.")
     
-    
+    recipe.title = recipe_t['title']
     recipe.description = recipe_t['description']
 
     recipe.difficulty = recipe_t['difficulty']
@@ -431,8 +441,8 @@ def persist_recipe(logger, task, recipe, recipe_t):
     recipe.source_rating = recipe_t['source_rating']
     recipe.source_link = recipe_t['source_link']
     
-    recipe_img_name = recipe_t['image'].split('/')[-1]
-    recipe.image = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{lower_and_underscore(COMPANY_CONTINENTE)}/recipes/{recipe_img_name}"
+    recipe.image = f"{FIREBASE_STORAGE_COMPANY_BUCKET}{lower_and_underscore(COMPANY_CONTINENTE)}/recipes/{recipe_t['image'].split('/')[-1]}"
+    recipe.video_link = recipe_t['video_link']
     
     try:
         send_image_to_firebase(
@@ -440,9 +450,11 @@ def persist_recipe(logger, task, recipe, recipe_t):
             recipe.image
         )
     except FileNotFoundError as exception:
-        logger.error("Failed to found Image.", exc_info=(type(exception), exception, exception.traceback))        
-        __errors +=1
-    recipe.video = recipe_t['video']
+        task.increment_errors(
+            logger = logger,
+            message = "Failed to found Image.",
+            stack_trace=traceback.format_exc()
+        )
     
     recipe.save()
     
@@ -484,7 +496,8 @@ def persist_recipe(logger, task, recipe, recipe_t):
         _preparation = Preparation(
             recipe=recipe,
             step=step['step'],
-            description=step['description']
+            description=step['description'],
+            section=step['section']
         )
         _preparation.save()
         
@@ -516,9 +529,8 @@ def persist_recipe(logger, task, recipe, recipe_t):
     
     create_audit_log(RecipeAuditLog.Type.Create, task, recipe)
     
-    return __errors, __warnings
 
-def create_audit_log(type, task, recipe, field = None, old_value = None, new_value = None):
+def create_audit_log(type, task, recipe, field = None, old_value = None, new_value = None, update_sub_type:RecipeAuditLog.UpdateType = None):
 
     match type:
         case RecipeAuditLog.Type.Create:
@@ -546,16 +558,15 @@ def create_audit_log(type, task, recipe, field = None, old_value = None, new_val
             
             
         case RecipeAuditLog.Type.Update:
+            
             if not field:
                 raise ValueError("Attribute field is required for updating a recipe.")
-            if not old_value:
-                raise ValueError("Attribute old_value is required for updating a recipe.")
-            if not new_value:
-                raise ValueError("Attribute new_value is required for updating a recipe.")
+            
+            if not update_sub_type:
+                raise ValueError("Attribute update_sub_type is required for updating a recipe.")
             
             recipe_audit_log, created = RecipeAuditLog.objects.get_or_create(
                         recipe=recipe,
-                        task=task,
                         field=field,
                         type=RecipeAuditLog.Type.Update,
                     )
@@ -563,6 +574,8 @@ def create_audit_log(type, task, recipe, field = None, old_value = None, new_val
             recipe_audit_log.field = field
             recipe_audit_log.old_value = old_value
             recipe_audit_log.new_value = new_value
+            recipe_audit_log.task = task
+            recipe_audit_log.update_sub_type = update_sub_type
             
             recipe_audit_log.description = f'Updated {field} Recipe {recipe.id}'
     

@@ -50,9 +50,7 @@ def load_recipes(logger,task, resume):
             return task, False
 
         
-        _errors, _warnings = load_recipe(logger, task, recipe)
-        task.warnings += _warnings
-        task.errors += _errors
+        load_recipe(logger, task, recipe)
         task.step += 1
         task.items_processed += 1
         task.save()
@@ -61,12 +59,12 @@ def load_recipes(logger,task, resume):
     " Audit the deleted recipes "
     logger.info("Auditing deleted recipes...")
     # Identify and delete removed Recipes
-    recipe_title_transform_set = {recipe.title for recipe in query}
-    recipe_title_load_set = {recipe.title for recipe in Recipe.objects.filter(created_by__company=task.company)}
+    recipe_source_link_transform_set = {recipe.source_link for recipe in query}
+    recipe_source_link_load_set = {recipe.source_link for recipe in Recipe.objects.filter(created_by__company=task.company)}
     
     # Detect recipes that are in the load set but not in the transform set
     removed_recipes = Recipe.objects.filter(
-        created_by__company=task.company, title__in=(recipe_title_load_set - recipe_title_transform_set)
+        created_by__company=task.company, source_link__in=(recipe_source_link_load_set - recipe_source_link_transform_set)
     )
     
     if removed_recipes:
@@ -90,11 +88,6 @@ def __load_recipes(logger, task, resume):
     
     " Log the start of the Loading process "
     logger.info(f"Initializing the {task.type} of recipes from {task.company.name}...")
-
-    " Initialize the warnings and errors "
-    if resume:
-        task.errors = 0
-        task.warnings = 0
     
     " Starts the Transform database "
     logger.info("Initializing Transform database ...")
@@ -103,15 +96,7 @@ def __load_recipes(logger, task, resume):
         task=task,
         models=transform_models_,
         database_proxy=database_proxy
-    )
-    
-    
-    if not database:
-        logger.error("Error initializing the Transform database.")
-        # we dont sum the errors here because we are already summing them in the start_sub_db function
-        task.save()
-        task.fail()
-        return
+    )    
     logger.info("")
     
     " Calculate the number of recipes expected to be loaded "
@@ -143,6 +128,8 @@ def __load_recipes(logger, task, resume):
     logger.info("")
     logger.info(f"> Done...")
     logger.info("")
+    
+    return task
 
 
 
@@ -155,7 +142,7 @@ def _load_recipes(logger, task, resume):
         return
         
     if task.company.name == COMPANY_CONTINENTE:
-        __load_recipes(logger, task, resume)
+        return __load_recipes(logger, task, resume)
     else:
         logger.error(f"Company of task does not have a Recipe's process implemented.")
         task.errors += 1

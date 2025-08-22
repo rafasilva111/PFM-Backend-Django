@@ -70,6 +70,8 @@ from apps.common.forms import LoginForm, RegisterForm, ResetForm, SetPasswordFor
 #   
 ##
 
+
+
 @method_decorator(login_required, name="dispatch")
 class DashboardsView(TemplateView):
     template_name = "dashboard_analytics.html" 
@@ -86,9 +88,7 @@ class DashboardsView(TemplateView):
         task_count_one_year_ago = task_count_one_year_ago if task_count_one_year_ago > 0 else 1
         jobs_count_one_year_ago = Job.objects.filter(Q(created_at__month =homologous_date.month) & Q(created_at__year=homologous_date.year)).count()
         jobs_count_one_year_ago = jobs_count_one_year_ago if jobs_count_one_year_ago > 0 else 1
-        
-        print(task_count_one_year_ago)
-        print(jobs_count_one_year_ago)
+
         context["tasks_count_growth"] = context["tasks_count_in_this_month"] / task_count_one_year_ago * 100
         context["jobs_count_growth"] = context["jobs_count_in_this_month"] / jobs_count_one_year_ago * 100
         

@@ -3,11 +3,12 @@ import json
 import pickle
 import requests
 import unidecode
+import traceback
 import re
 from bs4 import BeautifulSoup
 
 " Import custom functions and constants "
-from apps.etl_app.functions import start_db
+from apps.etl_app.functions import start_db, normalize_text
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
 from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_RECIPES_IMAGES_FOLDER
@@ -26,10 +27,10 @@ BASE_HEADERS = {
     "cookie": "realUserVerifier=Verified;",
 }
 COMPANY_NAME = "continente"
-OFFSET = 24
+PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 
-def extract_data_from_link(logger, recipe_link):
+def extract_data_from_link(logger, task, recipe_link):
     """
     Extracts recipe data from a given recipe link and saves it to the database.
     
@@ -43,31 +44,28 @@ def extract_data_from_link(logger, recipe_link):
         logger (logging.Logger): Logger instance for logging warnings and errors.
         recipe_link (str): URL of the recipe to extract data from.
         
-    Returns:
-        tuple: A tuple containing:
-            - warnings (int): Number of warnings encountered during extraction.
-            - errors (int): Number of errors encountered during extraction.
     """
     
     
     " Initialize variables "
-    __errors = 0
-    __warnings = 0    
     recipe_db = Recipe()
     
     " Extract html response from the recipe link "
-    base_response = requests.get(recipe_link, headers=BASE_HEADERS)
+    base_response = requests.get(recipe_link.link, headers=BASE_HEADERS)
     html = BeautifulSoup(base_response.content, 'html.parser')
     
     " Check if page was successfully loaded "
     if base_response.status_code != 200:
-        logger.error(f"Failed to load page: {recipe_link} with Recipe Link leads to status code: {base_response.status_code}")
-        logger.info("")
-        __errors += 1
-        return __errors, __warnings
+        task.increment_errors(
+            logger=logger,
+            message=f"Failed to load page: {recipe_link.link} with status code: {base_response.status_code}",
+            stack_trace=None
+        )
+        
+        return 
 
     " Source Link "
-    recipe_db.link = recipe_link
+    recipe_db.link = recipe_link.link
 
     " Title "
     recipe_db.title = html.find('h1', class_='title font-2xl').text.strip()
@@ -91,41 +89,85 @@ def extract_data_from_link(logger, recipe_link):
     recipe_db.portion = infos[2]
 
     " Description "
-
     recipe_db.description = html.find('div', class_='detailsTextBlock').find('p', class_='font-m').get_text(
         separator=' ', strip=True)
 
     " Rating "
+    rating_element = html.find('section', attrs={"data-control": "recipeHeader"})
+    rating_endpoint = rating_element.get('data-endpoint_averagerating', None)
+    if rating_endpoint:
+        # Fetch the rating from the endpoint
+        rating_url = f"https://feed.continente.pt{rating_endpoint}"
+        rating_response = requests.get(rating_url, headers=BASE_HEADERS)
+        
+        if rating_response.status_code == 200:
+            
+            # Remove namespace declarations
+            rating_data = json.loads(rating_response.text)
+            recipe_db.rating = rating_data.get('rating_data',None)
+        else:
+            task.increment_errors(
+                logger=logger,
+                message=f"Failed to fetch rating data from {rating_url}, status code: {rating_response.status_code}",
+                stack_trace=None
+            )
+    else:
+        task.increment_infos(
+            logger=logger,
+            message=f"No rating endpoint found for {recipe_link.link}"
+        )
 
-    # impossivel fazer pós a info é carregada após a página ser carregada
-    # logo não é possível fazer scraping, apenas com selenium :(
-
-    " Image "
-    image_container = html.find('figure', class_='recipeImage aspect-ratio--4-3')
-    site_image_source = f"https://feed.continente.pt{image_container.find('img')['src']}"
-    site_image_source = site_image_source.replace("&format=webp","&format=jpg")
-    pattern = r'/([^\/?]+\.jpg)'
-    match = re.search(pattern, site_image_source)
-    filename = match.group(1)
+    " Image & Video "
+    img_containter = html.find('div', class_='recipeHeader__main__right')
+    imgs = img_containter.find_all('img')
+    video_container = img_containter.find('button', class_='btn-play--red openModalButton')
     
-    app_image_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{filename}'
-    recipe_db.img = app_image_source
-    try:
-        headers = {'User-Agent': 'Mozilla/5.0'}
-        with open(app_image_source, "wb") as f:
-            response = requests.get(site_image_source, headers=headers)
-            
-            if response.status_code != 200:
-                logger.error(f"Failed to download image from {site_image_source} with status code: {response.status_code}")
-                __errors += 1
-            
-            f.write(response.content)
-    except Exception as e:
-        logger.error(f"Error extracting preparation steps: {e}")
-        __errors += 1
-
+    if imgs:
+        image_container = imgs[0]
+        
+        site_image_source = f"https://feed.continente.pt{image_container['src']}"
+        site_image_source = site_image_source.replace("&format=webp","&format=jpg")
+        filename = normalize_text(f"{recipe_db.title}_{recipe_link.id}")
+        
+        app_image_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{filename}'
+        recipe_db.image = app_image_source
+        try:
+            headers = {'User-Agent': 'Mozilla/5.0'}
+            with open(app_image_source, "wb") as f:
+                response = requests.get(site_image_source, headers=headers)
+                
+                if response.status_code != 200:
+                    task.increment_errors(
+                        logger=logger,
+                        message=f"Failed to download image from {site_image_source}, server responded with status code: {response.status_code}",
+                        stack_trace=None
+                    )
+                else:
+                    f.write(response.content)
+                
+        except Exception as e:
+            task.increment_errors(
+                logger=logger,
+                message=f"Error downloading image from {site_image_source}: {e}",
+                stack_trace= traceback.format_exc()
+        )
+    
+    else:
+        task.increment_infos(
+            logger=logger,
+            message=f"No image found for {recipe_link.link}"
+        )
+    
+    if video_container:
+        recipe_db.video_link = video_container['data-video']
+    else:
+        task.increment_infos(
+            logger=logger,
+            message=f"No video found for {recipe_link.link}"
+        )
+    
+        
     " Preparation "
-
     try:
         # Find the <div> element with the specified class name
         recipe_steps_raw = html.find('div', class_='recipeSteps__body')
@@ -145,8 +187,11 @@ def extract_data_from_link(logger, recipe_link):
 
         recipe_db.preparation = pickle.dumps(preparation)
     except Exception as e:
-        logger.error(f"Error extracting preparation steps: {e}")
-        __errors += 1
+        task.increment_errors(
+            logger=logger,
+            message=f"Error extracting preparation steps from {recipe_link.link}: {e}",
+            stack_trace=traceback.format_exc()
+        )
         
     
     " Nutrition Information "
@@ -156,88 +201,128 @@ def extract_data_from_link(logger, recipe_link):
     nutrition_helper = {}
     if nutritional_table_raw:
         rows = nutritional_table_raw.find_all('div', class_='recipeNutricionalTable__table__row')
-
-        for row in rows:
-            # Find all <p> elements within the row
-            item_elements = row.find_all('p', class_='itemValue')
-
-            # Extract and print the nutritional information
-            for item_element in item_elements:
-                item_title = item_element.find_previous('p', class_='itemTitle').text.strip()
-                item_value = item_element.find('strong').text.replace(",", ".").strip()
-                nutrition_helper.update({item_title: item_value})
-
-        nutrition_information = NutritionInformation(
-            energy_kcal=nutrition_helper['Calorias'],
-            energy_perc="0",
-            fat_g=nutrition_helper['Lípidos'],
-            fat_perc="0",
-            saturates_g=nutrition_helper['Saturados'],
-            saturates_perc="0",
-            carbohydrates_g=nutrition_helper['Hidratos'],
-            carbohydrates_perc="0",
-            sugars_g=nutrition_helper['Açúcares'],
-            sugars_perc="0",
-            fiber_g=nutrition_helper['Fibras'],
-            protein_g=nutrition_helper['Proteínas'],
-            protein_perc="0",
-            salt_g=nutrition_helper['Sal'],
-            salt_perc="0"
-        )
-        nutrition_information.save()
-        recipe_db.nutrition_information = nutrition_information.id
+        try:
+            for row in rows:
+                item_elements = row.find_all('p', class_='itemValue')
+                for item_element in item_elements:
+                    item_title = item_element.find_previous('p', class_='itemTitle').text.strip()
+                    item_value = item_element.find('strong').text.replace(",", ".").strip()
+                    nutrition_helper.update({item_title: item_value})
+                    
+            nutrition_information = NutritionInformation(
+                energy_kcal=nutrition_helper['Calorias'],
+                fat_g=nutrition_helper['Lípidos'],
+                saturates_g=nutrition_helper['Saturados'],
+                carbohydrates_g=nutrition_helper['Hidratos'],
+                sugars_g=nutrition_helper['Açúcares'],
+                fiber_g=nutrition_helper['Fibras'],
+                protein_g=nutrition_helper['Proteínas'],
+                salt_g=nutrition_helper['Sal'],
+            )
+            nutrition_information.save()
+            recipe_db.nutrition_information = nutrition_information.id
+        except Exception as e:
+            task.increment_errors(
+                logger=logger,
+                message=f"Error extracting nutritional information from {recipe_link.link}: {e}",
+                stack_trace=traceback.format_exc()
+            )
 
     else:
-        logger.warning("No nutritional information found")
-        __warnings += 1
+        task.increment_infos(
+            logger=logger,
+            message=f"No nutritional information found for {recipe_link.link}"
+        )
+
     recipe_db.save()
     
     " Useful tools "
+    useful_tools_container = html.find('div', class_='collapsedContentBox')
     
-    useful_tools = html.find('ul', class_='textFormat__list')
-    
-    if useful_tools:
-        list_items = useful_tools.find_all('li')
-        for li_element in list_items:
-            useful_tool_text = li_element.text.strip()
-            useful_tool = UsefulTool(text=useful_tool_text)
-            useful_tool.recipe = recipe_db.id
-            useful_tool.save()
-
+    if not useful_tools_container:
+        
+        useful_tools = useful_tools_container.find('ul', class_='textFormat__list')
+        
+        if useful_tools:
+            try:
+                list_items = useful_tools.find_all('li')
+                for li_element in list_items:
+                    useful_tool_text = li_element.text.strip()
+                    useful_tool = UsefulTool(name=useful_tool_text)
+                    useful_tool.recipe = recipe_db.id
+                    useful_tool.save()
+            except Exception as e:
+                task.increment_errors(
+                    logger=logger,
+                    message=f"Error extracting useful tools from {recipe_link.link}: {e}",
+                    stack_trace=traceback.format_exc()
+                )
+        else:
+            task.increment_infos(
+                logger=logger,
+                message=f"No useful tools found for {recipe_link.link}"
+            )
+    else:
+        task.increment_infos(
+            logger=logger,
+            message=f"No useful tools found for {recipe_link.link}"
+        )
+            
+            
     " Ingredients "
 
     ingredient_list_raw = html.find('div', class_='ingredientList__body')
 
     if ingredient_list_raw:
         list_items = ingredient_list_raw.find_all('li')
-
         section = "main"
         for li_element in list_items:
-            if li_element.has_attr('class'):
-                section = li_element.text.strip()
-            else:
-                ingredient_text = li_element.text.strip()
-                ingredient = Ingredient(text=ingredient_text, section=section)
-                ingredient.recipe = recipe_db.id
-                ingredient.save()
+            try:
+                if li_element.has_attr('class'):
+                    section = li_element.text.strip()
+                else:
+                    ingredient_text = li_element.text.strip()
+                    ingredient = Ingredient(text=ingredient_text, section=section)
+                    ingredient.recipe = recipe_db.id
+                    ingredient.save()
+            except Exception as e:
+                task.increment_errors(
+                    logger=logger,
+                    message=f"Error extracting ingredient from {recipe_link.link}: {e}",
+                    stack_trace=traceback.format_exc()
+                )
+    else:
+        task.increment_warnings(
+            logger=logger,
+            message=f"No ingredients found for {recipe_link.link}"
+        )
 
     " Tags "
 
     tags_raw = html.find('div', class_='tags')
+    
     if tags_raw:
         tags_tag = tags_raw.find('span', class_='categoryTag')
-
         if tags_tag:
-            tag, created = Tag.get_or_create(text=tags_tag.text.strip())
-            tag.save()
-            recipe_db.tags.add(tag)
+            try:
+                tag, created = Tag.get_or_create(text=tags_tag.text.strip())
+                tag.save()
+                recipe_db.tags.add(tag)
+            except Exception as e:
+                task.increment_errors(
+                    logger=logger,
+                    message=f"Error extracting tag from {recipe_link.link}: {e}",
+                    stack_trace=traceback.format_exc()
+                )
+    else:
+        task.increment_infos(
+            logger=logger,
+            message=f"No tags found for {recipe_link.link}"
+        )
 
-    logger.info("")
     recipe_db.save()
     
-    return __errors, __warnings
-
-
+    
 def pull_recipes(logger,task):
     """
     Extracts recipe data from the Continente website and updates the task statistics.
@@ -282,7 +367,7 @@ def pull_recipes(logger,task):
         
     " Extract data from each recipe link "
     for recipe_link in RecipeLinks.select().where(RecipeLinks.id > task.step):
-        
+
         if OFFSET and recipe_link.id > OFFSET:
             task.owner_job.create_job_trigger_history(
                 type=JobTriggerHistory.Type.STOPPING_CONDITION,
@@ -293,9 +378,7 @@ def pull_recipes(logger,task):
             return task, False
         
         logger.info(f"Extracting Recipe {recipe_link.id} from {recipe_link.link}")
-        _errors, _warnings = extract_data_from_link(logger, recipe_link.link)
-        task.warnings += _warnings
-        task.errors += _errors
+        extract_data_from_link(logger, task,  recipe_link)
         task.step += 1
         task.items_processed += 1
         task.save()    
@@ -307,7 +390,7 @@ def pull_recipes(logger,task):
     return task, True
     
 
-def pull_all_recipes_links(logger, task):    
+def pull_all_recipes_links(logger, task):
         
     " Gets all Recipe's Links from Continente "
     logger.info("Starting to get all Recipe's Links...")
@@ -320,13 +403,38 @@ def pull_all_recipes_links(logger, task):
     })
     page = 1
     
+    logger.info(f"Recipe {task.process} is on step {task.step}...")
+    logger.info("")
+    
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition
+    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
+    
+    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+    if task.step != 0:
+        instances_in_db = RecipeLinks.select().count()
+        if instances_in_db > task.step:
+            # Delete tasks until step matches recipes_in_db
+            instances_to_delete = RecipeLinks.select().order_by(RecipeLinks.id.desc())
+            for t in instances_to_delete:
+                if task.step == instances_in_db:
+                    break
+                t.delete_instance()
+                instances_in_db -= 1
 
     " Get data "
-    page = RecipeLinks.select().count() // OFFSET + 1
+    page = task.step // PAGE_LINKS_OFFSET + 1
+    
+    # Clear items based on half filled pages
+    for item in RecipeLinks.select(page >=page):
+        item.delete()
 
     while True:
 
         logger.info(f"Added {page * OFFSET} recipe links from page {page}")
+        
+        
 
         data = {
             "query": """
@@ -358,8 +466,8 @@ def pull_all_recipes_links(logger, task):
                         }
         """,
             "variables": {
-                "take": OFFSET,
-                "skip": OFFSET * (page - 1),
+                "take": PAGE_LINKS_OFFSET,
+                "skip": PAGE_LINKS_OFFSET * (page - 1),
             }
         }
 
@@ -374,9 +482,11 @@ def pull_all_recipes_links(logger, task):
             
             # Prevent empty links
             if 'pageUrl' not in item or item['pageUrl'] == '':
-                logger.warning(f"Page URL not found for item:")
-                logger.warning(f"{item}")
-                task.warnings += 1
+                task.increment_warnings(
+                    logger=logger,
+                    message=f"Page URL not found for item: {item}",
+                    stack_trace=None
+                )
                 continue
             
             
@@ -389,6 +499,12 @@ def pull_all_recipes_links(logger, task):
             )
             data_point.save()
 
+        # Check StoppingCondition
+        if page * PAGE_LINKS_OFFSET >= OFFSET:
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {page * PAGE_LINKS_OFFSET}...")
+            logger.info("")
+            return task
+        
         page += 1
 
     " Update Task Statistics"
@@ -407,12 +523,9 @@ def __extract_continente_recipes(logger, task, resume = False):
     
     " Log the start of the extraction process"
     logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
+    logger.info("")
     
-    " Initialize the warnings and errors "
-    if resume:
-        task.errors = 0
-        task.warnings = 0
-
+    
     " Starts the db "
     logger.info(f"Initializing {task.type} database ...")
     task, database = start_db(
@@ -435,7 +548,6 @@ def __extract_continente_recipes(logger, task, resume = False):
     " Pulls recipes from above links "
     task, completed = pull_recipes(logger, task)
     
-    
     " Log the completion of the extraction process "
     logger.info("Summary:")
     logger.info(f"Recipe Links Found: {task.links}")
@@ -457,3 +569,5 @@ def __extract_continente_recipes(logger, task, resume = False):
     logger.info("")
     logger.info(f"> Done...")
     logger.info("")
+
+    return task

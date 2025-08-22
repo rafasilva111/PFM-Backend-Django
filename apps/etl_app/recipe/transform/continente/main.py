@@ -1,7 +1,10 @@
 " Import necessary modules "
+from playhouse.shortcuts import model_to_dict
+import google.generativeai as genai
+import json
 
 " Import custom functions and constants "
-from apps.etl_app.functions import start_db, start_sub_db
+from apps.etl_app.functions import start_db, start_sub_db, strip_markdown_json
 from apps.etl_app.constants import TRANSFORM_CONTINENTE_RECIPES_DB, eu_reference_intake
 from apps.etl_app.recipe.extract.continente.models import database_proxy as database_proxy_E, Recipe as Recipe_E, RecipeLinks as RecipeLinks_E, NutritionInformation as NutritionInformation_E, Ingredient as Ingredient_E, Tag as Tag_E, UsefulTool as UsefulTool_E
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
@@ -15,8 +18,60 @@ recipeTagThrough_T = Recipe_T.tags.get_through_model()
 extract_models_ = [Recipe_E, RecipeLinks_E, NutritionInformation_E, Ingredient_E, Tag_E, UsefulTool_E, recipeTagThrough_E]
 transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, NutritionInformation_T, Ingredient_T, UsefulTool_T, recipeTagThrough_T]
 
+" Define the AI prompt for transforming recipes "
+input_data = None  # This will be set later with the actual input data
+PROMPT_TEMPLATE = """
+Act as an expert in parsing and normalizing recipe ingredients to make them suitable for streamlined grocery shopping.
+
+Given the following input JSON object, extract and normalize:
+- The quantity as a float in `quantity_normalized`.
+- The measurement unit in Portuguese in `units_normalized` (e.g., "unidade", "grama", "ml").
+- The mesaurement should also be shortened for example "grama" to "g", "mililitro" to "ml", "unidade" to "unid.".
+- If no clear measurement unit is provided, use "q.b.".
+- The cleaned and identifiable name of the ingredient in `ingredient_name`.
+- If there's "fatias" in ingredient name assume it as units and remove and the name of the ingredient should be the item after "de" or "do" (e.g., "fatias de queijo" should become "queijo").
+- Do the same for embala
+
+You should also maintain the original `id` from the input and as int.
+
+## Example Input:
+[
+  {{
+    "id": 22817,
+    "quantity_original": "Casca de 1 lima",
+    "quantity_tempered": "casca de 1 lima",
+    "quantity_normalized": None,
+    "units_normalized": None,
+    "extra_quantity": None,
+    "extra_units": None,
+    "ingredient": {{
+      "id": 245,
+      "name": "Unknown Ingredient"
+    }}
+  }}
+]
+
+## Example Output:
+{{
+    22817: {{
+    "quantity_normalized": 1.0,
+    "units_normalized": "unidade",
+    "ingredient_name": "lima"
+    }}
+}}
+
+---
+
+Now, here's the actual input to process:
+
+{input_data}
+
+Only return the JSON output. No explanation.
+"""
+
+
 def transform_recipe(logger, task, recipe):
-    
+       
     " Recipe "
     logger.info(f"Transforming Recipe {recipe.id}.")
     
@@ -27,7 +82,8 @@ def transform_recipe(logger, task, recipe):
         company=task.company.name,
         title=recipe.title,
         description=recipe.description,
-        image=recipe.img,
+        image=recipe.image,
+        video_link=recipe.video_link,
         difficulty=recipe.difficulty,
         time=_time,
         time_units=_time_units,
@@ -97,27 +153,18 @@ def transform_recipe(logger, task, recipe):
         _ingredient_quantity = IngredientQuantity_T()
         _ingredient_quantity.quantity_original = ingredient.text
         _ingredient_quantity.quantity_tempered,_ingredient_quantity.units_normalized,_ingredient_quantity.quantity_normalized,\
-        _ingredient_quantity.extra_quantity,_ingredient_quantity.extra_units, _ingredient, \
-        _errors, _warnings = normalize_quantity(logger, ingredient.text)
+        _ingredient_quantity.extra_quantity,_ingredient_quantity.extra_units, _ingredient = normalize_quantity(logger, task, ingredient.text)
         _ingredient_quantity.recipe = _recipe
-        task.errors += _errors
-        task.warnings += _warnings
+        
         
         if _ingredient == None:
-            logger.error(f"Transformation of Ingredient Quantity ( {_ingredient_quantity.quantity_original} ) lead to a None Ingredient.")
-            task.increment_errors()
-            
-            logger.info(f"Skipping recipe...")
-            
-            for iq in _recipe.ingredients:
-                iq.delete_instance()
-            for ut in _recipe.useful_tools:
-                ut.delete_instance()
-                
-            _recipe.delete_instance()
-            _recipe.tags.clear()
-            
-            return task
+            task.increment_warnings(
+                logger = logger,
+                message = f"Transformation of Ingredient Quantity ( {_ingredient_quantity.quantity_original} ) lead to a None Ingredient."
+            )
+            _recipe.valid = False
+            _recipe.save() 
+            _ingredient = "Unknown Ingredient"
         
         _ingredient, created = Ingredient_T.get_or_create(name = _ingredient)
         
@@ -163,7 +210,6 @@ def transform_recipes(logger, task, resume):
         logger.info("Starting Recipe Transformation...")
         logger.info("")
     
-    
     " Transform data from each Extracted recipe "
     for recipe in Recipe_E.select().where(Recipe_E.id > task.step):
         
@@ -174,29 +220,81 @@ def transform_recipes(logger, task, resume):
             )
             logger.info(f"Job Stopping Condition triggered. Paused extraction at {recipe.id}...")
             logger.info("")
-            return task, False
+            return task, False # Task was not fully completed (False)
         
         task = transform_recipe(logger, task, recipe)
         task.step += 1
         task.save()
 
-    
     " Log the completion of the extraction process "
     logger.info(f"{task.items_processed} Recipes transformed ...")
     logger.info("")
     
-    return task, True
+    return task, True # Task was fully completed (True)
+
+def tansform_recipes_ai(logger, task):
+    
+    logger.info("Starting AI Transformation of invalid Recipes...")
+    ingredient_dicts = []
+    for recipe in Recipe_T.select().where(Recipe_T.valid == False):
+        recipe.valid = True
+        recipe.save()
+        for ingredient in recipe.ingredients:
+            if not ingredient.quantity_normalized and not ingredient.units_normalized:
+                # Mark the ingredient for AI
+                ingredient.ai = True
+                ingredient.save()
+                
+                ingredient_dict = model_to_dict(ingredient, backrefs=True, recurse=True, exclude=[IngredientQuantity_T.recipe])
+                ingredient_dicts.append(ingredient_dict)
+                
+    if not ingredient_dicts:
+        logger.info("No invalid recipes found for AI transformation.")
+        logger.info("")
+        return task
+    
+    ingredients_json = json.dumps(ingredient_dicts, ensure_ascii=False, indent=4)
+   
+    # Configure API Key
+    genai.configure(api_key="AIzaSyBcQ1m55sL7UxjRBeO57g8aZXccqJjC18s")
+
+    # Create the model
+    model = genai.GenerativeModel(model_name="gemini-1.5-flash")
+
+    # Prompt string
+    prompt = PROMPT_TEMPLATE.format(input_data=ingredients_json)
+    
+    # Make the request
+    response = model.generate_content(prompt)
+    
+    # Parse the response
+    clean = strip_markdown_json(response.text)
+    result = json.loads(clean)
+    
+    for key, value in result.items():
+        
+        ingredient_quantity = IngredientQuantity_T.get_or_none(int(key))
+        ingredient_quantity.ai = True
+        
+        if not ingredient_quantity:
+            logger.warning(f"Ingredient Quantity with ID {key} not found in the database.")
+            continue
+        
+        ingredient_quantity.quantity_normalized = value.get("quantity_normalized")
+        ingredient_quantity.units_normalized = value.get("units_normalized")
+        ingredient, created = Ingredient_T.get_or_create(name = value.get("ingredient_name"))
+        ingredient_quantity.ingredient = ingredient
+        ingredient_quantity.save()
+        
+    logger.info("")
+    
+    return task
 
 def __transform_continente_recipes(logger, task, resume):
     
     " Log the start of the transform process "
     logger.info(f"Initializing the {task.type} of recipes from {task.company.name}...")
-    
-    " Initialize the warnings and errors "
-    if resume:
-        task.errors = 0
-        task.warnings = 0
-        
+           
     " Start the Transform database "
     logger.info("Initializing Transform database ...")
     task, database = start_db(
@@ -205,7 +303,7 @@ def __transform_continente_recipes(logger, task, resume):
         models=transform_models_,
         path=TRANSFORM_CONTINENTE_RECIPES_DB,
         database_proxy=database_proxy,
-        reset= not resume # we want to reset the database if we are not resuming
+        reset= False #not resume # we want to reset the database if we are not resuming
     )
     
 
@@ -227,10 +325,8 @@ def __transform_continente_recipes(logger, task, resume):
     " Transform Elements "
     task, completed = transform_recipes(logger, task, resume)
 
-    # Verify data integrity # TODO: use chatgpt to correct final data integrity
-    # verify_data_integrity(logger)
-    # logger.info("")
-
+    " Try to transform using AI"
+    #task = tansform_recipes_ai(logger, task)
     
     " Log the completion of the Transformation process "
     logger.info("Summary:")
@@ -252,3 +348,5 @@ def __transform_continente_recipes(logger, task, resume):
     logger.info("")
     logger.info(f"> Done...")
     logger.info("")
+    
+    return task

@@ -1,0 +1,130 @@
+services:
+  rabbitmq:
+    image: rabbitmq:3-management
+    container_name: rabbitmq
+    networks:
+      - develop-net
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    restart: always
+
+  postgresql:
+    image: postgres:13
+    container_name: postgres
+    env_file:
+      - .env
+    networks:
+      - develop-net
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: always
+
+  django:
+    build:
+      context: .
+      dockerfile: ./DockerFiles/Dockerfile-Django
+    container_name: django
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgresql
+    networks:
+      - develop-net
+    command: gunicorn config.asgi:application --bind 0.0.0.0:8000 -k uvicorn.workers.UvicornWorker -w 1
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: always
+
+  celery-worker:
+    build:
+      context: .
+      dockerfile: ./DockerFiles/Dockerfile
+    container_name: celery-worker
+    env_file:
+      - .env
+    depends_on:
+      - rabbitmq
+      - postgresql
+    command: celery -A config.celery worker --loglevel=INFO --concurrency=4
+    networks:
+      - develop-net
+    volumes:
+      - .:/app
+    working_dir: /app
+    restart: always
+
+  flower:
+    build:
+      context: .
+      dockerfile: ./DockerFiles/Dockerfile
+    container_name: flower
+    depends_on:
+      - rabbitmq
+      - celery-worker
+    command: celery -A config.celery flower
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - develop-net
+    ports:
+      - "5555:5555"
+    restart: always
+
+  celery-beat:
+    build:
+      context: .
+      dockerfile: ./DockerFiles/Dockerfile
+    container_name: celery-beat
+    depends_on:
+      - rabbitmq
+      - celery-worker
+    command: celery -A config.celery beat --loglevel=info
+    volumes:
+      - .:/app
+    working_dir: /app
+    networks:
+      - develop-net
+    restart: always
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx
+    depends_on:
+      - django
+    networks:
+      - develop-net
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./staticfiles:/app/staticfiles
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf
+      - ./nginx/logs:/var/log/nginx
+      - ./nginx/ssl-secrets/ssl_domain_chain.crt:/etc/ssl/certs/ssl_domain_chain.crt
+      - ./nginx/ssl-secrets/ssl_domain.key:/etc/ssl/private/ssl_domain.key
+    restart: always
+
+  redis:
+    image: redis:5.0
+    container_name: redis
+    networks:
+      - develop-net
+    ports:
+      - "6379:6379"
+    restart: always
+
+volumes:
+  app-data:
+  postgres_data:
+
+networks:
+  develop-net:
+    driver: bridge

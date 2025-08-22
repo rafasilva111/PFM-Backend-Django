@@ -61,7 +61,7 @@ class Recipe(BaseModel):
     title = models.CharField(max_length=255, null=False)
     description = models.TextField( null=False)
     image = models.CharField(max_length=255, null=True)
-    video = models.CharField(max_length=255, null=True)
+    video_link = models.CharField(max_length=255, null=True)
 
     difficulty = models.CharField(max_length=255, null=True)
     portion_lower = models.CharField(max_length=255, null=True)
@@ -314,6 +314,19 @@ class RecipeAuditLog(models.Model):
         choices=Type.choices
     )
     
+    class UpdateType(models.TextChoices):
+        Create = 'Create', 'Create'
+        Update = 'Update', 'Update'
+        Delete = 'Delete', 'Delete'
+        NONE = 'None', 'None'
+
+    update_type = models.CharField(
+        max_length=20,
+        choices=UpdateType.choices,
+        default = UpdateType.NONE
+    )
+    
+    
     class Meta:
         permissions = [
             ("can_view_audit_log", "Can view Audit Log's details"),
@@ -340,7 +353,6 @@ class RecipeAuditLog(models.Model):
             
         self.recipe.save()
         
-    
     def unaccept(self, changed_by):
         self.accepted = False
         self.reviewed = False

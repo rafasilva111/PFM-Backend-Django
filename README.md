@@ -183,22 +183,6 @@ python manage.py runserver
 
 ---
 
-## 🧪 Testing
-
-To run tests:
-
-```bash
-python manage.py test
-```
-
-Or use pytest:
-
-```bash
-pytest
-```
-
----
-
 ## 🐳 Docker Setup
 
 
@@ -221,6 +205,22 @@ docker-compose up -d
 ```
 
 Access Django at: [http://localhost:8000](http://localhost:8000)
+
+---
+
+## 🧪 Testing
+
+To run tests:
+
+```bash
+python manage.py test
+```
+
+Or use pytest:
+
+```bash
+pytest
+```
 
 ---
 

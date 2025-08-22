@@ -45,6 +45,9 @@ DAY_OF_WEEK_CHOICES = [('*', '*')] + [(str(i), str(i)) for i in range(7)]
 DAY_OF_MONTH_CHOICES = [('*', '*')] + [(str(i), str(i)) for i in range(1, 32)]
 MONTH_OF_YEAR_CHOICES = [('*', '*')] + [(str(i), str(i)) for i in range(1, 13)]
 
+import logging
+
+logger = logging.getLogger('django')
 
 ###
 #
@@ -299,8 +302,7 @@ class TaskForm(forms.ModelForm):
             
                 return instance
         except Exception as e:
-            # Handle any exceptions (rollback will occur automatically)
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
             raise
 ###
 #
@@ -457,7 +459,7 @@ class JobForm(forms.ModelForm):
                 return job
         except Exception as e:
             # Handle any exceptions (rollback will occur automatically)
-            print(f"An error occurred: {e}")
+            logger.error(f"An error occurred: {e}")
             raise
 
 

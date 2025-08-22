@@ -331,50 +331,49 @@
             <!-- Table -->
             <div class="table-responsive text-nowrap">
                 <table class="table">
-                <thead>
-                    <th>ID</th>
-                    <th>Type</th>
-                    <th>Action</th>
-                    <th>Triggered At</th>
-                    </tr>
-                </thead>
-                <tbody class="table-border-bottom-0">
-                    {% for task in trigger_history_page_obj %}
-                    <tr >
-                    <td>{{ task.id }}</td>
-                    <td>{{ task.type }}</td>
-                    <td>{{ task.action }}</td>
-                    <td>{{ task.triggered_at }}</td>
-                    <td>
-                        <div class="dropdown">
-                        <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
-                        <div class="dropdown-menu">
-                            {% if can_view_task %}
-                            <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i class="bx bx-detail me-1"></i> Details</a>
-                            {% endif %}
+                    <thead>
+                        <th>ID</th>
+                        <th>Type</th>
+                        <th>Action</th>
+                        <th>Triggered At</th>
+                    </thead>
+                    <tbody class="table-border-bottom-0">
+                        {% for task in trigger_history_page_obj %}
+                        <tr >
+                        <td>{{ task.id }}</td>
+                        <td>{{ task.type }}</td>
+                        <td>{{ task.action }}</td>
+                        <td>{{ task.triggered_at }}</td>
+                        <td>
+                            <div class="dropdown">
+                            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+                            <div class="dropdown-menu">
+                                {% if can_view_task %}
+                                <a class="dropdown-item" href="{% url 'task_detail' task.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+                                {% endif %}
 
-                            {% if can_edit_task %}
-                            <a class="dropdown-item" href="{% url 'task_edit' task.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
-                            {% endif %}
+                                {% if can_edit_task %}
+                                <a class="dropdown-item" href="{% url 'task_edit' task.id %}"><i class="bx bx-edit me-1"></i> Edit</a>
+                                {% endif %}
 
-                            {% if can_delete_task %}
-                            <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
-                            {% endif %}
-                        </div>
-                        </div>
-                    </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
+                                {% if can_delete_task %}
+                                <a class="dropdown-item" href="{% url 'task_delete' task.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+                                {% endif %}
+                            </div>
+                            </div>
+                        </td>
+                        {% endfor %}
+                    </tbody>
                 </table>
             </div>
+            
             {% include "common/default/pagination.html" %}
         </div>
     </div>
 
-    <!-- Log Card -->
+    <!-- Log Card -->       
     <div class="col-12">
-        <div class="card overflow-hidden" style="height: 500px;">
+        <div class="card overflow-hidden mb-4" style="height: 500px;">
             <div class="container-fluid d-flex align-items-center">
                 <h5 class="card-header">Job Log</h5>
             </div>
@@ -383,17 +382,126 @@
             </div>
         </div>
     </div>
+
+    <!-- Chart container -->
+    <div class="col-12">
+        <div class="card overflow-hidden mb-4">
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header">Issues Tracker</h5>
+            </div>
+            <div id="chart"style="
+            background-color: #ffffff;
+            padding: 20px;
+            "></div>
+        </div>
+    </div>
 </div>
 
-
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script>
     // Get elements
     const logContainer = document.getElementById('log-container');
     const cardBody = document.getElementById('both-scrollbars-example');
-    console.log("logContainer");
+    
     // Initialize WebSocket
     const socket = new WebSocket("{{ WEBSOCKET_URL }}/ws/job/{{ instance.id }}/");
 
+    fetch("http://127.0.0.1:8000/job/{{ instance.id }}/issues/data")
+    .then(response => response.json())
+    .then(data => {
+        console.log(data.issues.errors);
+        var options = {
+        series: [
+            {
+            name: 'Info',
+            data: data.issues.infos
+            },
+            {
+            name: 'Warnings',
+            data: data.issues.warnings
+            },
+            {
+            name: 'Errors',
+            data: data.issues.errors
+            }
+        ],
+        chart: {
+            type: 'area',
+            height: 400,
+            stacked: true,
+            toolbar: {
+            show: true,
+            tools: {
+                download: false,
+                selection: true,
+                zoom: false,
+                zoomin: false,
+                zoomout: false,
+                pan: false,
+                reset: false
+            }
+            },
+            
+        },
+        colors: ['#4E9AF1', '#00D9A6', '#A5B8C4'],
+        dataLabels: {
+            enabled: false
+        },
+        stroke: {
+            curve: 'smooth',
+            width: 3
+        },
+        fill: {
+            type: 'gradient',
+            gradient: {
+            shadeIntensity: 1,
+            opacityFrom: 0.6,
+            opacityTo: 0.9,
+            stops: [0, 90, 100]
+            }
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'left',
+            fontSize: '14px',
+            labels: {
+            colors: '#333'
+            }
+        },
+        grid: {
+            borderColor: '#e0e6ed',
+            row: {
+            colors: ['#f9f9f9', 'transparent'],
+            opacity: 0.5
+            }
+        },
+        xaxis: {
+            type: 'datetime',
+            labels: {
+            format: 'dd MMM',
+            style: {
+                colors: '#888',
+                fontSize: '12px'
+            }
+            }
+        },
+        yaxis: {
+            labels: {
+            style: {
+                colors: '#888',
+                fontSize: '12px'
+            }
+            }
+        },
+        tooltip: {
+            theme: 'light'
+        }
+    };
+
+    var chart = new ApexCharts(document.querySelector("#chart"), options);
+    chart.render();
+      
+    });
     // Handle incoming messages
     socket.onmessage = function (event) {
         const data = JSON.parse(event.data);
@@ -449,5 +557,21 @@
             cardBody.scrollTop = cardBody.scrollHeight;
         }
     };
+
+    function generateDayWiseTimeSeries(baseval, count, yrange) {
+        var i = 0;
+        var series = [];
+        while (i < count) {
+            var x = baseval;
+            var y =
+            Math.floor(Math.random() * (yrange.max - yrange.min + 1)) + yrange.min;
+
+            series.push([x, y]);
+            baseval += 86400000; // 1 day in milliseconds
+            i++;
+        }
+        return series;
+    }
+    
 </script>
 {% endblock %}

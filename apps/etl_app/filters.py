@@ -21,7 +21,7 @@ from django_filters import FilterSet, DateRangeFilter, DateFilter,ChoiceFilter,M
 #   Models
 #
 
-from apps.etl_app.models import Task, Job, JobTriggerHistory
+from apps.etl_app.models import Task, Job, JobTriggerHistory, Issue
 from apps.user_app.models import User
 from apps.etl_app.models import ProcessType
 
@@ -54,4 +54,11 @@ class JobTriggerHistoryFilter(FilterSet):
 
     class Meta:
         model = JobTriggerHistory
+        fields = {}
+
+class IssueFilter(FilterSet):
+    type = ChoiceFilter(choices=Issue.IssueType.choices, label='Issue Type', widget=forms.Select(attrs={'class': 'form-select form-select-sm'}))
+    
+    class Meta:
+        model = Issue
         fields = {}

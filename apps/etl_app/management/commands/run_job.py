@@ -16,8 +16,6 @@ class Command(BaseCommand):
             return
 
         id = kwargs['id']
-        print(id)
-        ## Automation Account
 
         try:
             job = Job.objects.get(id = id)

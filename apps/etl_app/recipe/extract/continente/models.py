@@ -14,27 +14,12 @@ class BaseModel(Model):
 
 class NutritionInformation(BaseModel):
     energy_kcal = CharField()
-    energy_perc = CharField()
-
     fat_g = CharField()
-    fat_perc = CharField()
-
     saturates_g = CharField()
-    saturates_perc = CharField()
-
     carbohydrates_g = CharField()
-    carbohydrates_perc = CharField()
-
     sugars_g = CharField()
-    sugars_perc = CharField()
-
-
     protein_g = CharField()
-    protein_perc = CharField()
-
     salt_g = CharField()
-    salt_perc = CharField()
-    
     fiber_g = CharField()
 
     class Meta:
@@ -45,7 +30,9 @@ class Recipe(BaseModel):
     company = CharField()
     title = CharField(null=False)
     description = CharField(null=False)
-    img = CharField(null=True)
+    
+    image = CharField(null=True)
+    video_link = CharField(null=True)
 
     difficulty = CharField(null=True)
     portion = CharField(null=True)

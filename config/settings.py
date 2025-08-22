@@ -19,13 +19,11 @@ from dotenv import load_dotenv
 
 from .template import  THEME_LAYOUT_DIR, THEME_VARIABLES
 
+os.environ['DJANGO_CHANNELS_COLORS'] = '0'
 load_dotenv()  # take environment variables from .env.
 
 # Build paths inside the project like this: BASE_DIR / "subdir".
 BASE_DIR = Path(__file__).resolve().parent.parent
-
-
-
 
 
 # Quick-start development settings - unsuitable for production
@@ -245,26 +243,53 @@ THEME_VARIABLES = THEME_VARIABLES
 JOBS_LOG_DIR = "apps/etl_app/logs/jobs"
 TASKS_LOG_DIR = "apps/etl_app/logs/tasks"
 
+
+
 # Django logging configuration
 LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
+    'version': 1,
+    'disable_existing_loggers': False,
+    
+    'formatters': {
+        'verbose': {
+            'format': '[{asctime}] {levelname} {name} {message}',
+            'style': '{',
         },
     },
-    "loggers": {
-        "django": {
-            "handlers": ["console"],
-            "level": "INFO",  # Change DEBUG to INFO to reduce verbosity
+    
+    'handlers': {
+        'info_file': {
+            'level': 'INFO',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'info.log'),
+            'formatter': 'verbose',
         },
-        "django.utils.autoreload": {
-            "handlers": ["console"],
-            "level": "WARNING",  # Set this to WARNING or ERROR to silence autoreload logs
+        'error_file': {
+            'level': 'ERROR',
+            'class': 'logging.FileHandler',
+            'filename': os.path.join(BASE_DIR, 'logs', 'error.log'),
+            'formatter': 'verbose',
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'info_file', 'error_file'],
+            'level': 'INFO',
+            'propagate': True,
+        },
+        'django.channels.server': {
+            'handlers': ['console', 'info_file', 'error_file'],
+            'level': 'INFO',
+            'propagate': False,
         },
     },
 }
+
 
 
 LOGIN_URL = "login"

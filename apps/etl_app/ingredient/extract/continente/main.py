@@ -665,5 +665,5 @@ def __extract_continente_ingredients(logger, task, resume):
     logger.info(f"> Done...")
     logger.info("")
     
-
+    return task
 

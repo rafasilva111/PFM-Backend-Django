@@ -26,6 +26,10 @@ import asyncio
 from channels.generic.websocket import AsyncJsonWebsocketConsumer
 from asgiref.sync import async_to_sync
 
+import logging
+
+logger = logging.getLogger('django.channels.server')
+
 
 class TaskLogConsumer(AsyncJsonWebsocketConsumer):
     """
@@ -88,7 +92,7 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
 
             asyncio.create_task(self.stream_log_data())
         else:
-            print(f"Log file not found: {self.log_file_path}")
+            logger.warning(f"Log file not found: {self.log_file_path}")
             await self.close()
 
     async def stream_log_data(self):
@@ -110,7 +114,7 @@ class TaskLogConsumer(AsyncJsonWebsocketConsumer):
                 else:
                     await asyncio.sleep(1)
         except Exception as e:
-            print(f"Error in stream_log_data: {e}")
+            logger.warning(f"Error in stream_log_data: {e}")
             await self.close()
 
     async def disconnect(self, close_code):
@@ -188,7 +192,7 @@ class JobLogConsumer(AsyncJsonWebsocketConsumer):
                 else:
                     await asyncio.sleep(1)
         except Exception as e:
-            print(f"Error in stream_log_data: {e}")
+            logger.error(f"Error in stream_log_data: {e}")
             await self.close()
 
     async def disconnect(self, close_code):

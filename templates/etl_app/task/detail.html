@@ -38,6 +38,7 @@
 
 <!-- Details -->
 <div class="row">
+
     <!-- Task Detail Card -->
     <div class="col-md-12 col-sm-12">
         <div class="card overflow-hidden mb-4" style="height: auto;">
@@ -271,10 +272,9 @@
         </div>
     </div>
     
-
     <!-- Log Container -->
     <div class="col-12">
-        <div class="card overflow-hidden" style="height: 550px;">
+        <div class="card overflow-hidden mb-4" style="height: 550px;">
 
             <!-- Container Header -->
             <div class="container-fluid d-flex align-items-center justify-content-between">
@@ -299,6 +299,72 @@
         </div>
     </div>
 
+    <!-- Issues Table Card -->
+    <div class="col-12">
+        <div class="card mb-4">
+
+            <!-- Header -->
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header flex-grow-1">Issues List</h5>
+            </div>
+
+            <!-- Filter Form -->
+            <form method="get" class="card py-3 mb-4" id="issues-filter-form">
+                <div class="container-fluid d-flex align-items-center">
+                    <div class="col-md-2 pe-md-1">
+                        <label class="form-label">Type: </label>
+                        {{ filter.form.type}}
+                    </div>
+                    <div class="col-md-10 text-end">
+                        <button type="submit" class="btn btn-primary">Filter</button>
+                    </div>
+                </div>
+            </form>
+
+            <!-- Table -->
+            <div class="table-responsive text-nowrap">
+                <table class="table">
+                <thead>
+                    <tr>
+                    <th>Issue</th>
+                    <th>Type</th>
+                    <th>Message</th>
+                    <th>Stack Trace</th>
+                    <th>Created At</th>
+                    </tr>
+                </thead>
+                <tbody class="table-border-bottom-0">
+                    {% for issue in page_obj %}
+                    <tr >
+                    <td>{{ issue.id }}</td>
+                    <td>
+                        <span
+                            class="
+                                badge
+                                {% if issue.type == 'ERROR' %}
+                                    bg-label-danger
+                                {% elif issue.type == 'WARNING' %}
+                                    bg-label-warning
+                                {% else %}
+                                    bg-label-primary
+                                {% endif %}
+                            "
+                        >
+                            {{ issue.type }}
+                        </span>
+                    </td>
+                    <td>{{ issue.message }}</td>
+                    <td>{{ issue.stack_trace }}</td>
+                    <td>{{ issue.created_at }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                </table>
+            </div>
+            {% include "common/default/pagination.html" %}
+        </div>
+    </div>
+
 </div>
 
 <script>
@@ -310,6 +376,13 @@
 
     // Initialize WebSocket
     const socket = new WebSocket("{{ WEBSOCKET_URL }}/ws/task/{{ instance.id }}/");
+    
+    // Scroll to filter form if form was submitted (has GET params)
+    document.addEventListener('DOMContentLoaded', function() {
+        if (window.location.search.length > 0 && document.getElementById('issues-filter-form')) {
+            document.getElementById('issues-filter-form').scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+    });
 
     // Handle incoming messages
     socket.onmessage = function (event) {

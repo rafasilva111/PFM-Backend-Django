@@ -3,7 +3,6 @@ import re
 from apps.etl_app.functions import start_db
 
 
-#from apps.etl_app.functions import print_it
 from apps.etl_app.recipe.extract.continente.models import Recipe, Tag, NutritionInformation, Ingredient, \
     Recipe_links, database_proxy
 

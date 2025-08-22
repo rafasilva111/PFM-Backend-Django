@@ -8,7 +8,7 @@ from django.contrib import admin
 ### App-specific imports
 
 ## Models
-from apps.etl_app.models import Task, Job, TimeCondition, TaskStatusConditionAwaiter  
+from apps.etl_app.models import Task, Job, TimeCondition, TaskStatusConditionAwaiter, Issue
 
 # Register your models here.
 
@@ -92,3 +92,18 @@ class TaskStatusConditionAwaiterAdmin(admin.ModelAdmin):
     """
     list_display = ('id', 'dependent_task','owner_task', 'triggered', 'created_at', 'updated_at')
 
+
+@admin.register(Issue)
+class IssueAdmin(admin.ModelAdmin):
+    """
+    Admin configuration for the Issue model.
+
+    - Displays issue type, status, and related task information.
+    - Allows searching by issue type and related fields.
+
+    Attributes:
+        list_display (tuple): Fields to display in the list view.
+        search_fields (tuple): Fields to search by in the list view.
+    """
+    list_display = ('id', 'type', 'message', 'task')
+    

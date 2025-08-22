@@ -246,8 +246,7 @@ def _launch_task(task_id, resume=True):
     logger, task.log_path = configure_task_logging(task)
     task.status = Task.Status.RUNNING
     task.save()
-    
-    print(f"Task {task.id} log path: {task.log_path}")
+
 
     # Determine task behavior based on task type
     
@@ -262,28 +261,28 @@ def _launch_task(task_id, resume=True):
     match task.type:
         case Task.TaskType.TEST:
             max_count = 10
-            test_task(logger, task, max_count, resume)
+            return test_task(logger, task, max_count, resume)
             
         case Task.TaskType.EMPTY:
             max_count = 1
-            test_task(logger, task, max_count, resume)
+            return test_task(logger, task, max_count, resume)
             
         case Task.TaskType.FAILURE:
             max_count = -1
-            test_task(logger, task, max_count, resume)
+            return test_task(logger, task, max_count, resume)
         
         case Task.TaskType.MID_FAILURE:
             max_count = -10
-            test_task(logger, task, max_count, resume)
+            return test_task(logger, task, max_count, resume)
             
                 
         case Task.TaskType.EXTRACT:
 
             match task.process:
                 case ProcessType.INGREDIENTS:
-                    _extract_ingredients(logger, task, resume)
+                    return _extract_ingredients(logger, task, resume)
                 case ProcessType.RECIPES:
-                    _extract_recipes(logger, task, resume)
+                    return _extract_recipes(logger, task, resume)
                 
         case  Task.TaskType.TRANSFORM:
             match task.process:
@@ -291,7 +290,7 @@ def _launch_task(task_id, resume=True):
                     logger.info('Yet to be done')
                     pass
                 case ProcessType.RECIPES:
-                    _transform_recipes(logger, task, resume)
+                    return _transform_recipes(logger, task, resume)
     
         case Task.TaskType.LOAD:
     
@@ -300,7 +299,7 @@ def _launch_task(task_id, resume=True):
                     logger.info('Yet to be done')
                     pass
                 case ProcessType.RECIPES:
-                    _load_recipes(logger, task, resume)
+                    return _load_recipes(logger, task, resume)
                 
         case Task.TaskType.FULL_PROCESS:
                     
@@ -377,6 +376,8 @@ def test_task(logger, task, max_count=10000, continue_mode=True):
     
     # Update task status to finished
     task.finish()
+    
+    return task
 
 @app.task
 def _reap_zombie_tasks():

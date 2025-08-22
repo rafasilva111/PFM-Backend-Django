@@ -1,6 +1,8 @@
 from apps.etl_app.recipe.transform.continente.utils import convert_fractions, remove_special_characters,\
     remove_fraction_characters, remove_multiple_spaces, contains_numbers
+    
 import re
+import traceback
 
 general_units = (
     r"kg|g|ml|dl|cl|l|lt|L|c\. de sopa|c\. de chá|c\. de café|c\. de sobremesa|cháv\."
@@ -8,7 +10,7 @@ general_units = (
 )
 
 
-def normalize_quantity(logger, quantity_original: str):
+def normalize_quantity(logger, task, quantity_original: str):
     """
     Normalize a quantity string by sanitizing it, extracting its components, 
     and converting it into a structured format.
@@ -26,10 +28,7 @@ def normalize_quantity(logger, quantity_original: str):
             - extra_value (float or None): Additional values if applicable.
             - ingredient (str or None): The ingredient name or description.
     """
-
-    __errors = 0
-    __warnings = 0
-    
+   
     units = None
     value = None
     extra_units = None
@@ -80,6 +79,8 @@ def normalize_quantity(logger, quantity_original: str):
         quantity_tempered = quantity_tempered.replace("cafe", "café")
     if "qb" in quantity_tempered:                                 # Q.b.
         quantity_tempered = quantity_tempered.replace("qb", "q.b.")
+    if "q. b." in quantity_tempered:
+        quantity_tempered = quantity_tempered.replace("q. b.", "q.b.")
     if "q.b" in quantity_tempered and 'q.b.' not in quantity_tempered:
         quantity_tempered = quantity_tempered.replace("q.b", "q.b.")
     if "qb." in quantity_tempered:
@@ -114,10 +115,13 @@ def normalize_quantity(logger, quantity_original: str):
         replacement = r'\1 \2'
         quantity_tempered = re.sub(pattern, replacement, quantity_tempered)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+
+        return quantity_tempered, None, None, None, None, None
 
     # Add spaces between numbers and "c." (e.g., "2c." -> "2 c.")
     try:
@@ -125,10 +129,13 @@ def normalize_quantity(logger, quantity_original: str):
         replacement = r'\1 c.'
         quantity_tempered = re.sub(pattern, replacement, quantity_tempered)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     # Add spaces between numbers and volume units (e.g., "500ml" -> "500 ml")
     try:
@@ -136,10 +143,13 @@ def normalize_quantity(logger, quantity_original: str):
         replacement = r'\1 \2'
         quantity_tempered = re.sub(pattern, replacement, quantity_tempered)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     # Normalize "c. sopa", "c. chá", "c. café" patterns
     try:
@@ -147,10 +157,13 @@ def normalize_quantity(logger, quantity_original: str):
         replacement = r'c. de \1'
         quantity_tempered = re.sub(pattern, replacement, quantity_tempered)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     ##
     #   2 - Patterns
@@ -166,10 +179,13 @@ def normalize_quantity(logger, quantity_original: str):
             value = match.group(2)
             quantity_tempered.replace(f"{lower} a ", "")
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     # Extract numeric value, unit, and ingredient
     try:
@@ -180,10 +196,13 @@ def normalize_quantity(logger, quantity_original: str):
             units = match.group(2)
             ingredient = match.group(3)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
     
     # Pattern for matching multiple quantities like "30 g + 140 g de açúcar"
     try:
@@ -203,13 +222,16 @@ def normalize_quantity(logger, quantity_original: str):
                 quantity_tempered += f" de {rest}"
 
     except Exception as e:
-        logger.error(f"Error while summing up: {quantity_original}")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
     
+    # Pattern for matching "<number> + <number> <rest>"
     try:
-        # Match "<number> + <number> <rest>"
         pattern = r'(\d+)\s*\+\s*(\d+)\s+(.*)'
         match = re.match(pattern, quantity_tempered)
 
@@ -222,10 +244,13 @@ def normalize_quantity(logger, quantity_original: str):
             quantity_tempered =  f"{total} {rest}"
 
     except Exception as e:
-        logger.error(f"Error while summing simple addition: {quantity_original}")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     # Handle "q.b." (quantity to taste)
     if not units and not value:
@@ -234,7 +259,7 @@ def normalize_quantity(logger, quantity_original: str):
             units = "q.b."
             ingredient = quantity_tempered.replace("q.b.", "").strip()
             
-            return quantity_tempered, units, value, extra_units, extra_value, ingredient, __errors, __warnings
+            return quantity_tempered, units, value, extra_units, extra_value, ingredient
 
     # Handle phrases like "Sumo de 2 laranjas" or "Raspa de 1 limão"
     try:
@@ -245,10 +270,13 @@ def normalize_quantity(logger, quantity_original: str):
             units = "unid."
             ingredient = match.group(3)
     except Exception as e:
-        logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-        logger.error(e)
-        __errors += 1
-        return quantity_tempered, None, None, None, None, None, __errors, __warnings
+        task.increment_errors(
+            logger = logger,
+            message = f"Error while processing: {quantity_original}  (Ingredient)",
+            stack_trace=traceback.format_exc()
+        )
+        
+        return quantity_tempered, None, None, None, None, None
 
     # Normalize numeric values and units
     if value and "," in value:
@@ -276,8 +304,8 @@ def normalize_quantity(logger, quantity_original: str):
 
     # Handle cases where no numeric value is present
     if not contains_numbers(quantity_tempered):
-        value = -1
-        units = None
+        value = None
+        units = "q.b."
         ingredient = quantity_tempered.strip()
 
     # Handle cases where only a number and ingredient are present
@@ -290,11 +318,12 @@ def normalize_quantity(logger, quantity_original: str):
                 units = "unid."
                 ingredient = match.group(2).strip()
         except Exception as e:
-            logger.error(f"Error while processing: {quantity_original}  (Ingredient)")
-            logger.error(e)
-            __errors += 1
-            return quantity_tempered, None, None, None, None, None, __errors, __warnings
-
+            task.increment_errors(
+                logger = logger,
+                message = f"Error while processing: {quantity_original}  (Ingredient)",
+                stack_trace=traceback.format_exc()
+            )
+            return quantity_tempered, None, None, None, None, None
     
     
     if ingredient:
@@ -306,7 +335,7 @@ def normalize_quantity(logger, quantity_original: str):
         if "de " in ingredient:
             ingredient = ingredient.replace("de ", "")
 
-    return quantity_tempered, units, value, extra_units, extra_value, ingredient, __errors, __warnings
+    return quantity_tempered, units, value, extra_units, extra_value, ingredient
 
 
 

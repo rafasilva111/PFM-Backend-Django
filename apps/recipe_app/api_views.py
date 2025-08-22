@@ -942,7 +942,6 @@ class RecipesLikedView(APIView):
                 query = query.filter(Q(title__icontains=search_string)|Q(tags__title__icontains=search_string)).distinct()
         
         if search_tag:
-            print("here")
             query = query.filter(tags__title__icontains=search_tag)
             
         # Paginate the results
@@ -1287,7 +1286,5 @@ class RecipeBackgroundView(APIView):
         
         # Get user auth
         user = request.user
-        print(user)
-        print(user.saved_recipes.all().count())
         
         return Response(RecipeBackgroundSerializer(user, context={'user':user}).data,status=status.HTTP_200_OK)

@@ -254,20 +254,19 @@ from django.utils import timezone
 
 class CustomTokenRefreshView(TokenRefreshView):
     def get_serializer_class(self):
+        
         # Use the existing TokenRefreshSerializer from simple_jwt
         return TokenRefreshSerializer
 
     def post(self, request, *args, **kwargs):
+        
         # Call the parent class's post method to get the original response
-        print(request.data)
         response = super().post(request, *args, **kwargs)
 
-        
         # Extract expiration dates
         access_token_expires = timezone.now() + settings.SIMPLE_JWT['ACCESS_TOKEN_LIFETIME']
         refresh_token_expires = timezone.now() + settings.SIMPLE_JWT['REFRESH_TOKEN_LIFETIME']
-
-
+        
         # Add expiration details to the response data
         response.data ={
             'refresh_token': str(response.data['refresh']),            

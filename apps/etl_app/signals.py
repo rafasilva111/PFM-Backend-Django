@@ -14,6 +14,10 @@ from celery.signals import task_failure
 from apps.etl_app.models import Task
 from apps.etl_app.functions import configure_task_logging
 
+import logging
+
+logger = logging.getLogger('django')
+
 @receiver(post_delete, sender=Task)
 def post_delete_task_handler(sender, instance, **kwargs):
     """
@@ -46,15 +50,16 @@ def task_failure_handler(sender=None, task_id=None, exception=None, args=None, k
         einfo (ExceptionInfo): Exception information.
         extra (dict): Additional keyword arguments.
     """
-    print(f'Failure: {task_id}')
+
+    logger.warning(f'Task {task_id} failed', exc_info=(type(exception), exception, traceback))
     if task_id:
         task = Task.objects.get(celery_task_id=task_id)
         task.finished_at = timezone.now()
         task.status = Task.Status.FAILED
         task.save()
         
-        logger, log_info_path = configure_task_logging(task)
-        logger.error(f'Task failed', exc_info=(type(exception), exception, traceback))
+        job_logger, log_info_path = configure_task_logging(task)
+        job_logger.error(f'Task {task_id} failed', exc_info=(type(exception), exception, traceback))
         
         channel_layer = get_channel_layer()
     
@@ -79,8 +84,7 @@ from channels.layers import get_channel_layer
 @task_success.connect
 def task_success_handler(sender, result, **kwargs):
     
-    #celery_task_id = sender.request.id
-    print(f'Success: {sender.request.id}')
+    logger.info(f'Success: {sender.request.id}')
     try:
         task = Task.objects.get(celery_task_id=sender.request.id)
     except Task.DoesNotExist: # This might happen when Job is triggered
@@ -109,6 +113,6 @@ def task_success_handler(sender, result, **kwargs):
             dependent_task_awaiter.delete()
             dependent_task_awaiter_triggered.filter(dependent_task=dependent_task_awaiter.dependent_task).delete()
         else:
-            print(f"Task {dependent_task_awaiter.dependent_task.id} is not in a state to be launched or resumed.")
+            logger.warning(f"Task {dependent_task_awaiter.dependent_task.id} is not in a state to be launched or resumed.")
         
     

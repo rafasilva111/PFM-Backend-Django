@@ -25,6 +25,7 @@ from django.core.exceptions import PermissionDenied
 from django.utils.safestring import mark_safe
 from django.http import HttpResponse
 from django.contrib import messages
+from django.http import JsonResponse
 
 ##
 #   Api Swagger
@@ -37,6 +38,7 @@ from django.contrib import messages
 
 import re
 from os import path
+from math import floor
 
 ###
 #       App specific imports
@@ -65,7 +67,7 @@ from apps.etl_app.forms import  TaskForm, JobForm, TimeConditionForm,ThresholdCo
 #   Filters
 #
 
-from apps.etl_app.filters import JobFilter, TaskFilter
+from apps.etl_app.filters import JobFilter, TaskFilter, IssueFilter
 
 ##
 #   Functions
@@ -266,7 +268,8 @@ class JobDetailView(PermissionRequiredMixin, TemplateView):
                 log_content = re.sub(r'(\[(WARNING)\])', r'<span style="color: #FDD835; font-weight: bold;">\1</span>', log_content)
                 log_content = re.sub(r'(\[(ERROR)\])', r'<span style="color: #E57373; font-weight: bold;">\1</span>', log_content)
 
-                context["log"] = mark_safe(log_content)
+                context["log"] = mark_safe(log_content)     
+        
                 
         # Create context
         context.update(
@@ -784,7 +787,7 @@ def job_delete(request, id):
 @login_required
 @require_GET
 def job_log_download(request, id):
-    job = get_object_or_404(Job, id=id)  # Assuming you have a Task model
+    job = get_object_or_404(Job, id=id) 
 
     if path.exists(job.log_path):
         # Open the log file in binary mode
@@ -796,6 +799,26 @@ def job_log_download(request, id):
     else:
         return HttpResponse('Log file not found.', status=404)
 
+@login_required
+@require_GET
+def job_issues_data(request, id):
+    job = get_object_or_404(Job, id=id)  
+    
+    issues={
+        "infos": [],
+        "warnings": [],
+        "errors": [],
+    }
+    
+    completed_tasks = job.tasks.filter(status=Task.Status.FINISHED).order_by("-started_at")
+    
+    for task in completed_tasks:
+        date = floor(task.started_at.timestamp() * 1000)
+        
+        for level in ["infos","warnings","errors"]:
+            issues[level].append([date, getattr(task, level)])
+    
+    return JsonResponse({"issues": issues})
 
 
 ###
@@ -938,10 +961,24 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         context = TemplateLayout.init(self, super().get_context_data(**kwargs))
         
         # Retrieve the task by ID
-        context["instance"] = Task.objects.get(id=kwargs["id"])
+        instance = Task.objects.get(id=kwargs["id"])
+        
+        # Retrive te task's Issues
+        issues_records = instance.issues.all()
+        
+        # Apply filtering based on request parameters
+        issues_filter = IssueFilter(self.request.GET, queryset=issues_records)
+        filtered_records = issues_filter.qs
+        
+        # Implement pagination
+        paginator = Paginator(
+            filtered_records, 
+            self.request.GET.get("page_size", self.page_size)
+        )
+        issues_page_obj = paginator.get_page(self.request.GET.get("page"))
 
         # Read the task's log file if it exists
-        log_path = context["instance"].log_path
+        log_path = instance.log_path
         if log_path and path.isfile(log_path):
             with open(log_path, "r") as log_file:
                 log_content = log_file.read()
@@ -957,6 +994,10 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         context.update(
             {
                 "WEBSOCKET_URL": WEBSOCKET_URL,
+                "instance": instance,
+                "filter": issues_filter,
+                "total_count": paginator.count,
+                "page_obj": issues_page_obj,
                 "can_cancel_task": self.request.user.has_perm(
                     "task_app.can_cancel_task"
                 ),

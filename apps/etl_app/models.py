@@ -35,7 +35,9 @@ from multiselectfield import MultiSelectField
 
 ### Models
 
+import logging
 
+logger = logging.getLogger('django')
 
 ###
 #
@@ -147,6 +149,7 @@ class ThresholdCondition(Condition):
     def __str__(self):
         return f"{self.id} - Threshold Condition: {self.threshold_value}"
 
+
 class TaskStatusConditionAwaiter(BaseModel):
     
     dependent_task = models.ForeignKey('Task', on_delete=models.CASCADE)
@@ -216,6 +219,7 @@ class JobTriggerHistory(BaseModel):
     )
     
     triggered_at = models.DateTimeField(auto_now_add=True)
+
 
 class Job(BaseTask):
     """
@@ -363,6 +367,61 @@ class Job(BaseTask):
 #   Tasks Model
 #
 ##
+
+class Issue(models.Model):
+    """
+    Represents an issue (error or warning) associated with a Task.
+    """
+    class IssueType(models.TextChoices):
+        ERROR = 'ERROR', 'Error'
+        WARNING = 'WARNING', 'Warning'
+        INFO = 'INFO', 'Info'
+
+    task = models.ForeignKey('Task', on_delete=models.CASCADE, related_name='issues')
+    type = models.CharField(max_length=7, choices=IssueType.choices)
+    message = models.TextField()
+    stack_trace = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return f"{self.type} for Task {self.task_id}: {self.message[:50]}"
+
+    @property
+    def is_warning(self):
+        return self.type == self.IssueType.WARNING
+
+    @property
+    def is_error(self):
+        return self.type == self.IssueType.ERROR
+    
+    @staticmethod
+    def create_issue( type, task, message, stack_trace):
+        """
+        Creates an issue (error or warning) for the task.
+        """
+        Issue.objects.create(type=type, task=task, message=message, stack_trace=stack_trace)
+
+    @staticmethod
+    def create_error( task, message, stack_trace=None):
+        """
+        Shortcut to create an error issue for the task.
+        """
+        Issue.create_issue(Issue.IssueType.ERROR, task, message, stack_trace)
+
+    @staticmethod
+    def create_warning(task, message, stack_trace=None):
+        """
+        Shortcut to create a warning issue for the task.
+        """
+        Issue.create_issue(Issue.IssueType.WARNING, task, message, stack_trace)
+        
+    @staticmethod
+    def create_info(task, message, stack_trace=None):
+        """
+        Shortcut to create a warning issue for the task.
+        """
+        Issue.create_issue(Issue.IssueType.INFO, task, message, stack_trace)
+
+
 class Task(BaseTask):
     """
     Represents an individual task within a job, inheriting from `BaseTask`.
@@ -406,8 +465,6 @@ class Task(BaseTask):
     items_processed = models.IntegerField(default=0, null=True, blank=True)
     items_expected = models.IntegerField(default=0, null=True, blank=True)
     
-    warnings = models.IntegerField(default=0, null=True, blank=True)
-    errors = models.IntegerField(default=0, null=True, blank=True)
     
     class Status(models.TextChoices):
         WAITING = 'WAITING', 'Waiting'
@@ -435,6 +492,49 @@ class Task(BaseTask):
             return timesince(self.started_at) + " ago"
         
         return "Never"
+    
+    @property
+    def errors(self):
+        """
+        Returns the count of errors associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.ERROR).count()
+    
+    @property
+    def warnings(self):
+        """
+        Returns the count of warnings associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.WARNING).count()
+    
+    @property
+    def infos(self):
+        """
+        Returns the count of warnings associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.INFO).count()
+    
+    @property
+    def _errors(self):
+        """
+        Returns the count of errors associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.ERROR).all()
+    
+    @property
+    def _warnings(self):
+        """
+        Returns the count of warnings associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.WARNING).all()
+    
+    @property
+    def _infos(self):
+        """
+        Returns the count of warnings associated with this task.
+        """
+        return self.issues.filter(type=Issue.IssueType.INFO).all()
+    
     
     class Meta:
         permissions = [
@@ -478,12 +578,21 @@ class Task(BaseTask):
         self.save()
         
         if self.debug_mode:
-            _launch_task(self.id, resume)
+            return _launch_task(self.id, resume)
             # We dont save here otherwise we rollback the task
         else:
             self.celery_task_id = _launch_task.delay(self.id, resume).id
             self.save()
-            
+
+    def delete_issues(self):
+        """
+        Deletes issues associated with this task.
+        """
+        
+        self._errors.delete()
+        self._warnings.delete()
+        self._infos.delete()
+        
     def purge(self):
         """
         Deletes task logs associated with this task.
@@ -491,6 +600,7 @@ class Task(BaseTask):
         
         self.delete_task_logs()
         self.delete_sql_file()
+        self.delete_issues()
         
         
     def delete_task_logs(self):
@@ -498,14 +608,14 @@ class Task(BaseTask):
             try:
                 os.remove(self.log_path)
             except Exception:
-                print(f"Error deleting Log file: {self.log_path}")
+                logger.error(f"Error deleting Log file: {self.log_path}")
             
     def delete_sql_file(self):
         if self.sql_path:
             try:
                 os.remove(self.sql_path)
             except Exception:
-                print(f"Error deleting SQL file: {self.sql_path}")
+                logger.error(f"Error deleting SQL file: {self.sql_path}")
             
             
     def restart(self):
@@ -514,12 +624,14 @@ class Task(BaseTask):
         """
 
         self.__kill_current_celery_task()
+        
+        # reset milestones
         self.links = 0
         self.items_processed = 0
         self.items_expected = 0
-        self.warnings = 0
-        self.step = 0 # reset milestones
+        self.step = 0 
         self.finished_at = None
+        
         self.save()
         self.purge()
         self.launch()
@@ -595,20 +707,40 @@ class Task(BaseTask):
         self.step += 1
         self.save()
     
-    def increment_errors(self):
+    def increment_errors(self, logger, message, stack_trace=None):
         """
         Increments the error count of the task.
         """
-        self.errors += 1
-        self.save()
+        Issue.create_error(
+            task=self,
+            message=message,
+            stack_trace=stack_trace
+        )
+        logger.error(message)
+        if stack_trace:
+            logger.error(stack_trace)
         
-    def increment_warnings(self):
+    def increment_warnings(self, logger, message, stack_trace=None):
         """
         Increments the warning count of the task.
         """
-        self.warnings += 1
-        self.save()
+        Issue.create_warning(
+            task=self,
+            message=message,
+            stack_trace=stack_trace
+        )
+        logger.warning(message)
+        if stack_trace:
+            logger.warning(stack_trace)
     
+    def increment_infos(self, logger, message):
+        """
+        Increments the info count of the task.
+        """
+        Issue.create_info(
+            task=self,
+            message=message
+        )
     
     def __kill_current_celery_task(self):
         """

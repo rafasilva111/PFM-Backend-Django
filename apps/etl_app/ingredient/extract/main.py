@@ -17,7 +17,7 @@ def _extract_ingredients(logger, task, continue_mode):
         return
         
     if task.company.name == COMPANY_CONTINENTE:
-        __extract_continente_ingredients(logger,task, continue_mode)
+        return __extract_continente_ingredients(logger,task, continue_mode)
     else:
         logger.error(f"Company of task does not have a Ingredient's process implemented.")
         task.increment_errors()

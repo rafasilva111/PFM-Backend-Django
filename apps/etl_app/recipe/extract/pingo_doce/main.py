@@ -287,7 +287,6 @@ def extract_data_from_link(logger,recipe_link,images_bucket):
                 ingredient_quantity.save()
     except Exception as e:
         recipe_db.delete_instance(recursive=True)
-        print("Something happened to ingredients")
         logger.error(e)
         return
 

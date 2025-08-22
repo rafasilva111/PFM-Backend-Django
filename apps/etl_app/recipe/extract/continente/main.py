@@ -339,7 +339,7 @@ def pull_recipes(logger,task):
     
 
     " Initialize the Control variables "    
-    OFFSET = task.step
+    
     
     logger.info("")
     logger.info("Starting to pull Recipes")
@@ -351,7 +351,9 @@ def pull_recipes(logger,task):
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
     if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
         OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
-    
+    else:
+        OFFSET = task.step
+        
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
         instances_in_db = Recipe.select().count()
@@ -391,8 +393,8 @@ def pull_recipes(logger,task):
     
 
 def pull_all_recipes_links(logger, task):
-        
     " Gets all Recipe's Links from Continente "
+    
     logger.info("Starting to get all Recipe's Links...")
     logger.info("")
 
@@ -410,6 +412,8 @@ def pull_all_recipes_links(logger, task):
     from apps.etl_app.models import ThresholdCondition
     if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
         OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
+    else:
+        OFFSET = task.step
     
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:

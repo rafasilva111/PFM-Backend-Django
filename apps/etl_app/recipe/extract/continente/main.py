@@ -339,10 +339,10 @@ def pull_recipes(logger,task):
     
 
     " Initialize the Control variables "    
-    
+    OFFSET = None
     
     logger.info("")
-    logger.info("Starting to pull Recipes")
+    logger.info("Starting to Pull Recipes")
     logger.info("")
     logger.info(f"Recipe {task.process} is on step {task.step}...")
     logger.info("")
@@ -351,8 +351,7 @@ def pull_recipes(logger,task):
     from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
     if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
         OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
-    else:
-        OFFSET = task.step
+        
         
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
@@ -394,8 +393,8 @@ def pull_recipes(logger,task):
 
 def pull_all_recipes_links(logger, task):
     " Gets all Recipe's Links from Continente "
-    
-    logger.info("Starting to get all Recipe's Links...")
+    logger.info("")
+    logger.info("Starting to Pull Recipe's Links...")
     logger.info("")
 
     " Base data "
@@ -411,10 +410,10 @@ def pull_all_recipes_links(logger, task):
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition
     if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
+        STOPPING_CONDITION_OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
     else:
-        OFFSET = task.step
-    
+        STOPPING_CONDITION_OFFSET = None
+        
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
         instances_in_db = RecipeLinks.select().count()
@@ -436,7 +435,7 @@ def pull_all_recipes_links(logger, task):
 
     while True:
 
-        logger.info(f"Added {page * OFFSET} recipe links from page {page}")
+        logger.info(f"Added {page * PAGE_LINKS_OFFSET} recipe links from page {page}")
         
         
 
@@ -478,8 +477,12 @@ def pull_all_recipes_links(logger, task):
         response = requests.post(BASE_GRAPHQL_URL, json=data, headers=headers)
 
         data_json = json.loads(response.content)
-        # check if there are more recipes
+        
+        # Check if no more recipes to pull
         if len(data_json['data']['genericRecipesBy']['recipes']) == 0:
+            logger.info("")
+            logger.info("All Recipe's Links pulled ...")
+            logger.info("")
             break
 
         for item in data_json['data']['genericRecipesBy']['recipes']:
@@ -493,7 +496,6 @@ def pull_all_recipes_links(logger, task):
                 )
                 continue
             
-            
             data_point = RecipeLinks(
                 link = f"{BASE_URL}{item['pageUrl']}",
                 image_link = item['image'],
@@ -504,21 +506,17 @@ def pull_all_recipes_links(logger, task):
             data_point.save()
 
         # Check StoppingCondition
-        if page * PAGE_LINKS_OFFSET >= OFFSET:
-            logger.info(f"Job Stopping Condition triggered. Paused extraction at {page * PAGE_LINKS_OFFSET}...")
+        if STOPPING_CONDITION_OFFSET and page * PAGE_LINKS_OFFSET >= STOPPING_CONDITION_OFFSET:
             logger.info("")
-            return task
+            logger.info(f"Job Stopping Condition triggered. Paused extraction at {page * PAGE_LINKS_OFFSET} links...")
+            logger.info("")
+            break
         
         page += 1
 
     " Update Task Statistics"
     task.links = RecipeLinks.select().count()
-    task.save()
-    
-    " Log the completion of the extraction process "
-    logger.info("")
-    logger.info("All Recipe's Links pulled ...")
-    logger.info("")
+    task.save() 
     
     return task
     

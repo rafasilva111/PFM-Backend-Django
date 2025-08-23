@@ -1233,12 +1233,12 @@ def task_delete(request, id):
     Delete a task instance.
     This view function handles the deletion of a Task object. It requires the user to be
     authenticated and to have the 'can_delete_task' permission. If the task with the given ID
-    exists, it will be deleted and the user will be redirected to the tasks list page.
+    exists, it will be deleted and the user will be redirected to the current page.
     Args:
         request (HttpRequest): The HTTP request object.
         id (int): The ID of the task to be deleted.
     Returns:
-        HttpResponseRedirect: Redirects to the tasks list page after successful deletion.
+        HttpResponseRedirect: Redirects to the current page after successful deletion.
     Raises:
         PermissionDenied: If the user doesn't have the required permission.
         Http404: If the task with the given ID doesn't exist.
@@ -1248,7 +1248,7 @@ def task_delete(request, id):
 
     instance = get_object_or_404(Task, id=id)
     instance.delete()
-    return redirect(reverse("tasks"))
+    return redirect(request.META.get('HTTP_REFERER', '/'))
 
 
 @login_required

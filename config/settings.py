@@ -291,7 +291,8 @@ LOGGING = {
     },
 }
 
-
+TIME_ZONE = "Europe/Lisbon"
+USE_TZ = True
 
 LOGIN_URL = "login"
 
@@ -324,7 +325,8 @@ CELERY_BROKER_URL = f"redis://{REDIS_BROKER_URL}/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = "UTC"
+CELERY_TIMEZONE = "Europe/Lisbon"
+CELERY_ENABLE_UTC = False
 
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 

@@ -86,7 +86,7 @@ services:
     depends_on:
       - rabbitmq
       - celery-worker
-    command: celery -A config.celery beat --loglevel=info
+    command: celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
     working_dir: /app

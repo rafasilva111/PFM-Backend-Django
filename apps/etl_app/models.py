@@ -654,6 +654,8 @@ class Task(BaseTask):
             self.status = Task.Status.PAUSED
             self.save()
             self.__kill_current_celery_task()
+        else:
+            logger.warning(f"Task {self.id} is not running. Cannot pause.")
 
     def resume(self):
         
@@ -750,7 +752,8 @@ class Task(BaseTask):
         if self.celery_task_id:
             result = AsyncResult(self.celery_task_id, app=app)
             result.revoke(terminate=True)
-        
+        else:
+            logger.warning(f"Task {self.id} does not have a Celery task ID. Cannot kill Celery task.")
         
     
     def __calculate_duration(self):

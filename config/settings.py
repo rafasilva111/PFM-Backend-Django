@@ -44,13 +44,14 @@ DEBUG = ENVIRONMENT == "dev"
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),"172.19.128.1","172.162.241.76"]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),os.environ.get("ALLOWED_IP", None)]
     
 
 CSRF_TRUSTED_ORIGINS = [
     "https://127.0.0.1",
     "https://localhost",
-    "https://goodbites.online"
+    "https://goodbites.online",
+    f"https://{os.environ.get('ALLOWED_IP', None)}"
 ]
 
 
@@ -290,7 +291,8 @@ LOGGING = {
     },
 }
 
-
+TIME_ZONE = "Europe/Lisbon"
+USE_TZ = True
 
 LOGIN_URL = "login"
 
@@ -323,7 +325,8 @@ CELERY_BROKER_URL = f"redis://{REDIS_BROKER_URL}/0"
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
-CELERY_TIMEZONE = "UTC"
+CELERY_TIMEZONE = "Europe/Lisbon"
+CELERY_ENABLE_UTC = False
 
 CELERY_BEAT_SCHEDULER = "django_celery_beat.schedulers:DatabaseScheduler"
 

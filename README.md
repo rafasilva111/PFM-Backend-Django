@@ -174,7 +174,7 @@ celery -A config.celery worker --loglevel=info
 celery -A config.celery beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
 ```
 
-### 9. Run the Development Server
+### 12. Run the Development Server
 
 ```bash
 python manage.py migrate
@@ -249,19 +249,11 @@ docker exec -it django python manage.py shell
 
 ---
 
-## 📦 Deployment
-
-- Use Gunicorn + UvicornWorker for ASGI compatibility.
-- Nginx or Caddy recommended as reverse proxy.
-- Environment variables and secrets should be managed using `.env` files or a secret manager.
-
----
-
 ## 📜 License
 
 © 2025 GoodBites. All rights reserved.
 
-This software and all associated files are the exclusive property of [Your Name].  
+This software and all associated files are the exclusive property of Rafael Silva.  
 Unauthorized copying, distribution, use, or modification of any part of this project is strictly prohibited without prior written permission.
 
 This code is licensed for private use only.  

@@ -321,7 +321,7 @@ AUTH_USER_MODEL = "user_app.User"
 
 REDIS_BROKER_URL = os.environ.get("REDIS_BROKER_URL", "0.0.0.0")
 
-CELERY_BROKER_URL = f"redis://{REDIS_BROKER_URL}/0"
+CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672//'
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"

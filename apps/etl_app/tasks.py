@@ -7,6 +7,7 @@ from django.utils import timezone
 
 ## Celery App
 from config.celery import app
+from celery_once import QueueOnce
 
 ## Standard Libraries
 import time

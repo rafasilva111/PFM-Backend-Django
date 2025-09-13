@@ -105,5 +105,5 @@ class IssueAdmin(admin.ModelAdmin):
         list_display (tuple): Fields to display in the list view.
         search_fields (tuple): Fields to search by in the list view.
     """
-    list_display = ('id', 'type', 'message', 'task')
+    list_display = ('id', 'type', 'message')
     

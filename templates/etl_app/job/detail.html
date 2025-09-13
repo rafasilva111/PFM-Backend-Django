@@ -210,19 +210,19 @@
                 <div class="container-fluid d-flex align-items-center">
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Type: </label>
-                        {{ filter.form.type}}
+                        {{ task_filter.form.type}}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Status: </label>
-                        {{ filter.form.status }}
+                        {{ task_filter.form.status }}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Started At: </label>
-                        {{ filter.form.started_at }}
+                        {{ task_filter.form.started_at }}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Finished At: </label>
-                        {{ filter.form.finished_at }}
+                        {{ task_filter.form.finished_at }}
                     </div>
                     <div class="col-md-4 text-end">
                         <button type="submit" class="btn btn-primary">Filter</button>
@@ -290,7 +290,9 @@
                 </tbody>
                 </table>
             </div>
-            {% include "common/default/pagination.html" %}
+            
+            <!-- Pagination -->
+            {% include "common/default/pagination.html" with page_obj=tasks_page_obj total_count=tasks_page_obj.paginator.count %}
         </div>
     </div>
 
@@ -308,19 +310,19 @@
                 <div class="container-fluid d-flex align-items-center">
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Type: </label>
-                        {{ filter.form.type}}
+                        {{ trigger_history_filter.form.type}}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Status: </label>
-                        {{ filter.form.status }}
+                        {{ trigger_history_filter.form.status }}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Started At: </label>
-                        {{ filter.form.started_at }}
+                        {{ trigger_history_filter.form.started_at }}
                     </div>
                     <div class="col-md-2 pe-md-1">
                         <label class="form-label">Finished At: </label>
-                        {{ filter.form.finished_at }}
+                        {{ trigger_history_filter.form.finished_at }}
                     </div>
                     <div class="col-md-4 text-end">
                         <button type="submit" class="btn btn-primary">Filter</button>
@@ -367,20 +369,46 @@
                 </table>
             </div>
             
-            {% include "common/default/pagination.html" %}
+            <!-- Pagination -->
+            {% include "common/default/pagination.html" with page_obj=trigger_history_page_obj total_count=trigger_history_page_obj.paginator.count %}
+            
         </div>
     </div>
 
     <!-- Log Card -->       
     <div class="col-12">
+        {% if log %}
         <div class="card overflow-hidden mb-4" style="height: 500px;">
+
+            <!-- Container Header -->
             <div class="container-fluid d-flex align-items-center">
                 <h5 class="card-header">Job Log</h5>
+
+                <!-- Log Options -->  
+                <div>
+                    <a href="{% url 'job_log_download' instance.id %}" class="btn btn-success" role="button">Download Log</a>
+                </div>
             </div>
+
+            <!-- Container Body -->
             <div class="card-body" id="both-scrollbars-example" style="margin-bottom: 20px;">
                 <div id="log-container" style="white-space: pre-wrap; max-height: 400px;">{{ log|safe }}</div>
             </div>
         </div>
+        {% else %}
+        <div class="card overflow-hidden mb-4" style="height: 200px;">
+
+            <!-- Container Header -->
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header">Job Log</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="height: 100%;">
+                <div class="text-center w-100">
+                    <span class="fs-5 text-muted">No logs available.</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Chart container -->

@@ -14,6 +14,7 @@ class Ingredient(BaseModel):
     """
     name = models.CharField(max_length=255)
 
+
 class IngredientQuantity(BaseModel):
     """
     Model to store quantities of ingredients for recipes.
@@ -25,6 +26,7 @@ class IngredientQuantity(BaseModel):
     units_normalized = models.CharField(null=True, max_length=255)
     extra_quantity = models.FloatField(null=True)
     extra_units = models.CharField(max_length=255, null=True)
+
 
 class NutritionInformation(BaseModel):
     """
@@ -125,6 +127,7 @@ class Preparation(BaseModel):
     description = models.TextField()
     recipe = models.ForeignKey(Recipe,on_delete=models.CASCADE, related_name='preparation')
 
+
 class Tag(BaseModel):
     """
     Model to store tags for recipes.
@@ -140,6 +143,7 @@ class RecipeRating(BaseModel):
     recipe = models.ForeignKey(Recipe, related_name='ratings', on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name='rated_recipes', on_delete=models.CASCADE)
     rating = models.IntegerField(null=True)
+
 
 class UsefulTool(BaseModel):
     """

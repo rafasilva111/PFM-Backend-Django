@@ -319,9 +319,9 @@ AUTH_USER_MODEL = "user_app.User"
 # Celery
 # ------------------------------------------------------------------------------
 
-REDIS_BROKER_URL = os.environ.get("REDIS_BROKER_URL", "0.0.0.0")
+RABBITMQ_BROKER_URL = os.environ.get("RABBITMQ_BROKER_URL", "0.0.0.0:5672")
 
-CELERY_BROKER_URL = 'amqp://guest:guest@rabbitmq:5672//'
+CELERY_BROKER_URL = f'amqp://guest:guest@{RABBITMQ_BROKER_URL}//'
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
@@ -347,6 +347,7 @@ CELERY_BEAT_SCHEDULE = {
 # ------------------------------------------------------------------------------
 
 SESSION_COOKIE_AGE = 86400  # 1 day
+REDIS_BROKER_URL = os.environ.get("REDIS_BROKER_URL", "0.0.0.0:6379")
 
 CHANNEL_LAYERS = {
     'default': {

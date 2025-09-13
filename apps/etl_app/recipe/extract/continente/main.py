@@ -127,9 +127,9 @@ def extract_data_from_link(logger, task, recipe_link):
         
         site_image_source = f"https://feed.continente.pt{image_container['src']}"
         site_image_source = site_image_source.replace("&format=webp","&format=jpg")
-        filename = normalize_text(f"{recipe_db.title}_{recipe_link.id}")
+        filename = normalize_text(recipe_db.title)
         
-        app_image_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{filename}'
+        app_image_source = f'{CONTINENTE_RECIPES_IMAGES_FOLDER}/{filename}.png'
         recipe_db.image = app_image_source
         try:
             headers = {'User-Agent': 'Mozilla/5.0'}

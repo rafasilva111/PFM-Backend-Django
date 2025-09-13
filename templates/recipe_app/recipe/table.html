@@ -53,7 +53,6 @@
           <th>Title</th>
           <th>Created by</th>
           <th>Verified</th>
-          <th>Reviewed</th>
           <th>Created At</th>
           <th>Actions</th>
         </tr>
@@ -71,13 +70,6 @@
               bg-label-danger  
             {% endif %}
             me-1">{{ instance.verified }}</span></td>
-          <td><span class="badge 
-            {% if instance.reviewed %}
-              bg-label-success
-            {% else %}
-              bg-label-danger  
-            {% endif %}
-            me-1">{{ instance.reviewed }}</span></td>
           <td>{{ instance.created_at}}</td>
           <td>
             <div class="dropdown">

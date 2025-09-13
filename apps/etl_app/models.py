@@ -368,7 +368,7 @@ class Job(BaseTask):
 #
 ##
 
-class Issue(models.Model):
+class Issue(BaseModel):
     """
     Represents an issue (error or warning) associated with a Task.
     """
@@ -377,7 +377,7 @@ class Issue(models.Model):
         WARNING = 'WARNING', 'Warning'
         INFO = 'INFO', 'Info'
 
-    task = models.ForeignKey('Task', on_delete=models.CASCADE, related_name='issues')
+    task = models.ManyToManyField('Task', related_name='issues')
     type = models.CharField(max_length=7, choices=IssueType.choices)
     message = models.TextField()
     stack_trace = models.TextField(null=True, blank=True)
@@ -398,8 +398,10 @@ class Issue(models.Model):
         """
         Creates an issue (error or warning) for the task.
         """
-        Issue.objects.create(type=type, task=task, message=message, stack_trace=stack_trace)
-
+        issue, created = Issue.objects.get_or_create(type=type, message=message, stack_trace=stack_trace)
+        issue.task.add(task)
+        issue.save()
+        
     @staticmethod
     def create_error( task, message, stack_trace=None):
         """

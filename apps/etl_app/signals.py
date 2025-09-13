@@ -116,3 +116,23 @@ def task_success_handler(sender, result, **kwargs):
             logger.warning(f"Task {dependent_task_awaiter.dependent_task.id} is not in a state to be launched or resumed.")
         
     
+
+
+@receiver(post_delete, sender=Task)
+def delete_issue_if_no_tasks(sender, instance, **kwargs):
+    """
+    Signal handler that deletes issues associated with the given instance if they have no related tasks.
+
+    Args:
+        sender (Model): The model class that sent the signal.
+        instance (Model instance): The instance whose issues are being checked.
+        **kwargs: Additional keyword arguments passed by the signal.
+
+    Behavior:
+        Iterates through all issues related to the instance. If an issue has no associated tasks,
+        it is deleted from the database.
+    """
+
+    for issue in instance.issues.all():
+        if issue.task.count() == 0:
+            issue.delete()

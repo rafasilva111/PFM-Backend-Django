@@ -22,7 +22,7 @@
 
 {% block content %}
 <h4 class="py-3 mb-4">
-    <span class="text-muted fw-light">Task / </span> Task {{task.id}} Details
+    <span class="text-muted fw-light">Task / </span> Task {{instance.id}} Details
 </h4>
 
 <!-- Error Messages Container -->
@@ -274,15 +274,17 @@
     
     <!-- Log Container -->
     <div class="col-12">
+        {% if log %}
         <div class="card overflow-hidden mb-4" style="height: 550px;">
 
             <!-- Container Header -->
             <div class="container-fluid d-flex align-items-center justify-content-between">
-                <h4 class="card-header">Log</h4>
+                <h4 class="card-header">Task Log</h4>
                 
                 <!-- Log Options -->  
                 {% if instance.status != "RUNNING" %}
                 <div>
+                    
                     {% if instance.sql_path %}
                     <a href="{% url 'task_db_download' instance.id %}" class="btn btn-success" role="button">Download DB</a>
                     {% endif %}
@@ -297,6 +299,21 @@
                 <div id="log-container" style="white-space: pre-wrap; max-height: 400px;">{{ log|safe }}</div>
             </div>
         </div>
+        {% else %}
+        <div class="card overflow-hidden mb-4" style="height: 200px;">
+
+            <!-- Container Header -->
+            <div class="container-fluid d-flex align-items-center">
+                <h5 class="card-header">Task Log</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center" style="height: 100%;">
+                <div class="text-center w-100">
+                    <span class="fs-5 text-muted">No logs available.</span>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
     </div>
 
     <!-- Issues Table Card -->

@@ -1248,7 +1248,8 @@ def task_delete(request, id):
 
     instance = get_object_or_404(Task, id=id)
     instance.delete()
-    return redirect(request.META.get('HTTP_REFERER', '/'))
+    previous_url = request.META.get('HTTP_REFERER', '/')
+    return redirect('tasks' if str(id) in previous_url else previous_url)
 
 
 @login_required

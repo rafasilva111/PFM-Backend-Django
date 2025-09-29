@@ -6,7 +6,7 @@ import os
 from apps.user_app.api_views import AuthView,LoginView
 from apps.api.constants import ERROR_TYPES,RESPONSE_CODES
 from apps.user_app.models import User
-from apps.user_app.serializers import SimpleUserSerializer, UserSerializer
+from apps.user_app.serializers import UserSimpleSerializer, UserSerializer
 
 from apps.recipe_app.models import Recipe
 from apps.recipe_app.serializers import RecipeSerializer
@@ -338,7 +338,7 @@ class AuthViewTestCase(TestCase):
         print_green("\nSuccess")
 
 
-from apps.api.views import UserListView,UserView,UsersToFollowView,FollowView
+from apps.user_app.api_views import UserListView,UserView,UsersToFollowView,FollowView
 
 from apps.user_app.constants import USER_MAX_WEIGHT,USER_MIN_WEIGHT,USER_MIN_HEIGHT,USER_MAX_HEIGHT,STRING_USER_BIRTHDATE_PAST_ERROR,STRING_USER_BIRTHDATE_YOUNG_ERROR
 
@@ -480,7 +480,7 @@ class UserViewTestCase(TestCase):
             return
         
         try:
-            self.assertEqual(SimpleUserSerializer(self.test_user).data,response_data['result'][0], f"User's are different.")
+            self.assertEqual(UserSimpleSerializer(self.test_user).data,response_data['result'][0], f"User's are different.")
         except AssertionError as e:
             print_red("\nFailed\n")
             self.error +=1
@@ -588,12 +588,12 @@ class UserViewTestCase(TestCase):
         # This sub-subsection focuses on connection tests with no arguments.
         
         try:
-            self.assertEqual(SimpleUserSerializer(self.test_user_2).data,response_data, f"User's are different.")
+            self.assertEqual(UserSimpleSerializer(self.test_user_2).data,response_data, f"User's are different.")
         except AssertionError as e:
             print_red("\nFailed\n")
             self.error +=1
             print(f"AssertionError: {e}")
-            print(f"Expected User:\n{SimpleUserSerializer(self.test_user_2).data}\n")
+            print(f"Expected User:\n{UserSimpleSerializer(self.test_user_2).data}\n")
             print(f"Response User:\n{response_data}")
         
         
@@ -632,12 +632,12 @@ class UserViewTestCase(TestCase):
         # This sub-subsection focuses on connection tests with no arguments.
         
         try:
-            self.assertEqual(SimpleUserSerializer(self.test_user_2).data,response_data, f"User's are different.")
+            self.assertEqual(UserSimpleSerializer(self.test_user_2).data,response_data, f"User's are different.")
         except AssertionError as e:
             print_red("\nFailed\n")
             self.error +=1
             print(f"AssertionError: {e}")
-            print(f"Expected User:\n{SimpleUserSerializer(self.test_user).data}\n")
+            print(f"Expected User:\n{UserSimpleSerializer(self.test_user).data}\n")
             print(f"Response User:\n{response_data}")
 
         
@@ -1178,7 +1178,7 @@ class UsersToFollowViewTestCase(TestCase):
             print(f"Response: {response_data}")
             return
         
-        expected_data = {'follower': False, 'request_sent': False, 'user': SimpleUserSerializer(self.test_user_2).data}
+        expected_data = {'follower': False, 'request_sent': False, 'user': UserSimpleSerializer(self.test_user_2).data}
         
         try:
             self.assertEqual(expected_data,response_data['result'][0], f"User's are different.")

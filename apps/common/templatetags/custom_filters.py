@@ -17,3 +17,15 @@ def querystring(context, **kwargs):
         else:
             updated[key] = value
     return updated.urlencode()
+
+@register.simple_tag(takes_context=True)
+def active(context, *url_names):
+    """
+    Usage:
+        {% active 'url_name1' 'url_name2' %}
+    Returns 'active' if the current url_name is in url_names.
+    """
+    request = context.get("request")
+    if request and request.resolver_match and request.resolver_match.url_name in url_names:
+        return "active"
+    return ""

@@ -5,7 +5,6 @@ from django.conf import settings
 ## Websocket
 WEBSOCKET_URL = environ.get('WEBSOCKET_URL')
 
-
 ## Firebase Storage
 
 
@@ -72,24 +71,6 @@ MAX_USER_PREMIUM_SHOPPING_LISTS_GROUPS = 10
 MAX_USER_NORMAL_GROUPS = 5
 
 MAX_USER_PREMIUM_GROUPS = 20
-
-"""
-
-    Testing Accounts
-
-"""
-
-TESTING_ACCOUNT_A = 'a'
-
-TESTING_ACCOUNT_A_PASSWORD = environ.get('TESTING_ACCOUNT_A','a')
-
-TESTING_ACCOUNT_B = 'b'
-
-TESTING_ACCOUNT_B_PASSWORD = environ.get('TESTING_ACCOUNT_B','b')
-
-TESTING_ACCOUNT_C = 'c'
-
-TESTING_ACCOUNT_C_PASSWORD = environ.get('TESTING_ACCOUNT_C','c')
 
 
 """

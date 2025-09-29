@@ -30,7 +30,7 @@ import inspect
 
 from apps.user_app.models import User
 from apps.etl_app.models import Task
-from apps.common.tests.test_views import BaseTestCase
+from apps.common.tests.models import BaseViewTestCase
 
 
 ##
@@ -54,9 +54,6 @@ from apps.common.tests.functions import print_prologue
 #   Contants
 #
 
-from apps.common.tests.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_A_PASSWORD, TESTING_ACCOUNT_B, TESTING_ACCOUNT_B_PASSWORD, TESTING_ACCOUNT_C, TESTING_ACCOUNT_C_PASSWORD
-
-
 
 ###
 #
@@ -66,20 +63,14 @@ from apps.common.tests.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_A_PAS
 
 from apps.etl_app.views import TaskTableView
 
-class TaskTableViewTestCase(BaseTestCase):
+class TaskTableViewTestCase(BaseViewTestCase):
+    
     def setUp(self):
         """Set up a user for testing."""
 
         super().setUp()
-        self.factory = RequestFactory()
-        self.request = self.factory.get("/customer/details")
-        
-        self.normal_user = User.objects.get(email=f"{TESTING_ACCOUNT_C}@{TESTING_ACCOUNT_C}.pt")
-        self.staff_user = User.objects.get(email=f"{TESTING_ACCOUNT_B}@{TESTING_ACCOUNT_B}.pt")
-        self.super_user = User.objects.get(email=f"{TESTING_ACCOUNT_A}@{TESTING_ACCOUNT_A}.pt")
-        
-        
-
+        self.url = reverse('tasks')
+        self.template_name = 'etl_app/task/table.html'     
         
 
     ##
@@ -88,20 +79,23 @@ class TaskTableViewTestCase(BaseTestCase):
     
     def test_view_permissions_for_normal_user(self):
         """Test that a normal user can view tasks but cannot create, edit, or delete tasks."""
-        
         print_prologue()
-        
-        self.request.user = self.normal_user
-        
-        response = TaskTableView.as_view()(self.request)
-            
+
+        # Log in as the normal user
+        self.client.force_login(self.normal_user)
+
+        # Use the Django test client to hit the URL
+        response = self.client.get(self.url)
+
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'etl_app/task/table.html')
+        self.assertTemplateUsed(response, self.template_name)
+        
         self.assertFalse(response.context['can_create_task'])
         self.assertFalse(response.context['can_edit_task'])
         self.assertTrue(response.context['can_view_task'])
         self.assertFalse(response.context['can_delete_task'])
-        
+
         print("\n")
 
     def test_view_permissions_for_staff_user(self):
@@ -109,12 +103,16 @@ class TaskTableViewTestCase(BaseTestCase):
         
         print_prologue()
             
-        login_success = self.client_staff_user.login(email=f"{TESTING_ACCOUNT_B}@{TESTING_ACCOUNT_B}.pt", password=TESTING_ACCOUNT_B_PASSWORD)
-        self.assertTrue(login_success, "Login should be successful")
+        # Log in as the normal user
+        self.client.force_login(self.staff_user)
+
+        # Use the Django test client to hit the URL
+        response = self.client.get(self.url)
         
-        response = self.client_staff_user.get(self.url)
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'etl_app/task/table.html')
+        self.assertTemplateUsed(response, self.template_name)
+        
         self.assertFalse(response.context['can_create_task'])
         self.assertFalse(response.context['can_edit_task'])
         self.assertTrue(response.context['can_view_task'])
@@ -127,40 +125,23 @@ class TaskTableViewTestCase(BaseTestCase):
         
         print_prologue()
         
-        if self.client:
-            self.client.logout()
-            
-        login_success = self.client.login(email=f"{TESTING_ACCOUNT_A}@{TESTING_ACCOUNT_A}.pt", password=TESTING_ACCOUNT_A_PASSWORD)
-        self.assertTrue(login_success, "Login should be successful")
-        
+        # Log in as the normal user
+        self.client.force_login(self.super_user)
+
+        # Use the Django test client to hit the URL
         response = self.client.get(self.url)
+        
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'etl_app/task/table.html')
+        self.assertTemplateUsed(response, self.template_name)
+        
         self.assertTrue(response.context['can_create_task'])
         self.assertTrue(response.context['can_edit_task'])
         self.assertTrue(response.context['can_view_task'])
         self.assertTrue(response.context['can_delete_task'])
         
         print("\n")
-        response = self.client.get(self.url)
-        self.assertEqual(response.status_code, 200)
-        self.assertTemplateUsed(response, 'etl_app/task/table.html')
         
-        print("\n")
-        
-    def test_view_load_fails_when_user_unauthenticated(self):
-        """Test that the login page redirects to login view if not logged in."""
-        
-        print_prologue()
-        
-        self.client.logout()
-        response = self.client.get(self.url)
-
-        self.assertRedirects(response, f"{reverse('login')}?next={self.url}", status_code=302, target_status_code=200)
-        
-        print("\n")
-        
-    
     
     ##
     #   Testing View pagination
@@ -171,13 +152,20 @@ class TaskTableViewTestCase(BaseTestCase):
         
         print_prologue()
         
-        # Create test data with enough items to require multiple pages
-        for i in range(25):
-            Task.objects.create(type = Task.TaskType.EMPTY)          
+        # Log in as the normal user
+        self.client.force_login(self.super_user)
         
-        response = self.client_normal_user.get(self.url, {'page': 2, 'page_size': 5})
+        # Create 25 tasks
+        for i in range(25):
+            Task.objects.create(type = Task.TaskType.EMPTY)   
+
+        # Use the Django test client to hit the URL
+        response = self.client.get(self.url, {'page': 2, 'page_size': 5})
+        
+        # Assertions
         self.assertEqual(response.status_code, 200)
-        # Check that the response contains only the users for page 2
+        self.assertTemplateUsed(response, self.template_name)
+        
         self.assertEqual(len(response.context['page_obj']), 5)
         
         print("\n")

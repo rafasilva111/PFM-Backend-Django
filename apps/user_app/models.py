@@ -78,8 +78,6 @@ class Company(BaseModel):
 #   User
 #
 
-
-
 class UserManager(BaseUserManager):
     """
     Custom manager for handling user creation with email as the unique identifier
@@ -190,7 +188,7 @@ class User(AbstractBaseUser, PermissionsMixin):
     @property
     def age(self):
         today = timezone.now()
-        age = today.year - self.birthdate.year - ((today.month, today.day) < (self.birthdate.month, self.birthdate.day))
+        age = today.year - self.birth_date.year - ((today.month, today.day) < (self.birth_date.month, self.birth_date.day))
         return age
     
     class ActivityLevel(models.TextChoices):
@@ -261,9 +259,12 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     def __str__(self):
         return f"{self.id} - {self.name}"
-    
+
+##
+#   Auth
+#   
         
-class Invitation(models.Model):
+class Invitation(BaseModel):
     """
     Invitation model represents an invitation sent to a user via email.
 
@@ -283,7 +284,6 @@ class Invitation(models.Model):
         User, on_delete=models.CASCADE, related_name="invitations"
     )
     created_at = models.DateTimeField(auto_now_add=True)
-    group = models.ForeignKey(Group, on_delete=models.CASCADE)
 
     def __str__(self):
         return f"Invite to {self.invited}"
@@ -334,6 +334,7 @@ class Invitation(models.Model):
             
             
         return success
+
 ##
 #   Goal
 #

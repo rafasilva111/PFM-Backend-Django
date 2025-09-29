@@ -114,6 +114,9 @@ urlpatterns = [
     
 ]
 
-handler404 = SystemView.as_view(template_name="common/pages_misc_error.html", status=404)
-handler400 = SystemView.as_view(template_name="common/pages_misc_error.html", status=400)
-handler500 = SystemView.as_view(template_name="common/pages_misc_error.html", status=500)
+from apps.common.views import Custom403View, Custom500View
+
+#handler400 = Custom500View.as_view(status_code=400)
+handler403 = Custom403View.as_view()
+handler404 = Custom500View.as_view(status_code=404)
+handler500 = Custom500View.as_view(status_code=500)

@@ -56,94 +56,10 @@ from apps.common.tests.functions import print_prologue
 #   Contants
 #
 
-from apps.common.tests.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_A_PASSWORD, TESTING_ACCOUNT_B, TESTING_ACCOUNT_B_PASSWORD, TESTING_ACCOUNT_C, TESTING_ACCOUNT_C_PASSWORD
+from apps.common.tests.constants import *
 
 
-###
-#
-#       Base Test Case
-#   
 ##
-
-class BaseTestCase(TestCase):
-    """Custom TestCase with a default setup for authenticated user testing."""
-    
-    
-    def setUp(self):
-        """Set up test environment with users, groups, and permissions."""
-        # Create predefined users A, B, C
-        for name, is_staff, is_superuser, password in [
-            (TESTING_ACCOUNT_A, True, True, TESTING_ACCOUNT_A_PASSWORD),
-            (TESTING_ACCOUNT_B, True, False, TESTING_ACCOUNT_B_PASSWORD),
-            (TESTING_ACCOUNT_C, False, False, TESTING_ACCOUNT_C_PASSWORD),
-        ]:
-            email = f"{name}@{name}.pt"
-            try:
-                user = User.objects.get(email=email)
-            except User.DoesNotExist:
-                user = User(
-                    name=name,
-                    email=email,
-                    is_staff=is_staff,
-                    is_superuser=is_superuser,
-                )
-                user.set_password(password)
-                user.save()
-
-        # Define permissions for each group
-        groups_permissions = {
-            "Normal": [
-                "can_view_task", "can_view_tasks",
-                "can_view_job", "can_view_jobs",
-            ],
-            "Staff": [
-                "can_view_task", "can_view_tasks", "can_restart_task", "can_cancel_task",
-                "can_pause_task", "can_resume_task",
-                "can_view_job", "can_view_jobs", "can_pause_job", "can_resume_job",
-            ],
-            "SuperUser": [
-                "can_view_task", "can_view_tasks", "can_restart_task", "can_cancel_task",
-                "can_create_task", "can_edit_task", "can_delete_task", "can_pause_task", "can_resume_task",
-                "can_view_job", "can_view_jobs", "can_create_job", "can_edit_job",
-                "can_delete_job", "can_pause_job", "can_resume_job",
-            ],
-        }
-
-        # Predefined user-to-group mapping
-        users_to_groups = {
-            "Normal": [f"{TESTING_ACCOUNT_C}@{TESTING_ACCOUNT_C}.pt"],
-            "Staff": [f"{TESTING_ACCOUNT_B}@{TESTING_ACCOUNT_B}.pt"],
-            "SuperUser": [f"{TESTING_ACCOUNT_A}@{TESTING_ACCOUNT_A}.pt"],
-        }
-
-        # Create groups and assign permissions
-        for group_name, perm_codes in groups_permissions.items():
-            group, created = Group.objects.get_or_create(name=group_name)
-
-            # Assign permissions to the group
-            permissions = Permission.objects.filter(codename__in=perm_codes)
-            group.permissions.set(permissions)
-            group.save()
-
-        # Assign users to groups
-        for group_name, emails in users_to_groups.items():
-            try:
-                group = Group.objects.get(name=group_name)
-                for email in emails:
-                    try:
-                        user = User.objects.get(email=email)
-                        user.groups.add(group)
-                    except User.DoesNotExist:
-                        print(f"User '{email}' does not exist")
-            except Group.DoesNotExist:
-                print(f"Group '{group_name}' does not exist")
-        
-
-
-
-
-
-###
 #
 #       Login Views 
 #   

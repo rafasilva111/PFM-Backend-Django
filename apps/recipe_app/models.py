@@ -64,6 +64,8 @@ class Recipe(BaseModel):
     description = models.TextField( null=False)
     image = models.CharField(max_length=255, null=True)
     video_link = models.CharField(max_length=255, null=True)
+    
+    company = models.ForeignKey('user_app.Company', related_name='recipes', on_delete=models.CASCADE, null=True)
 
     difficulty = models.CharField(max_length=255, null=True)
     portion_lower = models.CharField(max_length=255, null=True)
@@ -73,7 +75,7 @@ class Recipe(BaseModel):
     time_units = models.CharField(null=True)
     
     views = models.IntegerField(default=0, null=False)
-    created_by = models.ForeignKey(User, related_name='created_recipes', on_delete=models.CASCADE)
+    created_by = models.ForeignKey(User, related_name='created_recipes', on_delete=models.CASCADE, null=True)
     nutrition_information = models.OneToOneField(NutritionInformation, related_name='recipe', null=True, on_delete=models.CASCADE)
     rating = models.FloatField(default=0)
     
@@ -182,8 +184,11 @@ class RecipeReport(BaseModel):
     message = models.CharField(max_length=255)
     recipe = models.ForeignKey(Recipe, related_name='reports', on_delete=models.CASCADE)
     user = models.ForeignKey(User, related_name='my_recipe_reports', on_delete=models.CASCADE)
-    assigne = models.ForeignKey(User, related_name='recipe_reports', on_delete=models.CASCADE)
+    reviewed_by = models.ForeignKey(User, related_name='recipe_reports', on_delete=models.CASCADE, null=True)
     
+    @property
+    def reviewed(self):
+        return self.reviewed_by is not None
 
     class Type(models.TextChoices):
         NutritionInformation = 'NutritionInformation', 'Nutrition Information'
@@ -211,6 +216,7 @@ class RecipeReport(BaseModel):
         default=Status.PENDING,
         null=True
     )
+
     
     class Meta:
         permissions = [
@@ -218,10 +224,21 @@ class RecipeReport(BaseModel):
             ("can_view_recipe_reports", "Can view Recipe Reports list"),
             ("can_create_recipe_report", "Can create Recipe Report"),
             ("can_delete_recipe_report", "Can delete Recipe Report"),
+            ("can_review_recipe_report", "Can review Recipe Report"),
+            ("can_unreview_recipe_report", "Can unreview Recipe Report"),
         ]
 
-
-
+    def review(self, reviewed_by):
+        if not reviewed_by:
+            raise ValueError("The 'reviewed_by' argument is required.")
+        
+        self.reviewed_by = reviewed_by
+        self.save()
+    
+    def unreview(self):
+        
+        self.reviewed_by = None
+        self.save()
 ###
 #   Recipe Audit Log
 ##
@@ -248,7 +265,7 @@ class RecipeAuditLogStatusHistory(models.Model):
     changed_at = models.DateTimeField(auto_now_add=True)
 
 
-class RecipeAuditLog(models.Model):
+class RecipeAuditLog(BaseModel):
     recipe = models.ForeignKey(Recipe, on_delete=models.CASCADE, related_name='audit_logs')
     task = models.ForeignKey('etl_app.Task', on_delete=models.CASCADE, related_name='recipe_audit_logs')
     reviewed_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='recipe_audit_logs', null=True)
@@ -261,10 +278,6 @@ class RecipeAuditLog(models.Model):
     
     reviewed = models.BooleanField(default=False)
     accepted = models.BooleanField(default=False)
-    
-    created_at = models.DateTimeField(auto_now_add=True)  
-    updated_at = models.DateTimeField(auto_now=True) 
-
 
     def save_status_history(self, changed_by, status):
         RecipeAuditLogStatusHistory.objects.create(
@@ -273,7 +286,7 @@ class RecipeAuditLog(models.Model):
             changed_by=changed_by
         )
     
-    def save(self, *args, **kwargs):
+    def save(self,changed_by = None, *args, **kwargs):
         
         
         " Check if this is a new record or an update, and if so, save the status history "
@@ -282,9 +295,17 @@ class RecipeAuditLog(models.Model):
             
             old_record = RecipeAuditLog.objects.get(pk=self.pk)
             
-            if old_record.accepted != self.accepted:
+            if old_record.reviewed != self.reviewed:
                 
-                changed_by = kwargs.pop('changed_by', None)
+                if not changed_by:
+                    raise ValueError("The 'changed_by' argument is required.")
+                
+                if self.reviewed:
+                    self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Reviewed)
+                else:
+                    self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Unreviewed)
+            
+            if old_record.accepted != self.accepted:
             
                 if not changed_by:
                     raise ValueError("The 'changed_by' argument is required.")
@@ -293,19 +314,10 @@ class RecipeAuditLog(models.Model):
                     self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Accepted)
                 else:
                     self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Unaccepted)
-            else:
-                if old_record.reviewed != self.reviewed:
-                    
-                    changed_by = kwargs.pop('changed_by', None)
+
             
-                    if not changed_by:
-                        raise ValueError("The 'changed_by' argument is required.")
-                    
-                    if self.reviewed:
-                        self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Reviewed)
-                    else:
-                        self.save_status_history(changed_by=changed_by, status = RecipeAuditLogStatusHistory.Status.Unreviewed)
                 
+        
         super().save(*args, **kwargs)
 
     class Type(models.TextChoices):
@@ -318,16 +330,16 @@ class RecipeAuditLog(models.Model):
         choices=Type.choices
     )
     
-    class UpdateType(models.TextChoices):
+    class SubType(models.TextChoices):
         Create = 'Create', 'Create'
         Update = 'Update', 'Update'
         Delete = 'Delete', 'Delete'
         NONE = 'None', 'None'
 
-    update_type = models.CharField(
+    sub_type = models.CharField(
         max_length=20,
-        choices=UpdateType.choices,
-        default = UpdateType.NONE
+        choices=SubType.choices,
+        default = SubType.NONE
     )
     
     
@@ -372,23 +384,23 @@ class RecipeAuditLog(models.Model):
         self.reviewed = False
         self.save(changed_by=changed_by)
     
-    def delete(self):
+"""    def delete(self):
         self.recipe.verified = False
         
         match self.type:
             case RecipeAuditLog.Type.Create:
-                update_audit_log = RecipeAuditLog.objects.filter(
+                update_audit_logs = RecipeAuditLog.objects.filter(
                     recipe=self.recipe,
                     task=self.task,
                     type=RecipeAuditLog.Type.Update
                 ).count()
                 
-                if update_audit_log == 0:
-                    self.delete()
+                if update_audit_logs == 0:
+                    super().delete()
                 else:
                     raise ValueError("This Create Audit Log cannot be deleted because there are still associated Update Audit Logs.")
                 
             case RecipeAuditLog.Type.Update | RecipeAuditLog.Type.Delete:
-                self.delete()
+                super().delete()"""
                 
     

@@ -52,79 +52,78 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Id</th>
-          <th>Recipe</th>
-          <th>Type</th>
-          <th>Description</th>
-          <th>Field</th>
-          <th>Accepted</th>
-          <th>Reviewed</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody class="table-border-bottom-0">
-        {% for instance in page_obj %}
-        <tr >
-          <td>{{ instance.id }}</td>
-          <td>{{ instance.recipe }}</td>
-          <td>{{ instance.type }}</td>
-          <td>{{ instance.description }}</td>
-          <td>{{ instance.field }}</td>
-          <td>
+          <th class="text-center">Id</th>
+          <th class="text-center">Recipe</th>
+          <th class="text-center">Type</th>
+          <th class="text-center">Description</th>
+          <th class="text-center">Field</th>
+          <th class="text-center">Accepted</th>
+          <th class="text-center">Reviewed</th>
+            <th class="text-center align-middle">Actions</th>
+          </tr>
+          </thead>
+          <tbody class="table-border-bottom-0">
+          {% for instance in page_obj %}
+          <tr>
+            <td class="text-center align-middle">{{ instance.id }}</td>
+            <td class="text-center align-middle">{{ instance.recipe }}</td>
+            <td class="text-center align-middle">{{ instance.type }}</td>
+            <td class="text-center align-middle">{{ instance.description }}</td>
+            <td class="text-center align-middle">{{ instance.field }}</td>
+            <td class="text-center align-middle">
             <span class="badge 
             {% if instance.accepted %}
-                bg-label-success
+              bg-label-success
             {% else %}
-                bg-label-danger
+              bg-label-danger
             {% endif %}
             me-1">{{ instance.accepted }}</span>
-          </td>
-          <td>
+            </td>
+            <td class="text-center align-middle">
             <span class="badge 
             {% if instance.reviewed %}
-                bg-label-success
+              bg-label-success
             {% else %}
-                bg-label-danger
+              bg-label-danger
             {% endif %}
             me-1">{{ instance.reviewed }}</span>
-          </td>
-          <td>
-            
+            </td>
+            <td class="text-center align-middle">
             <div class="dropdown">
               <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
               <div class="dropdown-menu">
 
-                <!-- Audit Log Details -->
-                {% if can_view_audit_log %}
-                <a class="dropdown-item" href="{% url 'audit_log_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
-                {% endif %}
-                
-                <!-- Accept Audit Log -->
-                {% if can_accept_audit_log and not instance.accepted %}
-                  <a class="dropdown-item" href="{% url 'audit_log_accept' instance.id %}"><i class="bx bx-edit me-1"></i> Accept </a>
-                {% endif %}
+              <!-- Audit Log Details -->
+              {% if can_view_audit_log %}
+              <a class="dropdown-item" href="{% url 'audit_log_detail' instance.id %}" data-test-id="dropdown-details-button"><i class="bx bx-detail me-1"></i> Details</a>
+              {% endif %}
+              
+              <!-- Accept Audit Log -->
+              {% if can_accept_audit_log and not instance.accepted %}
+                <a class="dropdown-item" href="{% url 'audit_log_accept' instance.id %}" data-test-id="dropdown-accept-audit-log-button"><i class="bx bx-edit me-1"></i> Accept </a>
+              {% endif %}
 
-                {% if can_accept_audit_log and instance.accepted %}
-                  <a class="dropdown-item" href="{% url 'audit_log_unaccept' instance.id %}"><i class="bx bx-edit me-1"></i> Unaccept </a>
-                {% endif %}
-                <!-- Review Audit Log -->
-                {% if can_accept_audit_log and not instance.reviewed %}
-                  <a class="dropdown-item" href="{% url 'audit_log_review' instance.id %}"><i class="bx bx-edit me-1"></i> Review </a>
-                {% endif %}
+              {% if can_accept_audit_log and instance.accepted %}
+                <a class="dropdown-item" href="{% url 'audit_log_unaccept' instance.id %}" data-test-id="dropdown-unaccept-audit-log-button"><i class="bx bx-edit me-1"></i> Unaccept </a>
+              {% endif %}
+              
+              <!-- Review Audit Log -->
+              {% if can_accept_audit_log and not instance.reviewed %}
+                <a class="dropdown-item" href="{% url 'audit_log_review' instance.id %}" data-test-id="dropdown-review-audit-log-button"><i class="bx bx-edit me-1"></i> Review </a>
+              {% endif %}
 
-                {% if can_accept_audit_log and instance.reviewed %}
-                  <a class="dropdown-item" href="{% url 'audit_log_unreview' instance.id %}"><i class="bx bx-edit me-1"></i> Unreview </a>
-                {% endif %}
+              {% if can_accept_audit_log and instance.reviewed %}
+                <a class="dropdown-item" href="{% url 'audit_log_unreview' instance.id %}" data-test-id="dropdown-unreview-audit-log-button"><i class="bx bx-edit me-1"></i> Unreview </a>
+              {% endif %}
 
-
-                <!-- Delete Audit Log -->
-                {% if can_delete_audit_log %}
-                  <a class="dropdown-item" href="{% url 'audit_log_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
-                {% endif %}
+              <!-- Delete Audit Log -->
+              {% if can_delete_audit_log %}
+                <a class="dropdown-item" href="{% url 'audit_log_delete' instance.id %}" data-test-id="dropdown-delete-button"><i class="bx bx-trash me-1"></i> Delete</a>
+              {% endif %}
               </div>
             </div>
-          </td>
-        </tr>
+            </td>
+          </tr>
         {% endfor %}
       </tbody>
     </table>

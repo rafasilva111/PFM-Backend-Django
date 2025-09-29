@@ -1,9 +1,6 @@
 from django.core.management.base import BaseCommand
 from apps.user_app.models import User,Company
-from apps.common.constants import TESTING_ACCOUNT_A, TESTING_ACCOUNT_A_PASSWORD, TESTING_ACCOUNT_B, TESTING_ACCOUNT_B_PASSWORD, TESTING_ACCOUNT_C, TESTING_ACCOUNT_C_PASSWORD
-from apps.common.functions import lower_and_underscore
-from django.utils import timezone
-from django.core.management import call_command
+from apps.common.tests.constants import *
 
 class Command(BaseCommand):
     help = 'Create the default company if it does not exist'
@@ -19,67 +16,30 @@ class Command(BaseCommand):
             self.stdout.write(self.style.ERROR('You need to create the default company first'))
             return
 
-        # A
-        name_a = lower_and_underscore(TESTING_ACCOUNT_A)
+        # Create predefined users 
+        for name, is_staff, is_superuser, password, user_type in [
+            (TESTING_ACCOUNT_PLACEHOLDER, False, False, TESTING_ACCOUNT_PLACEHOLDER_PASSWORD, User.UserType.PLACEHOLDER),
+            (TESTING_ACCOUNT_COMPANY, False, False, TESTING_ACCOUNT_COMPANY_PASSWORD, User.UserType.COMPANY),
+            (TESTING_ACCOUNT_NORMAL, False, False, TESTING_ACCOUNT_NORMAL_PASSWORD, User.UserType.NORMAL),
+            (TESTING_ACCOUNT_COMPANY_STAFF, True, False, TESTING_ACCOUNT_COMPANY_STAFF_PASSWORD, User.UserType.COMPANY_STAFF),
+            (TESTING_ACCOUNT_COMPANY_ADMIN, True, False, TESTING_ACCOUNT_COMPANY_ADMIN_PASSWORD, User.UserType.COMPANY_ADMIN),
+            (TESTING_ACCOUNT_APP_ADMIN, True, True, TESTING_ACCOUNT_APP_ADMIN_PASSWORD, User.UserType.APP_ADMIN),
+            (TESTING_ACCOUNT_APP_STAFF, True, False, TESTING_ACCOUNT_APP_STAFF_PASSWORD, User.UserType.APP_STAFF),
+        ]:
+            user, created = User.objects.get_or_create(
+                name=name,
+                email=f"{name}@{name}.pt",
+                is_staff=is_staff,
+                is_superuser=is_superuser,
+                type=user_type
+            )
         
-        try:
-            testing_account_a = User.objects.get(
-                email=f'{name_a}@{name_a}.pt'
-            )
-            
-            self.stdout.write(self.style.SUCCESS('Account A already exists'))
-        except User.DoesNotExist:
-            testing_account_a = User(
-                name=name_a,
-                email=f'{name_a}@{name_a}.pt',
-                is_staff=True,
-                is_superuser=True,
-                birth_date=timezone.now(),
-                company=default_company
-            )
-            testing_account_a.set_password(TESTING_ACCOUNT_A_PASSWORD)
-            testing_account_a.save()
-            self.stdout.write(self.style.SUCCESS('Successfully created testing account A'))
+            if created:
+                user.set_password(password)
+                user.save()
         
-        # B
-        name_b = lower_and_underscore(TESTING_ACCOUNT_B)
-
-        try:
-            testing_account_b = User.objects.get(
-                email=f'{name_b}@{name_b}.pt'
-            )
-            
-            self.stdout.write(self.style.SUCCESS('Account B already exists'))   
-        except User.DoesNotExist:
-            testing_account_b = User(
-                name=name_b,
-                email=f'{name_b}@{name_b}.pt',
-                is_staff=True,
-                birth_date=timezone.now(),
-                company=default_company
-            )
-            testing_account_b.set_password(TESTING_ACCOUNT_B_PASSWORD)
-            testing_account_b.save()
-            self.stdout.write(self.style.SUCCESS('Successfully created testing account B'))
-        
-        # C
-        name_c = lower_and_underscore(TESTING_ACCOUNT_C)
-
-        try:
-            testing_account_c = User.objects.get(
-                email=f'{name_c}@{name_c}.pt'
-            )
-            
-            self.stdout.write(self.style.SUCCESS('Account C already exists'))
-        except User.DoesNotExist:
-            testing_account_c = User(
-                name=name_c,
-                email=f'{name_c}@{name_c}.pt',
-                birth_date=timezone.now(),
-                company=default_company
-            )
-            testing_account_c.set_password(TESTING_ACCOUNT_C_PASSWORD)
-            testing_account_c.save()
-            self.stdout.write(self.style.SUCCESS('Successfully created testing account C'))
+                self.stdout.write(self.style.SUCCESS(f'User "{name}" created successfully.'))
+            else:
+                self.stdout.write(self.style.WARNING(f'User "{name}" already exists.'))
     
     

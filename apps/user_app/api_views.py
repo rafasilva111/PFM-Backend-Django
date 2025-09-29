@@ -368,8 +368,7 @@ class UserListView(APIView):
         return Response(
             ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(records_page, many=True),endpoint_name="api_user_list").data,
             status=status.HTTP_200_OK)
-    
-    
+     
 class UserView(APIView):
     
     permission_classes = [IsAuthenticated]
@@ -542,4 +541,699 @@ class UserView(APIView):
         
         # Delete user instance
         user.delete()
+
+
+###
+#   Follows
+##
+
+class FollowView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Follow or send a follow request to a user",
+        operation_description=(
+            "Follow a user or send a follow request based on the target user's profile type. "
+            "If the target user's profile is private, a follow request is sent. If the profile is public, "
+            "the user is followed automatically. "
+            "Cannot follow oneself."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user to be followed.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Follow request sent successfully if the user has a private profile.',
+                schema=SuccessResponseSerializer
+            ),
+            201: openapi.Response(
+                description='User followed successfully if the user has a public profile.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def post(self, request):
+        
+         # Get user authed
+        user = request.user
+        
+        # Get query parameters
+        
+        user_to_be_followed_id = request.query_params.get('user_id')
+
+        # Validate args
+        if not user_to_be_followed_id:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_to_be_followed_id = int(user_to_be_followed_id)
+
+        if user_to_be_followed_id == user.id:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User can't follow himself...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            user_to_be_followed = User.objects.get(id=user_to_be_followed_id)
+        except User.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+            
+
+        # Create follow request if user profile_type is private
+        if user_to_be_followed.profile_type == User.ProfileType.PRIVATE.value: 
+            follow_request, created = FollowRequest.objects.get_or_create(follower=user, followed=user_to_be_followed)
+            if not created:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User already follows this account.").data, status=status.HTTP_400_BAD_REQUEST)
+
+            # send new follow request notification to recipient (implement your own function)
+            # push_notification(to=user_to_be_followed, by=user, notification_type="FOLLOW_REQUEST") TODO
+            return Response(SuccessResponseSerializer.from_string(RESPONSE_CODES.REQUEST_SENT.value).data, status=status.HTTP_200_OK)
+        
+        # Automatically follow if user profile_type is public
+        follow, created = Follow.objects.get_or_create(follower=user, followed=user_to_be_followed)
+        if not created:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User already follows this account.").data, status=status.HTTP_400_BAD_REQUEST)
+
+        # send new follow notification to recipient (implement your own function)
+        # push_notification(to=user_to_be_followed, by=user, notification_type="FOLLOWED_USER") TODO
+        return Response(status=status.HTTP_201_CREATED)
+    
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Unfollow a user",
+        operation_description="Unfollow a user by specifying either `user_follow_id` or `user_follower_id` in query parameters. Only one parameter can be supplied.",
+        manual_parameters=[
+            openapi.Parameter(
+                'user_follow_id',
+                openapi.IN_QUERY,
+                description="The ID of the user to be unfollowed.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'user_follower_id',
+                openapi.IN_QUERY,
+                description="The ID of the user who is unfollowing.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Successfully unfollowed the user.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing or conflicting parameters, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def delete(self,request):
+    
+         # Get user auth id
+        user = request.user
+        
+        # Get query parameters
+        user_follow_id = request.query_params.get('user_follow_id')
+        user_follower_id = request.query_params.get('user_follower_id')
+        
+        # Validate args
+        if not user_follow_id and not user_follower_id:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        if user_follow_id and user_follower_id:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Only one param can be supplied...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        try:
+            if user_follow_id:
+                follow = Follow.objects.get(follower=user,followed= int(user_follow_id))
+
+            else:
+                follow = Follow.objects.get(follower=int(user_follower_id),followed= user)
+                
+        except Follow.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        
+        # delete
+        id_removed = follow.id 
+        follow.delete()
+            
+        return Response(IdResponseSerializer.build_(id=id_removed).data,status=status.HTTP_200_OK)
+
+class FollowersListView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        tags=['Follow'],
+        operation_summary="Retrieve a paginated list of followers",
+        operation_description=(
+            "Retrieve a paginated list of users who are following the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of followers per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request due to pagination errors.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def get(self,request):
+        
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 5))
+        search_string = request.GET.get('search_string', None)
+        user_id = request.GET.get('user_id', None)
+        
+        # Validate args
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Get user auth
+            user = request.user
+        
+
+        # Query
+        
+        query = User.objects.filter(followers__followed=user)
+        
+        # Filter by search string if provided
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
+
+        # Paginate the results
+        paginator = Paginator(query, page_size)
+
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
+
+        return Response(
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        status=status.HTTP_200_OK)
+    
+class FollowsListView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        tags=['User'],
+        operation_summary="Retrieve a paginated list of users followed by the authenticated user",
+        operation_description=(
+            "Retrieve a paginated list of users who are followed by the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of followed users per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request due to pagination errors.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def get(self,request):
+        
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 5))
+        search_string = request.GET.get('search_string', None)
+        user_id = request.GET.get('user_id', None)
+        
+        # Validate args
+        
+        if user_id:
+            try:
+                user = User.objects.get(id=user_id)
+            except User.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            # Get user auth
+            user = request.user
+        
+
+        # Query
+        
+        query = User.objects.filter(followeds__follower=user)
+        
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
+
+        # Paginate the results
+        paginator = Paginator(query, page_size)
+
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.PAGINATION.value,message ="Page does not exist.").data, status=status.HTTP_400_BAD_REQUEST)
+        
+       
+        return Response(
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserSimpleSerializer(users_page, many=True),endpoint_name="follow_requests").data,
+        status=status.HTTP_200_OK)
+
+class UsersToFollowView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self, request):
+        
+        # Get user authed
+        user = request.user
+        
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 10))
+        search_string = request.GET.get('search_string', None)
+        
+        # Fetch follow request and follow information
+        follow_requests_ids = set(FollowRequest.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        follows_ids = set(Follow.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        
+        # Annotate query to mark users with pending follow requests and if they are followed
+        query = User.objects.exclude(user_type=User.UserType.ADMIN.value).exclude(id=user.id).exclude(id__in=follows_ids).order_by('created_at')
+
+        # Annotate with request_sent and follower boolean fields
+        query = query.annotate(
+            request_sent=Case(
+                When(id__in=follow_requests_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            ),
+            follower=Case(
+                When(id__in=follows_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            )
+        ).order_by('-request_sent', 'created_at')
+        
+        if search_string:
+            query = query.filter(Q(name__icontains=search_string) | Q(username__icontains=search_string))
+
+        # Paginate the results
+        paginator = Paginator(query, page_size)
+        total_users = paginator.count
+        total_pages = paginator.num_pages
+        
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value: "Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Build response data
+        response_data = {
+            "_metadata": {
+                "page": page,
+                "page_size": page_size,
+                "total_pages": total_pages,
+                "total_users": total_users
+            },
+            "result": []
+        }
+        
+
+        # Fill Results
+        for item in users_page:
+            user_data = UserToFollowSerializer(item).data
+            response_data["result"].append(user_data)
+        
+        return Response(
+        ListResponseSerializer.build_(request,page,paginator,serializer = UserToFollowSerializer(users_page, many=True),endpoint_name="users_to_follow_list").data,
+        status=status.HTTP_200_OK)
+
+##
+#   Follow Request
+#
+
+class FollowRequestListView(APIView):
+    
+    
+    permission_classes = [IsAuthenticated]
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Retrieve paginated list of follow requests",
+        operation_description=(
+            "Retrieve a paginated list of follow requests received by the authenticated user. "
+            "The results can be filtered and paginated using query parameters."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'page',
+                openapi.IN_QUERY,
+                description="The page number to retrieve. Defaults to 1.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+            openapi.Parameter(
+                'page_size',
+                openapi.IN_QUERY,
+                description="The number of follow requests per page. Must be one of [5, 10, 20, 40]. Defaults to 5.",
+                type=openapi.TYPE_INTEGER,
+                required=False
+            ),
+        ],
+        
+            responses={
+            200: openapi.Response(
+                description='A paginated list of users.',
+                schema=ListResponseSerializer
+            ),
+            400: openapi.Response(
+                description='Bad request. The provided page does not exist or other parameter issues.',
+                schema=ErrorResponseSerializer
+            ),
+            }
+        
+    )
+    def get(self, request):
+        # Get user auth id
+        user = request.user
+
+        # Get args
+        page = int(request.GET.get('page', 1))
+        page_size = int(request.GET.get('page_size', 5))
+
+        # Fetch follow request and follow information
+        follow_requests_ids = set(FollowRequest.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        follows_ids = set(Follow.objects.filter(follower=user.id).values_list('followed_id', flat=True))
+        
+        print(follows_ids)
+        print(FollowRequest.objects.filter(followed=user).values_list('follower_id', flat=True))
+
+        # Query and annotate with request_sent and is_follower boolean fields
+        follow_requests = FollowRequest.objects.filter(followed=user).annotate(
+            request_sent=Case(
+                When(follower__id__in=follow_requests_ids, then=Value(True)),
+                default=Value(False),
+                output_field=BooleanField()
+            )
+        ).order_by('created_at')
+
+        # Paginate the results
+        paginator = Paginator(follow_requests, page_size)
+
+        # Get the requested page
+        try:
+            users_page = paginator.page(page)
+        except Exception:
+            return Response(
+                ErrorResponseSerializer.from_params(
+                    type=ERROR_TYPES.PAGINATION.value,
+                    message="Page does not exist."
+                ).data, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            ListResponseSerializer.build_(
+                request, page, paginator, serializer=FollowRequestSerializer(users_page, many=True), endpoint_name="follow_requests_list"
+            ).data,
+            status=status.HTTP_200_OK
+        )
+    
+class FollowRequestView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Accept a follow request",
+        operation_description=(
+            "Accept a follow request from a user. If the request is accepted, the users are followed. "
+            "The request is automatically deleted. Cannot accept a follow request from oneself."
+        ),
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user whose follow request is to be accepted.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            201: openapi.Response(
+                description='Successfully accepted the follow request and followed the user.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def post(self,request):
+        
+        # Get user authed
+        user = request.user
+        
+        # Get query parameters
+        
+        user_follow_request_id = request.query_params.get('id')
+
+        # Validate args
+        if not user_follow_request_id:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        user_follow_request_id = int(user_follow_request_id)
+
+        if user_follow_request_id == user.id:
+           return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User can't accept follow request himself...").data, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            user_follow_request = FollowRequest.objects.get(id = user_follow_request_id,followed= user)
+        except FollowRequest.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+            
+        # Automatically follow if user profile_type is public
+        follow, created = Follow.objects.get_or_create(follower=user_follow_request.follower, followed=user_follow_request.followed)
+        if not created:
+            #logger.error("This isn't supose to happen, this problem should be caught on FollowView post method where we create the follow request...") # TODO make test about this
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User already follows this account.").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        # delete obselete follow request
+        user_follow_request.delete()
+        # send new follow notification to recipient (implement your own function)
+        # push_notification(to=user_to_be_followed, by=user, notification_type="FOLLOWED_USER") TODO
+        return Response(status=status.HTTP_201_CREATED)
+    
+    
+    @swagger_auto_schema(
+        tags=['Follow Request'],
+        operation_summary="Reject a follow request",
+        operation_description="Reject a follow request from a user. The request is deleted without further action.",
+        manual_parameters=[
+            openapi.Parameter(
+                'user_id',
+                openapi.IN_QUERY,
+                description="The ID of the user whose follow request is to be rejected.",
+                type=openapi.TYPE_INTEGER,
+                required=True
+            ),
+        ],
+        responses={
+            200: openapi.Response(
+                description='Successfully rejected and deleted the follow request.',
+            ),
+            400: openapi.Response(
+                description='Bad request due to missing parameters, logical errors, or user not found.',
+                schema=ErrorResponseSerializer
+            ),
+        }
+    )
+    def delete(self,request):
+    
+        # Get user auth id
+        user = request.user
+        
+        # Get query parameters
+        follower_id = request.query_params.get('follower_id')
+        followed_id = request.query_params.get('follow_id')
+        
+        # Validate args
+        if follower_id:
+            follower_id = int(follower_id)
+            
+        elif followed_id:
+            followed_id = int(followed_id)
+            
+        else:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.ARGS.value,message="Missing arguments...").data, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Parse args
+        
+        
+        if follower_id:
+            
+            try:
+                user_follow_request = FollowRequest.objects.get(followed_id = user.id,follower= follower_id)
+            except FollowRequest.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        else:
+            try:
+                user_follow_request = FollowRequest.objects.get(followed_id = followed_id,follower= user.id)
+            except FollowRequest.DoesNotExist:
+                return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User couldn't be found by this id.").data,status=status.HTTP_400_BAD_REQUEST)
+        
+        # delete
+        id_removed = user_follow_request.id 
+        user_follow_request.delete()
+            
+        return Response(IdResponseSerializer.build_(id=id_removed).data,status=status.HTTP_200_OK)
+        
+###
+#   Goals
+##
+
+from apps.user_app.models import Goal
+from apps.user_app.serializers import GoalSerializer,IdealWeightSerializer
+from apps.user_app.functions import calculate_bmi
+
+class IdealWeightView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    def get(self,request):
+        # Standart BMI 
+        
+        # Get user authed
+        user = request.user
+        
+        # Validate args
+        if user.weight == -1 or user.height == -1:
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.LOGICAL.value,message="User does not have setted weight neither height...").data,status=status.HTTP_400_BAD_REQUEST)
+        
+        # Calculate BMI
+        
+        bmi, ideial_weigh_lower_limit,ideial_weigh_upper_limit  = calculate_bmi(user.weight,user.height)
+        
+
+        return Response(IdealWeightSerializer.from_params(ideial_weigh_lower_limit,ideial_weigh_upper_limit,bmi).data,status=status.HTTP_200_OK)
+        
+class GoalsView(APIView):
+    
+    permission_classes = [IsAuthenticated]
+    
+    def get(self,request):
+        
+        # Get user authed
+        user = request.user
+
+        # Get user goal
+        
+        try:
+            goal = user.goals.get(deleted_at = None)
+            
+        except Goal.DoesNotExist:
+            
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User does't have a goal.").data,status=status.HTTP_400_BAD_REQUEST)
+            # if user hasnt ever create a goal this would trow and exception
+
+        
+        return Response(GoalSerializer(goal).data, status=status.HTTP_200_OK)
+    
+    def post(self,request):
+        
+        # Get user authed
+        user = request.user
+        
+        # Validate serializer
+        serializer = GoalSerializer(data=request.data, context={'user': user})
+        if not serializer.is_valid():
+            return Response(ErrorResponseSerializer.from_serializer_errors(serializer).data, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer.user = user
+        
+        # Soft delete previous goal (user can only have one current goal)
+
+        try:
+            previous_goal = user.goals.get(deleted_at = None)
+            previous_goal.delete()
+        except Goal.DoesNotExist:
+            # if user hasnt ever create a goal this would trow and exception
+            pass
+        
+    
+        # save goal
+        serializer.save()
+
+        return Response(status=status.HTTP_201_CREATED)
+        
+        
+    def delete(self,request):
+        
+        # Get user auth id
+        user = request.user
+        
+        
+        # Get user goal
+        
+        try:
+            goal = user.goals.get(deleted_at = None)
+            
+        except Goal.DoesNotExist:
+            
+            return Response(ErrorResponseSerializer.from_params(type=ERROR_TYPES.MISSING_MODEL.value,message="User does not have a goal to delete.").data,status=status.HTTP_400_BAD_REQUEST)
+            # if user hasnt ever create a goal this would trow and exception
+            pass
+        
+        # delete        
+        goal.delete()
+        
+        
+        return Response(status=status.HTTP_200_OK)
         

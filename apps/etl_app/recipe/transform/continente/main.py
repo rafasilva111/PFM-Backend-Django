@@ -6,7 +6,7 @@ import json
 " Import custom functions and constants "
 from apps.etl_app.functions import start_db, start_sub_db, strip_markdown_json
 from apps.etl_app.constants import TRANSFORM_CONTINENTE_RECIPES_DB, eu_reference_intake
-from apps.etl_app.recipe.extract.continente.models import database_proxy as database_proxy_E, Recipe as Recipe_E, RecipeLinks as RecipeLinks_E, NutritionInformation as NutritionInformation_E, Ingredient as Ingredient_E, Tag as Tag_E, UsefulTool as UsefulTool_E
+from apps.etl_app.recipe.extract.continente.models import database_proxy as database_proxy_E, Recipe as Recipe_E, RecipeLink as RecipeLink_E, NutritionInformation as NutritionInformation_E, Ingredient as Ingredient_E, Tag as Tag_E, UsefulTool as UsefulTool_E
 from apps.etl_app.recipe.transform.models import database_proxy, Recipe as Recipe_T,  NutritionInformation as NutritionInformation_T, Ingredient as Ingredient_T, Tag as Tag_T, UsefulTool as UsefulTool_T, IngredientQuantity as IngredientQuantity_T
 from apps.etl_app.recipe.transform.continente.functions import normalize_time, normalize_portion, normalize_quantity
 
@@ -15,7 +15,7 @@ recipeTagThrough_E = Recipe_E.tags.get_through_model()
 recipeTagThrough_T = Recipe_T.tags.get_through_model()
 
 " Define the list of models to be used in the extraction process "
-extract_models_ = [Recipe_E, RecipeLinks_E, NutritionInformation_E, Ingredient_E, Tag_E, UsefulTool_E, recipeTagThrough_E]
+extract_models_ = [Recipe_E, RecipeLink_E, NutritionInformation_E, Ingredient_E, Tag_E, UsefulTool_E, recipeTagThrough_E]
 transform_models_ = [Recipe_T, Ingredient_T, Tag_T, IngredientQuantity_T, NutritionInformation_T, Ingredient_T, UsefulTool_T, recipeTagThrough_T]
 
 " Define the AI prompt for transforming recipes "

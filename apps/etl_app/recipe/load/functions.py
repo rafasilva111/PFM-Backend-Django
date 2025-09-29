@@ -397,13 +397,13 @@ def load_recipe(logger, task, recipe):
                     if isinstance(changes, list):
                         for change in changes:
                             if 'created' in change:
-                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=None, new_value=change['created'], update_sub_type=RecipeAuditLog.UpdateType.Create)
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=None, new_value=change['created'], update_sub_type=RecipeAuditLog.SubType.Create)
                             elif 'deleted' in change:
-                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['deleted'], new_value=None, update_sub_type=RecipeAuditLog.UpdateType.Delete)
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['deleted'], new_value=None, update_sub_type=RecipeAuditLog.SubType.Delete)
                             elif 'updated' in change:
-                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['updated']['old'], new_value=change['updated']['new'], update_sub_type=RecipeAuditLog.UpdateType.Update)
+                                create_audit_log(RecipeAuditLog.Type.Update, task, __recipe, field=field, old_value=change['updated']['old'], new_value=change['updated']['new'], update_sub_type=RecipeAuditLog.SubType.Update)
                     else:
-                        create_audit_log(RecipeAuditLog.Type.Update, task, __recipe,field=field, old_value=changes['old'], new_value=changes['new'], update_sub_type=RecipeAuditLog.UpdateType.Update) 
+                        create_audit_log(RecipeAuditLog.Type.Update, task, __recipe,field=field, old_value=changes['old'], new_value=changes['new'], update_sub_type=RecipeAuditLog.SubType.Update) 
                     
             else:
                 # If recipe is not verified, check for created AuditLog and update it
@@ -530,7 +530,7 @@ def persist_recipe(logger, task, recipe, recipe_t):
     create_audit_log(RecipeAuditLog.Type.Create, task, recipe)
     
 
-def create_audit_log(type, task, recipe, field = None, old_value = None, new_value = None, update_sub_type:RecipeAuditLog.UpdateType = None):
+def create_audit_log(type, task, recipe, field = None, old_value = None, new_value = None, update_sub_type:RecipeAuditLog.SubType = None):
 
     match type:
         case RecipeAuditLog.Type.Create:

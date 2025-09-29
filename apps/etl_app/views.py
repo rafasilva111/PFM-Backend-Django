@@ -854,7 +854,7 @@ class TaskTableView(PermissionRequiredMixin, TemplateView):
     """
 
     template_name = "etl_app/task/table.html"
-    permission_required = "task_app.can_view_tasks"
+    permission_required = "etl_app.can_view_tasks"
     page_size = 10
 
     def get_context_data(self, **kwargs):
@@ -896,16 +896,16 @@ class TaskTableView(PermissionRequiredMixin, TemplateView):
                 "total_count": paginator.count,
                 "page_obj": page_obj,
                 "can_create_task": self.request.user.has_perm(
-                    "task_app.can_create_task"
+                    "etl_app.can_create_task"
                 ),
                 "can_edit_task": self.request.user.has_perm(
-                    "task_app.can_edit_task"
+                    "etl_app.can_edit_task"
                 ),
                 "can_view_task": self.request.user.has_perm(
-                    "task_app.can_view_task"
+                    "etl_app.can_view_task"
                 ),
                 "can_delete_task": self.request.user.has_perm(
-                    "task_app.can_delete_task"
+                    "etl_app.can_delete_task"
                 ),
             }
         )
@@ -940,7 +940,7 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
             - Additional template layout context data
     """
     template_name = "etl_app/task/detail.html"
-    permission_required = "task_app.can_view_task"
+    permission_required = "etl_app.can_view_task"
     page_size = 10
 
     def get_context_data(self, **kwargs):
@@ -1044,7 +1044,7 @@ class TaskCreateView(PermissionRequiredMixin, TemplateView):
     """
 
     template_name = "etl_app/task/create.html"
-    permission_required = "task_app.can_create_task"
+    permission_required = "etl_app.can_create_task"
 
     def get_context_data(self, **kwargs):
         # A function to init the global layout. It is defined in web_project/__init__.py file
@@ -1108,7 +1108,7 @@ class TaskEditView(PermissionRequiredMixin, TemplateView):
             HttpResponse: The HTTP response object.
     """
     template_name = 'etl_app/task/edit.html'
-    permission_required = "task_app.change_task"
+    permission_required = "etl_app.change_task"
     form_class = TaskForm
     
     def get_context_data(self, **kwargs):

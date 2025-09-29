@@ -216,7 +216,7 @@ def normalize_quantity(logger, task, quantity_original: str):
             unit = match.group(2)
             rest = match.group(4) or ""  # "de açúcar", "de água", etc.
 
-            value = num1 + num2
+            total = num1 + num2
             quantity_tempered = f"{total:.2f} {unit}"
             if quantity_tempered:
                 quantity_tempered += f" de {rest}"

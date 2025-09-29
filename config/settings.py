@@ -44,7 +44,7 @@ DEBUG = ENVIRONMENT == "dev"
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 
-ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),os.environ.get("ALLOWED_IP", None)]
+ALLOWED_HOSTS = ["127.0.0.1", "localhost","0.0.0.0", "django", os.environ.get("ALLOWED_URL", None),os.environ.get("ALLOWED_IP", None),"172.19.128.1"]
     
 
 CSRF_TRUSTED_ORIGINS = [
@@ -240,11 +240,6 @@ THEME_VARIABLES = THEME_VARIABLES
 # Logging
 # ------------------------------------------------------------------------------
 
-# ETL logging configuration
-JOBS_LOG_DIR = "apps/etl_app/logs/jobs"
-TASKS_LOG_DIR = "apps/etl_app/logs/tasks"
-
-
 
 # Django logging configuration
 LOGGING = {
@@ -363,3 +358,17 @@ CHANNEL_LAYERS = {
 
 RECAPTCHA_PUBLIC_KEY = os.environ.get("RECAPTCHA_PUBLIC_KEY")
 RECAPTCHA_PRIVATE_KEY = os.environ.get("RECAPTCHA_PRIVATE_KEY")
+
+
+# Swagger
+# ------------------------------------------------------------------------------
+
+SWAGGER_USE_COMPAT_RENDERERS = False
+
+
+import warnings
+from marshmallow.warnings import RemovedInMarshmallow4Warning
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=RemovedInMarshmallow4Warning)
+warnings.filterwarnings("ignore", message='"db_table" has been deprecated', category=DeprecationWarning)

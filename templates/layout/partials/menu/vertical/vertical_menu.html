@@ -1,3 +1,5 @@
+{% load custom_filters %}
+
 <aside id="layout-menu" class="layout-menu menu-vertical menu bg-menu-theme">
   <!-- ! Hide app brand if navbar-full -->
   {% if not navbar_full %}
@@ -47,16 +49,24 @@
 
       <ul class="menu-sub">
         <!-- Recipes -->
-        <li class="menu-item {% if 'recipe' in request.resolver_match.url_name %}active{% endif %}">
+        <li class="menu-item {% active 'recipes' 'recipe_detail' 'recipe_delete' %}">
           <a href="{% url 'recipes' %}" class="menu-link">
             <div class="text-truncate">Recipes</div>
           </a>
         </li>
 
         <!-- Audit Log -->
-        <li class="menu-item {% if 'audit_log' in request.resolver_match.url_name %}active{% endif %}">
+        <li class="menu-item {% active 'audit_logs'  %}">
           <a href="{% url 'audit_logs' %}" class="menu-link">
             <div class="text-truncate">Audit Logs</div>
+            <!-- <div class="badge bg-danger rounded-pill ms-auto">5</div> -->
+          </a>
+        </li>
+
+        <!-- Recipe Reports -->
+        <li class="menu-item {% active 'recipe_reports' 'recipe_report_create' 'recipe_report_detail' %}">
+          <a href="{% url 'recipe_reports' %}" class="menu-link">
+            <div class="text-truncate">Reports</div>
             <!-- <div class="badge bg-danger rounded-pill ms-auto">5</div> -->
           </a>
         </li>

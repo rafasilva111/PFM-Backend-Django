@@ -29,7 +29,7 @@ class IngredientServerSchema(ma.Schema):
 class IngredientQuantityServerSchema(ma.Schema):
     ingredient = fields.Nested(IngredientServerSchema, required=True)
     quantity_original = fields.String(required=True)
-    quantity_normalized = fields.Float(required=False, default=None)
+    quantity_normalized = fields.Float(required=False, dump_default=None)
 
 
 class PreparationServerSchema(ma.Schema):
@@ -45,13 +45,13 @@ class NutritionInformationServerSchema(ma.Schema):
     gordura_saturada = fields.String(required=True)
     gordura_saturada_perc = fields.String()
     hidratos_carbonos = fields.String(required=True)
-    hidratos_carbonos_perc = fields.String(null=True)
+    hidratos_carbonos_perc = fields.String(allow_none=True)
     hidratos_carbonos_acucares = fields.String(required=True)
     hidratos_carbonos_acucares_perc = fields.String()
     fibra = fields.String(required=True)
     fibra_perc = fields.String()
     proteina = fields.String(required=True)
-    proteina_perc = fields.String(null=True)
+    proteina_perc = fields.String(allow_none=True)
 
     class Meta:
         unknown = EXCLUDE
@@ -64,8 +64,8 @@ class TagSchema(ma.Schema):
 class RecipeSchema(ma.Schema):
     title = fields.String(required=True)
     description = fields.String(required=True)
-    img_source = fields.String(required=False, default="")
-    verified = fields.Boolean(required=True,default=True)
+    img_source = fields.String(required=False, dump_default="")
+    verified = fields.Boolean(required=True,dump_default=True)
 
     difficulty = fields.String(required=False)
     portion = fields.String(required=False)

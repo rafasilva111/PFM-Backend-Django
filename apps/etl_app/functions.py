@@ -18,6 +18,7 @@ import firebase_admin
 import requests
 from firebase_admin import credentials, initialize_app, storage
 from peewee import SqliteDatabase, OperationalError
+from apps.etl_app.constants import JOBS_LOG_DIR, TASKS_LOG_DIR
 
 
 """ Main Datbase """
@@ -69,7 +70,7 @@ def configure_logging(log_folder):
 
 def configure_job_logging(job):
 
-    log_folder = f"{settings.JOBS_LOG_DIR}/{job.id}"
+    log_folder = f"{JOBS_LOG_DIR}/{job.id}"
 
     # Configure the logging
     logger, info_log_path = configure_logging(log_folder)
@@ -81,7 +82,7 @@ def configure_task_logging(task):
 
     # Define the log folder
 
-    log_folder  = f"{settings.TASKS_LOG_DIR}/{task.id}"
+    log_folder  = f"{TASKS_LOG_DIR}/{task.id}"
 
     # Configure the logging
     logger, info_log_path = configure_logging(log_folder)
@@ -89,7 +90,7 @@ def configure_task_logging(task):
     return logger, info_log_path
 
 
-def start_db(logger, task, models, path, database_proxy, reset=False):
+def start_db(task, models, path, database_proxy, reset=False, logger=None):
     """
     Start the recipe extract database.
 
@@ -172,7 +173,10 @@ def start_sub_db(logger, task, models, database_proxy):
                 task.errors += 1
                 task.save()
                 return task, None
-        
+        else:
+            logger.error("Task does not have a parent job or parent task.")
+            return task, None
+            
     elif task.parent_job:
         if task.parent_job.current_task:
             database = SqliteDatabase(task.parent_job.current_task.sql_path)
@@ -214,7 +218,7 @@ def create_driver(debug_mode=False):
     
 
     if debug_mode:
-        driver_path = os.path.join(os.getcwd(), "/snap/bin/firefox.geckodriver")
+        driver_path = os.path.join(os.getcwd(), "bin/geckodriver")
     else:
         driver_path = "/app/bin/geckodriver"
     
@@ -224,11 +228,15 @@ def create_driver(debug_mode=False):
     service = Service(driver_path)
     options = webdriver.FirefoxOptions()
     options.add_argument("--window-size=1920,1080")
-    
-    if not debug_mode:
-        options.add_argument("--headless")
+    options.binary_location = "/usr/bin/firefox"
+    options.add_argument("--headless")
     
     driver = webdriver.Firefox(service=service, options=options)
+    # If elenium.common.exceptions.SessionNotCreatedException: Message: Expected browser binary location, but unable to find binary in default location
+    #sudo add-apt-repository ppa:mozillateam/ppa -y
+    #sudo apt update
+    #sudo apt install firefox -y
+    
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver
 

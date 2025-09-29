@@ -1,0 +1,121 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}Table - Recipes Report{% endblock %}
+
+{% block content %}
+<h4 class="py-3 mb-4">
+  <span class="text-muted fw-light">Tables /</span> Recipe's Reports
+</h4>
+
+
+<!-- Basic Bootstrap Table -->
+<div class="card">
+  
+  <div class="container-fluid d-flex align-items-center">
+    <h5 class="card-header flex-grow-1">Recipe Reports's Table</h5>
+    
+    <!-- {% if can_create_recipe_report %}
+      <a href="{% url 'recipe_report_create' %}" class="btn btn-primary">
+        Create Report
+      </a>
+    {% endif %} -->
+  </div>
+  
+  <!-- Filter Form -->
+  <form method="get" class="card py-3 mb-4">
+    <div class="container-fluid d-flex justify-content-start align-items-center">
+      
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Reviwed: </label>
+        {{ filter.form.reviewed }}
+      </div>
+      <div class="col-md-2 pe-md-1">
+        <label class="form-label">Created by: </label>
+        {{ filter.form.status }}
+      </div>
+
+      <div class="col-md-2 text-end ms-auto">
+        <button type="submit" class="btn btn-primary">Filter</button>
+      </div>
+    </div>
+    
+  </form>
+  
+  <!-- Table -->
+  <div class="table-responsive text-nowrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th class="text-center">ID</th>
+          <th class="text-center">Title</th>
+          <th class="text-center">Message </th>
+          <th class="text-center">Recipe</th>
+          <th class="text-center">Reviewing by</th>
+          <th class="text-center">Created At</th>
+          <th class="text-center align-middle">Actions</th>
+        </tr>
+      </thead>
+      <tbody class="table-border-bottom-0">
+        {% for instance in page_obj %}
+        <tr>
+          <td class="text-center">{{ instance.id }}</td>
+          <td class="text-center">{{ instance.title}}</td>
+          <td class="text-center">{{ instance.message}}</td>
+          <td class="text-center">
+        <span class="badge
+          {% if instance.status == 'RESOLVED' %}
+            bg-label-success
+          {% elif instance.status == 'SEEN' %}
+            bg-label-info
+          {% elif instance.status == 'ON_HOLD' %}
+            bg-label-warning
+          {% elif instance.status == 'PENDING' %}
+            bg-label-danger
+          {% else %}
+            bg-label-secondary
+          {% endif %}
+          me-1">{{ instance.get_status_display }}</span>
+          </td>
+          <td class="text-center">{{ instance.reviewed_by}}</td>
+          <td class="text-center">{{ instance.created_at}}</td>
+          <td class="text-center align-middle">
+          <div class="dropdown">
+            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown" style="display: flex; justify-content: center; align-items: center;">
+            <i class="bx bx-dots-vertical-rounded"></i>
+            </button>
+            <div class="dropdown-menu">
+
+              <!-- Recipe Report Details -->
+              {% if can_view_recipe_report %}
+              <a class="dropdown-item" href="{% url 'recipe_report_detail' instance.id %}" data-test-id="dropdown-details-button"><i class="bx bx-detail me-1"></i> Details</a>
+              {% endif %}
+              
+              <!-- Review Recipe Report -->
+              {% if can_review_recipe_report and not instance.reviewed %}
+              <a class="dropdown-item" href="{% url 'recipe_report_review' instance.id %}" data-test-id="dropdown-review-button"><i class="bx bx-edit me-1"></i> Review</a>
+              {% endif %}
+
+              {% if can_unreview_recipe_report and instance.reviewed  %}
+              <a class="dropdown-item" href="{% url 'recipe_report_unreview' instance.id %}" data-test-id="dropdown-unreview-button"><i class="bx bx-edit me-1"></i> Unreview</a>
+              {% endif %}
+
+              <!-- Delete Recipe Report -->
+              {% if can_delete_recipe_report %}
+              <a class="dropdown-item" href="{% url 'recipe_report_delete' instance.id %}" data-test-id="dropdown-delete-button"><i class="bx bx-trash me-1"></i> Delete</a>
+              {% endif %}
+            </div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  
+  {% include "common/default/pagination.html" %}
+</div>
+</div>
+{% endblock %}

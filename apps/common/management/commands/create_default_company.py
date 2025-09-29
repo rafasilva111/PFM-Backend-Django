@@ -17,9 +17,9 @@ class Command(BaseCommand):
             }
         )
         if created:
-            self.stdout.write(self.style.SUCCESS('Successfully created testing account A'))
+            self.stdout.write(self.style.SUCCESS('Successfully created default Company account: Goodbites'))
         else:
-            self.stdout.write(self.style.SUCCESS('Account A already exists'))
+            self.stdout.write(self.style.SUCCESS('Already exists the default Company account: Goodbites'))
             
 
         

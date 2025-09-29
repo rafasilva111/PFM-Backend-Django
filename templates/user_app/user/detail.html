@@ -35,7 +35,7 @@
                 <a href="{% url 'user_edit' record.id %}" class="btn btn-primary py-1">
                     Edit
                 </a>
-                <a href="{% url 'user_enable_disable' record.id %}?next={{ request.path }}" class="btn btn-warning py-1">
+                <a class="btn btn-warning py-1">
                     {% if record.is_active %}
                         Disable
                     {% else %}

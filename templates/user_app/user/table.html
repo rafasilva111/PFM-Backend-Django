@@ -60,58 +60,52 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Id</th>
-          <th>Email</th>
-          <th>Name</th>
-          <th>User Type</th>
-          <th>Enabled</th>
-          <th>Options</th>
-
+          <th class="text-center">Id</th>
+          <th class="text-center">Email</th>
+          <th class="text-center">Name</th>
+          <th class="text-center">User Type</th>
+          <th class="text-center">Enabled</th>
+          <th class="text-center">Options</th>
         </tr>
       </thead>
       <tbody class="table-border-bottom-0">
           {% for instance in page_obj %}
-          <tr >
-            <td>{{ instance.id }}</td>
-            <td>{{ instance.email}}</td>
-            <td>{{ instance.name}}</td>
-            <td>{{ instance.get_type_display }}</td>
-            
-            <td><span class="badge 
-              {% if instance.is_active %}
-                  bg-label-success
-              {% else %}
-                bg-label-danger
-              {% endif %}
-              me-1">{{ instance.is_active}}</span></td>
-            <td >
-              <div class="dropdown">
-                <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
-                <div class="dropdown-menu">
-
-                  {% if can_view_user %}
-                      <a class="dropdown-item" href="{% url 'user_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
-                  {% endif %}
-
-                  {% if can_edit_user %}
-                      <a class="dropdown-item" href="{% url 'user_edit' instance.id %}"><i class="bx bx-pencil me-1"></i> Edit</a>
-                  {% endif %}
-                  
-                  {% if can_disable_user and instance.is_active %}
-                      <a class="dropdown-item" href="{% url 'user_disable' instance.id %}"><i class="bx bx-pencil me-1"></i> Disable</a>                    
-                  {% endif %}
-
-                  {% if can_enable_user and not instance.is_active  %}
-                      <a class="dropdown-item" href="{% url 'user_enable' instance.id %}"><i class="bx bx-pencil me-1"></i> Disable</a>                    
-                  {% endif %}
-
-                  {% if can_delete_user %}
-                      <a class="dropdown-item" href="{% url 'user_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
-                  {% endif %}
-
-                </div>
-              </div>
-            </td>
+          <tr>
+        <td class="text-center">{{ instance.id }}</td>
+        <td class="text-center">{{ instance.email }}</td>
+        <td class="text-center">{{ instance.name }}</td>
+        <td class="text-center">{{ instance.get_type_display }}</td>
+        <td class="text-center">
+          <span class="badge 
+            {% if instance.is_active %}
+            bg-label-success
+            {% else %}
+          bg-label-danger
+            {% endif %}
+            me-1">{{ instance.is_active }}</span>
+        </td>
+        <td class="text-center">
+          <div class="dropdown">
+            <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+            <div class="dropdown-menu">
+          {% if can_view_user %}
+              <a class="dropdown-item" href="{% url 'user_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
+          {% endif %}
+          {% if can_edit_user %}
+              <a class="dropdown-item" href="{% url 'user_edit' instance.id %}"><i class="bx bx-pencil me-1"></i> Edit</a>
+          {% endif %}
+          {% if can_disable_user and instance.is_active %}
+              <a class="dropdown-item" href="{% url 'user_disable' instance.id %}"><i class="bx bx-pencil me-1"></i> Disable</a>                    
+          {% endif %}
+          {% if can_enable_user and not instance.is_active  %}
+              <a class="dropdown-item" href="{% url 'user_enable' instance.id %}"><i class="bx bx-pencil me-1"></i> Disable</a>                    
+          {% endif %}
+          {% if can_delete_user %}
+              <a class="dropdown-item" href="{% url 'user_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
+          {% endif %}
+            </div>
+          </div>
+        </td>
           </tr>
           {% endfor %}
         

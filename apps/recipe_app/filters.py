@@ -1,5 +1,5 @@
 from django_filters import FilterSet, DateRangeFilter, DateFilter,ChoiceFilter,CharFilter,ModelChoiceFilter
-from apps.recipe_app.models import Recipe, RecipeAuditLog, RecipeAuditLogStatusHistory
+from apps.recipe_app.models import Recipe, RecipeAuditLog, RecipeAuditLogStatusHistory, RecipeReport
 from apps.user_app.models import User
 from django import forms
 
@@ -61,3 +61,23 @@ class RecipeAuditLogStatusHistoryFilter(FilterSet):
     class Meta:
         model = RecipeAuditLogStatusHistory
         fields = ["status", "changed_by"]
+        
+class RecipeReportFilter(FilterSet):
+    reviewed = ChoiceFilter(
+        choices=[
+            ('True', 'Yes'),
+            ('False', 'No')
+        ],
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm'}),
+        label='Reviewed'
+    )
+    
+    status = ChoiceFilter(
+        choices=RecipeReport.Type.choices,
+        widget=forms.Select(attrs={'class': 'form-select form-select-sm'}),
+        label='Status'
+    )
+    
+    class Meta:
+        model = RecipeReport
+        fields = ['reviewed', 'status']

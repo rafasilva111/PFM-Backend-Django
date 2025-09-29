@@ -121,8 +121,46 @@ class DashboardsView(TemplateView):
         return context
 
 
+###
+#
+#   Error Views
+#
+##
 
+
+class Custom403View(TemplateView):
+    template_name = "common/page_error.html"
+    status_code = 403
+
+    def get(self, request, *args, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context.update({
+            "layout_path": TemplateHelper.set_layout("layout_blank.html", context),
+            "title": "403 Forbidden 🚫",
+            "description": "Oops! You don’t have permission to access this page.\n\
+              If you think this is a mistake, please contact support.",
+        })
+        
+        return self.render_to_response(context, status=403)
     
+class Custom500View(TemplateView):
+    template_name = "common/page_error.html"
+    status_code = 500 
+
+    def __init__(self, **kwargs):
+        self.status_code = kwargs.pop('status_code', self.status_code)
+        super().__init__(**kwargs)
+
+    def get(self, request, *args, **kwargs):
+        context = TemplateLayout.init(self, super().get_context_data(**kwargs))
+        context.update({
+            "layout_path": TemplateHelper.set_layout("layout_blank.html", context),
+            "title": "Oops! Something went wrong. ⚠️",
+            "description": "We're sorry, but it seems the page you're looking for cannot be found or there was an issue with your request.",
+        })
+        return self.render_to_response(context, status=self.status_code)
+
+
 ###
 #
 #   Miscellaneous

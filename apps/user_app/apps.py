@@ -7,4 +7,5 @@ class UserAppConfig(AppConfig):
     
     def ready(self):
         # this is loading the signals   
-        from apps.user_app.signals import add_user_to_default_group
+        pass
+        import apps.user_app.signals

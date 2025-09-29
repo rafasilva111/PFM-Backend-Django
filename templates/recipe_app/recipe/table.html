@@ -49,41 +49,43 @@
     <table class="table">
       <thead>
         <tr>
-          <th>Recipes</th>
-          <th>Title</th>
-          <th>Created by</th>
-          <th>Verified</th>
-          <th>Created At</th>
-          <th>Actions</th>
+          <th class="text-center align-middle">Recipes</th>
+          <th class="text-center align-middle">Title</th>
+          <th class="text-center align-middle">Created by</th>
+          <th class="text-center align-middle">Verified</th>
+          <th class="text-center align-middle">Created At</th>
+          <th class="text-center align-middle">Actions</th>
         </tr>
       </thead>
       <tbody class="table-border-bottom-0">
         {% for instance in page_obj %}
-        <tr >
-          <td>{{ instance.id }}</td>
-          <td>{{ instance.title}}</td>
-          <td>{{ instance.created_by.company}}</td>
-          <td><span class="badge 
-            {% if instance.verified %}
-              bg-label-success
-            {% else %}
-              bg-label-danger  
+        <tr>
+          <td class="text-center align-middle">{{ instance.id }}</td>
+          <td class="text-center align-middle">{{ instance.title }}</td>
+          <td class="text-center align-middle">{{ instance.created_by.company }}</td>
+          <td class="text-center align-middle">
+        <span class="badge 
+          {% if instance.verified %}
+            bg-label-success
+          {% else %}
+            bg-label-danger  
+          {% endif %}
+          me-1">{{ instance.verified }}</span>
+          </td>
+          <td class="text-center align-middle">{{ instance.created_at }}</td>
+          <td class="text-center align-middle">
+        <div class="dropdown">
+          <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
+          <div class="dropdown-menu">
+            {% if can_view_recipe %}
+            <a class="dropdown-item" href="{% url 'recipe_detail' instance.id %}" data-test-id="dropdown-details-button"><i class="bx bx-detail me-1"></i> Details</a>
             {% endif %}
-            me-1">{{ instance.verified }}</span></td>
-          <td>{{ instance.created_at}}</td>
-          <td>
-            <div class="dropdown">
-              <button type="button" class="btn p-0 dropdown-toggle hide-arrow" data-bs-toggle="dropdown"><i class="bx bx-dots-vertical-rounded"></i></button>
-              <div class="dropdown-menu">
-                {% if can_view_recipe %}
-                <a class="dropdown-item" href="{% url 'recipe_detail' instance.id %}"><i class="bx bx-detail me-1"></i> Details</a>
-                {% endif %}
 
-                {% if can_delete_recipe %}
-                  <a class="dropdown-item" href="{% url 'recipe_delete' instance.id %}"><i class="bx bx-trash me-1"></i> Delete</a>
-                {% endif %}
-              </div>
-            </div>
+            {% if can_delete_recipe %}
+            <a class="dropdown-item" href="{% url 'recipe_delete' instance.id %}" data-test-id="dropdown-delete-button"><i class="bx bx-trash me-1"></i> Delete</a>
+            {% endif %}
+          </div>
+        </div>
           </td>
         </tr>
         {% endfor %}

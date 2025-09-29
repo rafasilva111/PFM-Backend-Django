@@ -19,6 +19,16 @@ class CustomDateFormatField(serializers.DateField):
         except ValueError:
             raise serializers.ValidationError("Invalid date format. Please use the format 'DD/MM/YYYY'.")
 
+##
+#   Company
+#
+
+
+
+##
+#   User
+#
+
 class UserSerializer(serializers.ModelSerializer):
         
     class Meta:
@@ -104,7 +114,6 @@ class UserProfileSerializer(serializers.ModelSerializer):
 
         return obj.created_recipes.count()    
 
-
 class UserPatchSerializer(UserSerializer):
     old_password = serializers.CharField(write_only=True, required=False)
     
@@ -128,3 +137,77 @@ class UserPatchSerializer(UserSerializer):
         
         return data
 
+##
+#   Auth
+# 
+
+##
+#   Goal
+#
+
+from apps.user_app.models import Goal
+
+class GoalSerializer(UserSerializer):
+    
+    user = UserSimpleSerializer(required = False)
+    
+    class Meta:
+        model = Goal
+        fields = '__all__'
+        read_only_fields = ['user']
+    
+    def create(self, validated_data):
+        if 'user' in self.context:
+            user = self.context['user']
+            goal = Goal.objects.create(user=user, **validated_data)
+            return goal
+        
+        goal = Goal.objects.create(**validated_data)
+        return goal
+
+class IdealWeightSerializer(serializers.Serializer):
+    ideial_weigh_lower_limit = serializers.FloatField(required = True)
+    ideial_weigh_upper_limit = serializers.FloatField(required = True)
+    bmi = serializers.FloatField(required = True)
+    
+    
+    @classmethod
+    def from_params(cls, ideial_weigh_lower_limit, ideial_weigh_upper_limit,bmi):
+        return cls({
+            'ideial_weigh_lower_limit':ideial_weigh_lower_limit,
+            'ideial_weigh_upper_limit':ideial_weigh_upper_limit,
+            'bmi': bmi
+        })
+
+##
+#   Follows
+#
+
+from apps.user_app.models import FollowRequest
+
+class UserToFollowSerializer(serializers.Serializer):
+    follower = serializers.BooleanField(default = False)
+    request_sent = serializers.BooleanField(default = False)
+    user = UserSimpleSerializer(required = True)
+    
+    def to_representation(self, instance):
+        # Assume `instance` is the item object
+        # Extract required fields
+        print(instance)
+        representation = super().to_representation({
+            'user': instance,  
+            'request_sent': instance.request_sent,
+            'follower': instance.follower
+        })
+        return representation
+    
+class FollowRequestSerializer(UserSerializer):
+    follower = UserSimpleSerializer(required= True)
+    followed = UserSimpleSerializer(required = True)
+    is_follow = serializers.BooleanField(default = False)
+    request_sent = serializers.BooleanField(default = False)
+    
+    class Meta:
+        model = FollowRequest
+        fields = '__all__'
+      

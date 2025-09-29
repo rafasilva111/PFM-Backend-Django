@@ -14,7 +14,7 @@ from apps.etl_app.constants import EXTRACT_CONTINENTE_INGREDIENTS_DB, CONTINENTE
 from selenium.common.exceptions import TimeoutException, WebDriverException
 from apps.etl_app.functions import create_driver
 import time
-
+import traceback
 
 
 models_ = [Ingredient, Tag, IngredientTagThrough, IngredientLink, Image]
@@ -27,6 +27,7 @@ BASE_HEADERS = {
     "cookie": "realUserVerifier=Verified;",
 }
 COMPANY_NAME = "continente"
+PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
@@ -88,7 +89,7 @@ aditional_information_name_map = {
 
 """
 
-def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
+def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
     """
     Extracts ingredient data from a given link using Selenium and BeautifulSoup.
     This function navigates to the specified ingredient link, handles potential
@@ -134,20 +135,18 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
     """
     
     
-    " Initialize the warnings and errors counters "
-    warnings = 0	
-    errors = 0
-    
     " Load page using selenium as the page have javascript "
     driver.get(ingredient_link)
     
     
     " Check if page was redirected "
     if driver.current_url != ingredient_link:
-        logger.error(f"Redirected to: {driver.current_url}, skipping this ingredient...")
-        logger.info("")
-        errors = errors + 1
-        return warnings, errors
+        task.increment_warnings(
+            logger=logger,
+            message=f"Page was redirected from {ingredient_link} to {driver.current_url}, skipping this ingredient...",
+            stack_trace=None
+        )
+        return 
 
     
     
@@ -161,19 +160,26 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
             # Clica no botão "Permitir todos" para aceitar os cookies
             cookie_popup_button.click()
         except Exception as e:
-            logger.error(f"An error occurred: {e}")
-            errors = errors + 1
+            task.increment_errors(
+                logger=logger,
+                message="Error while handling cookie popup...",
+                stack_trace=traceback.format_exc()
+            )
 
     sleep(sleep_time)
     html = BeautifulSoup(driver.page_source, 'html.parser')
 
     " Check if page was found "
     page_not_found = html.find('p', class_='notfound-title')
-    if page_not_found:	
-        logger.error(f"Page not found: {ingredient_link}, skipping this ingredient...")
+    if page_not_found:
+        task.increment_errors(
+            logger=logger,
+            message=f"Page not found: {ingredient_link}, skipping this ingredient...",
+            stack_trace=None
+        )	
         logger.info("")
-        errors = errors + 1	
-        return warnings, errors
+        return
+
     
     # prepare to deal whit tabs ( check if base_tabs already loaded if not call
     # function again whit more sleep time)
@@ -181,7 +187,7 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
                         class_='col-sm-4 col-md-3 tabNav mResTabNav')
 
     if base_html_tab is None:
-        return extract_data_from_link(logger, driver, ingredient_link, sleep_time + 1, False)
+        return extract_data_from_link(logger, task, driver, ingredient_link, sleep_time + 1, False)
     
     
 
@@ -288,8 +294,11 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
             with open(img_source, "wb") as f:
                 f.write(requests.get(image_source_link).content)
         except Exception as e:
-            logger.warning(e)
-            warnings = warnings + 1
+            task.increment_warnings(
+                logger=logger,
+                message=f"Error while downloading image from {image_source_link} for ingredient {ingredient_db.title}",
+                stack_trace=traceback.format_exc()
+            )
             continue
         
         image_db.ingredient = ingredient_db
@@ -319,9 +328,6 @@ def extract_data_from_link(logger, driver, ingredient_link, sleep_time=DEFAULT_S
             ingredient_db.tags.add(tag)
     
     
-    return warnings, errors
-
-
 def pull_ingredients(logger, task):
     """
     Extracts ingredient data from a list of links and updates task statistics.
@@ -405,11 +411,9 @@ def pull_ingredients(logger, task):
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:
-                _errors, _warnings = extract_data_from_link(
-                    logger, driver, ingredient_link.link, first_time=FIRST_TIME
+                extract_data_from_link(
+                    logger, task, driver, ingredient_link.link, first_time=FIRST_TIME
                 )
-                task.warnings += _warnings
-                task.errors += _errors
                 break
             except TimeoutException:
                 logger.warning(f"Timeout while extracting {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
@@ -476,8 +480,14 @@ def pull_ingredients_links(logger, task):
         Exception: If there are issues with parsing the HTML or extracting data.
     """
 
-
+    " Initialize the Control variables "
+    stopping_condition_triggered = False
+    total_ingredients_links_already_done = None
+    total_links_counter = 0
+    completed = False
+    
     " Gets all Ingredients's Links from Continente "
+    logger.info("")
     logger.info("Starting to pull Ingredient's Links...")
     logger.info("")
 
@@ -536,10 +546,27 @@ def pull_ingredients_links(logger, task):
     logger.info("")
     logger.info(f"Found {len(categories)} categories")
     logger.info("")
+    
+    logger.info(f"Ingredient {task.process} is on step {task.step}...")
+    logger.info("")
+    
+    " Get the Threshold Stopping condition"
+    from apps.etl_app.models import ThresholdCondition
+    stopping_condition_offset = (
+        task.owner_job.stopping_condition.threshold_value
+        if task.owner_job and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
+        else None
+    )
+        
+    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+    if task.step != 0:
+        IngredientLink.delete().where(IngredientLink.id > task.step).execute()
+        total_ingredients_links_already_done = task.step
 
     """ Get all Ingredient's Links for each category """
     logger.info("Finding all ingredients links for each category...")
 
+    last_key = next(reversed(categories)) 
     for key, value in categories.items():
         
         logger.info("")
@@ -549,22 +576,34 @@ def pull_ingredients_links(logger, task):
         category_response = requests.get(value)
         html = BeautifulSoup(category_response.content, 'html.parser')
         try:
-            max_ingredients = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
-            logger.info(f"category has {max_ingredients} ingredients")
+            max_ingredients_category = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
+            logger.info(f"Category has {max_ingredients_category} ingredients")
         except Exception:
-            logger.warning("Unable to Extract this category...")
-            task.increment_warnings()
+            task.increment_warnings(
+                    logger=logger,
+                    message=f"Unable to Extract the Max Recipes from {key} category...",
+                    stack_trace=None
+                )
             continue
         logger.info("")
         
         base_data_url = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")['data-url']
-        start = 0
-        size = 24
+        
+        " Skip already extracted categories "
+        if total_ingredients_links_already_done:
+            if total_ingredients_links_already_done >= max_ingredients_category:
+                total_ingredients_links_already_done -= max_ingredients_category
+                logger.info(f"Category already extracted, skipping...")
+                continue
+            else:
+                start = total_ingredients_links_already_done
+        else:
+            start = 0
 
         base_data_url = base_data_url.split("&")
-        base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={size}"
+        base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={PAGE_LINKS_OFFSET}"
 
-        while start < max_ingredients:
+        while start < max_ingredients_category:
 
             extra = f"&start={start}"
             base_data_url += extra
@@ -576,7 +615,10 @@ def pull_ingredients_links(logger, task):
             
             if not ingredients_link:
                 logger.info(f"No more ingredients found on link {base_data_url}")
+                if key == last_key:
+                    completed = True
                 break
+            
             base_data_url = base_data_url.replace(extra, "")
             
             
@@ -585,16 +627,32 @@ def pull_ingredients_links(logger, task):
 
                 ingredient_link = IngredientLink(
                     link=ingredient_link.find('a')['href'],
-                    page=start // size, 
+                    page=start // PAGE_LINKS_OFFSET, 
                     base_search_link=value,
                     category = key
                     )
                 ingredient_link.save()
+                
                 links_added += 1
-
+                total_links_counter += 1
+                
+                # Check StoppingCondition
+                if stopping_condition_offset and total_links_counter >= stopping_condition_offset:
+                    logger.info("")
+                    logger.info(f"Job Stopping Condition triggered. Paused extraction at {total_links_counter} links...")
+                    logger.info("")
+                    stopping_condition_triggered = True
+                    break
+            
+            if stopping_condition_triggered:
+                break
+            
             start += links_added
             logger.info(f"Added {links_added} ingredients links, total {start} links found so far...")
             
+        if stopping_condition_triggered:
+            break
+        
     " Update Task Statistics"
     task.links = IngredientLink.select().count()
     task.save()
@@ -604,18 +662,14 @@ def pull_ingredients_links(logger, task):
     logger.info("All Ingredient's Links pulled ...")
     logger.info("")
     
-    return task
+    return task, completed
     
 
 def __extract_continente_ingredients(logger, task, resume):
     
     " Log the start of the extraction process"
     logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
-    
-    " Initialize the warnings and errors "
-    if resume:
-        task.errors = 0
-        task.warnings = 0
+    logger.info("")
         
 
     " Starts the db "
@@ -630,23 +684,18 @@ def __extract_continente_ingredients(logger, task, resume):
     )
     logger.info("")
     
-    
 
-    " Pull all ingredients links "
-    # We only want to pull recipes links if step is 0
-    # This is because we want to pull all recipes links only once
-    if task.step == 0:
-        task = pull_ingredients_links(logger, task)
+    " Pull Ingredients links "
+    task, l_completed = pull_ingredients_links(logger, task)
     
     
-
     " Pulls Ingredients from above links "
     task, completed = pull_ingredients(logger, task)
         
     
     " Log the completion of the extraction process "
     logger.info("Summary:")
-    logger.info(f"Ingredients Links Found: {task.links}")
+    logger.info(f"Ingredients Links: {task.links}")
     logger.info(f"Ingredients: {task.items_processed}")
     logger.info("")
     logger.info(f"Total errors: {task.errors}")
@@ -654,7 +703,7 @@ def __extract_continente_ingredients(logger, task, resume):
     
     
     " Finish task "
-    if completed:
+    if completed and l_completed:
         task.finish(kill_celery_task=False)
     else:
         task.pause()

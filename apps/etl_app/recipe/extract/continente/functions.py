@@ -1,31 +1,4 @@
-import logging
 import re
-from apps.etl_app.functions import start_db
-
-
-from apps.etl_app.recipe.extract.continente.models import Recipe, Tag, NutritionInformation, Ingredient, \
-    Recipe_links, database_proxy
-
-RecipeTagThrough = Recipe.tags.get_through_model()
-
-models_ = [Recipe, Tag, NutritionInformation, Ingredient, RecipeTagThrough, Recipe_links]
-
-
-def start_recipe_extract_db(path, logger, task, reset=False):
-    """
-    Start the recipe extract database.
-
-    Args:
-        logger (logging.Logger): The logger object.
-        task (Task): The task object.
-        reset (bool, optional): Whether to reset the database. Defaults to False.
-
-    Returns:
-        SqliteDatabase: The new database instance.
-    """
-    
-    
-    return start_db(path, logger, task, reset, models_)
 
 
 # Regular expression pattern for separating quantity, unit, and ingredient

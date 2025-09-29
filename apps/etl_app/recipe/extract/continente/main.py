@@ -10,7 +10,7 @@ from bs4 import BeautifulSoup
 " Import custom functions and constants "
 from apps.etl_app.functions import start_db, normalize_text
 from apps.etl_app.recipe.extract.continente.constants import *
-from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLinks, NutritionInformation, Ingredient, Tag, UsefulTool
+from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLink, NutritionInformation, Ingredient, Tag, UsefulTool
 from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_RECIPES_IMAGES_FOLDER
 
 
@@ -18,7 +18,7 @@ from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_REC
 recipeTagThrough = Recipe.tags.get_through_model()
 
 " Define the list of models to be used in the extraction process "
-models_ = [Ingredient, Recipe, RecipeLinks, Tag, NutritionInformation, Ingredient, UsefulTool, recipeTagThrough]
+models_ = [Ingredient, Recipe, RecipeLink, Tag, NutritionInformation, Ingredient, UsefulTool, recipeTagThrough]
 
 " Define constants for the scraping process "
 BASE_URL = "https://feed.continente.pt"
@@ -355,19 +355,13 @@ def pull_recipes(logger,task):
         
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
-        instances_in_db = Recipe.select().count()
-        if instances_in_db > task.step:
-            # Delete tasks until step matches recipes_in_db
-            instances_to_delete = Recipe.select().order_by(Recipe.id.desc())
-            for t in instances_to_delete:
-                if task.step == instances_in_db:
-                    break
-                t.tags.clear()
-                t.delete_instance()
-                instances_in_db -= 1
+        instances_to_delete = Recipe.select().where(Recipe.id > task.step)
+        for recipe in instances_to_delete:
+            recipe.tags.clear()
+        Recipe.delete().where(Recipe.id > task.step).execute()
         
     " Extract data from each recipe link "
-    for recipe_link in RecipeLinks.select().where(RecipeLinks.id > task.step):
+    for recipe_link in RecipeLink.select().where(RecipeLink.id > task.step):
 
         if OFFSET and recipe_link.id > OFFSET:
             task.owner_job.create_job_trigger_history(
@@ -392,6 +386,12 @@ def pull_recipes(logger,task):
     
 
 def pull_all_recipes_links(logger, task):
+    
+    " Initialize the Control variables "
+    stopping_condition_triggered = False
+    total_links_counter = 0
+    completed = False
+    
     " Gets all Recipe's Links from Continente "
     logger.info("")
     logger.info("Starting to Pull Recipe's Links...")
@@ -402,43 +402,33 @@ def pull_all_recipes_links(logger, task):
     headers.update({
         "content-type": "application/json",
     })
-    page = 1
-    
+
     logger.info(f"Recipe {task.process} is on step {task.step}...")
     logger.info("")
     
     " Get the Threshold Stopping condition"
     from apps.etl_app.models import ThresholdCondition
-    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
-        STOPPING_CONDITION_OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
-    else:
-        STOPPING_CONDITION_OFFSET = None
+    stopping_condition_offset = (
+        task.step + task.owner_job.stopping_condition.threshold_value
+        if task.owner_job and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
+        else None
+    )
         
     " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
     if task.step != 0:
-        instances_in_db = RecipeLinks.select().count()
-        if instances_in_db > task.step:
-            # Delete tasks until step matches recipes_in_db
-            instances_to_delete = RecipeLinks.select().order_by(RecipeLinks.id.desc())
-            for t in instances_to_delete:
-                if task.step == instances_in_db:
-                    break
-                t.delete_instance()
-                instances_in_db -= 1
-
+        RecipeLink.delete().where(RecipeLink.id > task.step).execute()
+        
     " Get data "
     page = task.step // PAGE_LINKS_OFFSET + 1
     
-    # Clear items based on half filled pages
-    for item in RecipeLinks.select(page >=page):
-        item.delete()
+    " Clear items based on half filled pages"
+    RecipeLink.delete().where(RecipeLink.page >= page).execute()
 
+    
     while True:
 
         logger.info(f"Added {page * PAGE_LINKS_OFFSET} recipe links from page {page}")
         
-        
-
         data = {
             "query": """
             query genericRecipesBy($showOnlyVideo: String, $preparationType: String, $category: String, $ratingAverage: String, $preparationTime: String, $difficulty: String, $cost: String, $cookingType: String, $authorName: String, $specialNeeds: String, $geographicalOrigin: String, $sort: Int, $take: Int, $skip: Int,
@@ -476,49 +466,52 @@ def pull_all_recipes_links(logger, task):
 
         response = requests.post(BASE_GRAPHQL_URL, json=data, headers=headers)
 
-        data_json = json.loads(response.content)
         
-        # Check if no more recipes to pull
-        if len(data_json['data']['genericRecipesBy']['recipes']) == 0:
-            logger.info("")
-            logger.info("All Recipe's Links pulled ...")
-            logger.info("")
+        try:
+            data_json = response.json()
+            recipes = data_json['data']['genericRecipesBy']['recipes']
+        except (json.JSONDecodeError, KeyError):
+            logger.error("Failed to parse GraphQL response")
             break
 
-        for item in data_json['data']['genericRecipesBy']['recipes']:
-            
-            # Prevent empty links
-            if 'pageUrl' not in item or item['pageUrl'] == '':
-                task.increment_warnings(
-                    logger=logger,
-                    message=f"Page URL not found for item: {item}",
-                    stack_trace=None
-                )
+        if not recipes:
+            logger.info("")
+            logger.info("All Recipe Links pulled ...")
+            logger.info("")
+            completed = True
+            break
+
+        for item in recipes:
+            " Check stopping condition "
+            if stopping_condition_offset and total_links_counter >= stopping_condition_offset:
+                logger.info(f"Job Stopping Condition triggered. Paused extraction at {total_links_counter} links...")
+                stopping_condition_triggered = True
+                break
+
+            " Skip invalid links "
+            if not item.get('pageUrl'):
+                task.increment_warnings(logger, f"Page URL not found for item: {item}", None)
                 continue
-            
-            data_point = RecipeLinks(
-                link = f"{BASE_URL}{item['pageUrl']}",
-                image_link = item['image'],
-                base_search_link = BASE_GRAPHQL_URL,
-                page = page,
-                category = item['category'],
-            )
-            data_point.save()
 
-        # Check StoppingCondition
-        if STOPPING_CONDITION_OFFSET and page * PAGE_LINKS_OFFSET >= STOPPING_CONDITION_OFFSET:
-            logger.info("")
-            logger.info(f"Job Stopping Condition triggered. Paused extraction at {page * PAGE_LINKS_OFFSET} links...")
-            logger.info("")
+            RecipeLink.create(
+                link=f"{BASE_URL}{item['pageUrl']}",
+                image_link=item['image'],
+                base_search_link=BASE_GRAPHQL_URL,
+                page=page,
+                category=item['category']
+            )
+            total_links_counter += 1
+
+        if stopping_condition_triggered:
             break
-        
+
         page += 1
 
     " Update Task Statistics"
-    task.links = RecipeLinks.select().count()
+    task.links = RecipeLink.select().count()
     task.save() 
     
-    return task
+    return task, completed
     
 
 def __extract_continente_recipes(logger, task, resume = False):
@@ -541,18 +534,17 @@ def __extract_continente_recipes(logger, task, resume = False):
     logger.info("")
     
     
-    " Get all recipes links "
-    # We only want to pull recipes links if step is 0
-    # This is because we want to pull all recipes links only once
-    if task.step == 0:
-        task = pull_all_recipes_links(logger, task)
+    " Get Recipes links "
+    task, l_completed = pull_all_recipes_links(logger, task)
 
-    " Pulls recipes from above links "
+
+    " Pulls Recipes from above links "
     task, completed = pull_recipes(logger, task)
+    
     
     " Log the completion of the extraction process "
     logger.info("Summary:")
-    logger.info(f"Recipe Links Found: {task.links}")
+    logger.info(f"Recipe Links: {task.links}")
     logger.info(f"Recipes: {task.items_processed}")
     logger.info("")
     logger.info(f"Total errors: {task.errors}")
@@ -560,8 +552,7 @@ def __extract_continente_recipes(logger, task, resume = False):
     
     
     " Finish task "
-    logger.info(f"{completed}")
-    if completed:
+    if completed and l_completed:
         task.finish(kill_celery_task=False)
     else:
         task.pause()

@@ -5,9 +5,13 @@ from peewee import SqliteDatabase
 from django.conf import settings
 from django.db import models
 
-""" Main Dirs """
 
+##
+# Task's logging configuration
+#
 
+JOBS_LOG_DIR = "apps/etl_app/logs/jobs"
+TASKS_LOG_DIR = "apps/etl_app/logs/tasks"
 
 
 """ Main Database """

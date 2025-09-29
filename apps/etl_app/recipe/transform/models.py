@@ -100,7 +100,7 @@ class Tag(BaseModel):
     recipe = ManyToManyField(Recipe, backref='tags')
 
 
-class RecipeLinks(BaseModel):
+class RecipeLink(BaseModel):
     link = CharField()
     page = CharField()
     base_search_link = CharField()

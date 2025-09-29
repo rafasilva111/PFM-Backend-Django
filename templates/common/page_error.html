@@ -1,0 +1,47 @@
+{% extends layout_path %}
+
+{% load static %}
+{% load i18n %}
+
+{% block title %}
+  Login - Pages
+{% endblock %}
+
+{% block page_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/css/pages/page-auth.css' %}" />
+{% endblock %}
+
+{% block content %}
+  <div class="container-xxl">
+    <div class="authentication-wrapper authentication-basic container-p-y">
+      <div class="authentication-inner">
+        <div class="card">
+          <div class="card-body">
+            <!-- Logo -->
+            <div class="app-brand justify-content-center">
+              <a href="{% url 'home' %}" class="app-brand-link gap-2">
+                <span class="app-brand-logo demo"><img src="{% static 'img/logo/logo.png' %}" alt="Logo" width="25" style=" border-radius: 4px;" /></span>
+                <span class="app-brand-text demo text-body fw-bold">{% get_theme_variables 'template_name' %}</span>
+              </a>
+            </div>
+            <!-- /Logo -->
+
+            <h2 class="mb-2 text-center">403 Forbidden 🚫</h2>
+            <p class="mb-4 text-center text-muted">
+              Oops! You don’t have permission to access this page.
+              If you think this is a mistake, please contact support.
+            </p>
+
+            <div class="d-flex justify-content-center gap-2">
+              <a href="{% url 'home' %}" class="btn btn-primary"><i class="bx bx-home-alt me-1"></i> Back to Home</a>
+              <!-- <a href="mailto:support@example.com" class="btn btn-outline-secondary"><i class="bx bx-envelope me-1"></i> Contact Support</a> TODO: Maybe someday -->
+            </div>
+
+          </div>
+        </div>
+        <!-- /Login -->
+      </div>
+    </div>
+  </div>
+{% endblock %}

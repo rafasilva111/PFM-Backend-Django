@@ -48,7 +48,7 @@ from apps.user_app.models import User, Invitation, Company
 #
 
 from apps.common.tests.functions import print_prologue
-from apps.common.tests.models import BaseViewTestCase
+from apps.common.tests.models import _BaseViewTestCase
 
 
 ##
@@ -64,7 +64,7 @@ from apps.common.tests.constants import *
 #
 ##
 
-class InvidationTestCase(BaseViewTestCase):
+class InvidationTestCase(_BaseViewTestCase):
         
     def setUp(self):
         super().setUp()
@@ -157,7 +157,7 @@ class UserRegisterViewTest(InvidationTestCase):
         
         print("\n")
 
-class UserRegisterSuccessViewTest(BaseViewTestCase):
+class UserRegisterSuccessViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('user_register_success')
@@ -226,13 +226,13 @@ class PasswordResetCompleteViewTest(InvidationTestCase):
 #
 ##
 
-class UserTableViewTest(BaseViewTestCase):
+class UserTableViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('users')
         self.template_name = 'user_app/user/table.html'
 
-class UserDetailViewTest(BaseViewTestCase):
+class UserDetailViewTest(_BaseViewTestCase):
     
     def setUp(self):
         super().setUp()
@@ -241,7 +241,7 @@ class UserDetailViewTest(BaseViewTestCase):
         self.url = reverse('user_detail', kwargs={'id': user.id})
         self.template_name = 'user_app/user/detail.html'
 
-class UserEditViewTest(BaseViewTestCase):
+class UserEditViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         user = User.objects.get(
@@ -256,26 +256,26 @@ class UserEditViewTest(BaseViewTestCase):
 #
 ##
 
-class CompanyTableViewTest(BaseViewTestCase):
+class CompanyTableViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('companies')
         self.template_name = 'user_app/company/table.html'
 
-class CompanyDetailViewTest(BaseViewTestCase):
+class CompanyDetailViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('company_detail', kwargs={
                            'id': self.test_company.id})
         self.template_name = 'user_app/company/detail.html'
 
-class CompanyEditViewTest(BaseViewTestCase):
+class CompanyEditViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('company_edit', kwargs={'id': self.test_company.id})
         self.template_name = 'user_app/company/edit.html'
 
-class CompanyCreateViewTest(BaseViewTestCase):
+class CompanyCreateViewTest(_BaseViewTestCase):
     def setUp(self):
         super().setUp()
         self.url = reverse('company_create')

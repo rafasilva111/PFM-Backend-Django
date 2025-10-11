@@ -43,9 +43,9 @@ from apps.etl_app.models import Task
 #   Functions
 #
 
-from apps.common.tests.functions import print_prologue, create_test_recipe, create_test_recipe_report
-from apps.common.tests.models import BaseViewTestCase, BaseViewFunctionTestCase
-
+from apps.common.tests.functions import print_prologue, create_test_recipe, create_test_recipe_report, create_test_audit_log, perm_string
+from apps.common.tests.models import _BaseViewTestCase, _BaseViewFunctionTestCase
+from django.contrib.auth.models import Group, Permission
 
 ##
 #   Contants
@@ -56,15 +56,17 @@ from apps.common.tests.constants import *
 
 ###
 #
-#       Recipe Views
+#       Recipe 
 #
 ##
 
+from apps.recipe_app.tests.models import _RecipeViewTestCase, _RecipeViewFunctionTestCase
+
 ##
-#      Tests
+#      Views
 #
 
-class RecipeTableViewTest(BaseViewTestCase):
+class RecipeTableViewTest(_RecipeViewTestCase):
     
     url = reverse('recipes')
     template_name = 'recipe_app/recipe/table.html'
@@ -94,6 +96,10 @@ class RecipeTableViewTest(BaseViewTestCase):
         for user, expected_status, should_have_permission in test_cases:
             self.check_user_permission_and_response(user, expected_status, should_have_permission=should_have_permission)
         
+    ##
+    #   Testing General View Functionality
+    #
+    
     def test_buttons_permissions(self):
         """Test that the dropdown menu shows correct options based on user permissions."""
         
@@ -146,9 +152,6 @@ class RecipeTableViewTest(BaseViewTestCase):
             # Check the dropdown button options
             self.check_user_button_permission(expected_options, response)
         
-    ##
-    #   Testing General View Functionality
-    #
     
     def test_functionality(self):
         """Test that the recipe table view loads correctly."""
@@ -171,23 +174,107 @@ class RecipeTableViewTest(BaseViewTestCase):
         self.assertIn('page_obj', response.context)
         self.assertEqual(len(response.context['page_obj']), 1)
         self.assertEqual(response.context['page_obj'][0], self.recipe)
-        
-    
 
-class RecipeDetailViewTest(BaseViewTestCase):
+class RecipeDetailViewTest(_RecipeViewTestCase):
+    
+    template_name = 'recipe_app/recipe/detail.html'
+    permission = "can_view_recipe"
+    buttons = [DROPDOWN_DETAILS_BUTTON_ID, DROPDOWN_DELETE_BUTTON_ID]
     
     def setUp(self):
         super().setUp()
-        self.url = reverse('recipe_detail')
-        self.template_name = 'recipe_app/recipe/detail.html'
+        self.url = reverse('recipe_detail', kwargs={'id': self.recipe.id})
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
+    
+    ##
+    #   Testing View permissions
+    #
+    
+    def test_view_permissions(self):
+        """Test permissions for various user roles."""
+        test_cases = [
+            (self.placeholder_user, 403, False),
+            (self.company_user, 403, False),
+            (self.normal_user, 403, False),
+            (self.company_staff_user, 200, True),
+            (self.company_admin_user, 200, True),
+            (self.app_staff_user, 200, True),
+            (self.app_admin_user, 200, True),
+        ]
+        for user, expected_status, should_have_permission in test_cases:
+            self.check_user_permission_and_response(user, expected_status, should_have_permission=should_have_permission)
+    
+    ##
+    #   Testing Granularly View Functionality
+    #
+    
+    def test_buttons_permissions(self):
+        """Test that the dropdown menu shows correct options based on user permissions."""
         
-class RecipeDeleteViewFunctionTest(BaseViewFunctionTestCase):
+        print_prologue()
+        
+        # Ensure a test audit log exists
+        self.assertIsNotNone(self.recipe)
+        
+        # Create another test audit log to ensure multiple entries for off and on class atribute testing
+        self.assertFalse(self.recipe.verified)
+        self.assertFalse(self.recipe.verified)
+        
+        # Define test cases with expected options
+        test_cases = [
+            (self.placeholder_user, {}),
+            (self.company_user, {}),
+            (self.normal_user, {}),
+            (self.company_staff_user, {}),
+            (self.company_admin_user, {
+            DROPDOWN_DETAILS_BUTTON_ID: "can_view_audit_log"
+            }),
+            (self.app_staff_user, {
+            DROPDOWN_DETAILS_BUTTON_ID: "can_view_audit_log",
+            DROPWON_ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            DROPWON_UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            DROPWON_REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log",
+            DROPWON_UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log"
+            }),
+            (self.app_admin_user, {
+            DROPDOWN_DETAILS_BUTTON_ID: "can_view_audit_log",
+            DROPWON_ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            DROPWON_UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            DROPWON_REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log",
+            DROPWON_UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log",
+            DROPDOWN_DELETE_BUTTON_ID: "can_delete_audit_log"
+            }),
+        ]
+        
+        # Iterate through test cases
+        for user, expected_options in test_cases:
+            
+            self.client.force_login(user)
+            response = self.client.get(self.url)
+            
+            # Check if the user has the required permission
+            if user.has_perm(self.permission_):
+                self.assertEqual(response.status_code, 200, f"User {user.email} expected 200 but got {response.status_code}")
+            else:
+                response = self.client.get(self.url)
+                self.assertEqual(response.status_code, 403, f"User {user.email} expected 403 but got {response.status_code}")
+                continue
+            
+            # Check the dropdown button options
+            self.check_user_button_permission(expected_options, response)
+        
+     
+##
+#      Functions
+#
+
+   
+class RecipeDeleteViewFunctionTest(_RecipeViewFunctionTestCase):
     
     permission = "can_delete_recipe"
     
     def setUp(self):
         super().setUp()
-        create_test_recipe(self)
         self.url = reverse('recipe_delete', kwargs={'id': self.recipe.id})
         
         
@@ -246,67 +333,27 @@ class RecipeDeleteViewFunctionTest(BaseViewFunctionTestCase):
 
 ###
 #
-#       Audit Log Views
+#       Audit Logs
 #
 ##
 
+from apps.recipe_app.tests.models import _AuditLogViewTestCase, _AuditLogViewFunctionTestCase
 
 ##
-#      Setup function
+#      Views
 #
 
-def create_audit_log_setup(self):
-    # Create a test Recipe
-    self.recipe = create_test_recipe(self.company, self.company_admin_user)
-    
-    # Create a test Task
-    self.task = Task.objects.create(
-        type = Task.TaskType.EMPTY
-    )
 
-    # Create a test invitation
-    return RecipeAuditLog.objects.create(
-        recipe = self.recipe,
-        task = self.task,
-        description="This is a test audit log.",
-        field="name",
-        old_value="Old Recipe Name",
-        new_value="New Recipe Name",
-        type=RecipeAuditLog.Type.Create
-        
-    )
-    
-
-##
-#      TestCases
-#
-
-class AuditLogTestCase(BaseViewTestCase):
-        
-    def setUp(self):
-        super().setUp()
-        self.audit_log = create_audit_log_setup(self)
-        
-class AuditLogFunctionTestCase(BaseViewFunctionTestCase):
-        
-    def setUp(self):
-        super().setUp()
-        create_audit_log_setup(self)
-   
-
-##
-#      Tests
-#
-
-class AuditLogTableViewTest(AuditLogTestCase):
+class AuditLogTableViewTest(_AuditLogViewTestCase):
     
     url = reverse('audit_logs')
     template_name = 'recipe_app/audit_log/table.html'
     permission = "can_view_audit_logs"
-    buttons = [DROPDOWN_DETAILS_BUTTON_ID, DROPDOWN_DELETE_BUTTON_ID]
+    buttons = [DROPDOWN_DETAILS_BUTTON_ID, DROPDOWN_DELETE_BUTTON_ID, DROPWON_ACCEPT_AUDIT_LOG_BUTTON_ID, DROPWON_UNACCEPT_AUDIT_LOG_BUTTON_ID, DROPWON_REVIEW_AUDIT_LOG_BUTTON_ID, DROPWON_UNREVIEW_AUDIT_LOG_BUTTON_ID]
     
     def setUp(self):
         super().setUp()
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
 
     ##
     #   Testing View permissions
@@ -362,6 +409,8 @@ class AuditLogTableViewTest(AuditLogTestCase):
         
         print_prologue()
         
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
+        
         # Ensure a test audit log exists
         self.assertIsNotNone(self.audit_log)
         
@@ -385,17 +434,17 @@ class AuditLogTableViewTest(AuditLogTestCase):
             }),
             (self.app_staff_user, {
             DROPDOWN_DETAILS_BUTTON_ID: "can_view_audit_log",
-            DROPWON_ACCEPT_BUTTON_ID: "can_accept_audit_log",
-            DROPWON_UNACCEPT_BUTTON_ID: "can_unaccept_audit_log",
-            DROPWON_REVIEW_BUTTON_ID: "can_review_audit_log",
-            DROPWON_UNREVIEW_BUTTON_ID: "can_unreview_audit_log"
+            DROPWON_ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            DROPWON_UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            DROPWON_REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log",
+            DROPWON_UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log"
             }),
             (self.app_admin_user, {
             DROPDOWN_DETAILS_BUTTON_ID: "can_view_audit_log",
-            DROPWON_ACCEPT_BUTTON_ID: "can_accept_audit_log",
-            DROPWON_UNACCEPT_BUTTON_ID: "can_unaccept_audit_log",
-            DROPWON_REVIEW_BUTTON_ID: "can_review_audit_log",
-            DROPWON_UNREVIEW_BUTTON_ID: "can_unreview_audit_log",
+            DROPWON_ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            DROPWON_UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            DROPWON_REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log",
+            DROPWON_UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log",
             DROPDOWN_DELETE_BUTTON_ID: "can_delete_audit_log"
             }),
         ]
@@ -416,17 +465,141 @@ class AuditLogTableViewTest(AuditLogTestCase):
             
             # Check the dropdown button options
             self.check_user_button_permission(expected_options, response)
-        
-class AuditLogDetailViewTest(AuditLogTestCase):
+
+
+class AuditLogDetailViewTest(_AuditLogViewTestCase):
+    
+    template_name = 'recipe_app/audit_log/detail.html'
+    permission = "can_view_audit_logs"
+    buttons = [ACCEPT_AUDIT_LOG_BUTTON_ID, UNACCEPT_AUDIT_LOG_BUTTON_ID, REVIEW_AUDIT_LOG_BUTTON_ID, UNREVIEW_AUDIT_LOG_BUTTON_ID, DELETE_AUDIT_LOG_BUTTON_ID]
     
     def setUp(self):
         super().setUp()
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
         self.url = reverse('audit_log_detail', kwargs={'id': self.audit_log.id})
-        self.template_name = 'recipe_app/audit_log/detail.html'
+    
+    
+    ##
+    #   Testing View permissions
+    #
+    
+    def test_view_permissions(self):
+        """Test permissions for various user roles."""
+        test_cases = [
+            (self.placeholder_user, 403, False),
+            (self.company_user, 403, False),
+            (self.normal_user, 403, False),
+            (self.company_staff_user, 403, False),
+            (self.company_admin_user, 200, True),
+            (self.app_staff_user, 200, True),
+            (self.app_admin_user, 200, True),
+        ]
+        for user, expected_status, should_have_permission in test_cases:
+            self.check_user_permission_and_response(user, expected_status, should_have_permission=should_have_permission)
+        
 
+    
+    ##
+    #   Testing Granularly View Functionality
+    #
+    
+    def test_buttons_permissions(self):
+        """Test that the dropdown menu shows correct options based on user permissions."""
+        
+        print_prologue()
+        
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
+        
+        # 1 - Testing with unaccepted and unreviewed audit log
+        
+        # Ensure a test audit log exists
+        self.assertIsNotNone(self.audit_log)
+        
+        # Define test cases with expected options
+        test_cases = [
+            (self.placeholder_user, {}),
+            (self.company_user, {}),
+            (self.normal_user, {}),
+            (self.company_staff_user, {}),
+            (self.company_admin_user, {
+            }),
+            (self.app_staff_user, {
+            ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log"
+            }),
+            (self.app_admin_user, {
+            ACCEPT_AUDIT_LOG_BUTTON_ID: "can_accept_audit_log",
+            REVIEW_AUDIT_LOG_BUTTON_ID: "can_review_audit_log",
+            DELETE_AUDIT_LOG_BUTTON_ID: "can_delete_audit_log"
+            }),
+        ]
+        
+        # Iterate through test cases
+        for user, expected_options in test_cases:
+            
+            self.client.force_login(user)
+            response = self.client.get(self.url)
+            
+            # Check if the user has the required permission
+            if user.has_perm(self.permission_):
+                self.assertEqual(response.status_code, 200, f"User {user.email} expected 200 but got {response.status_code}")
+            else:
+                response = self.client.get(self.url)
+                self.assertEqual(response.status_code, 403, f"User {user.email} expected 403 but got {response.status_code}")
+                continue
+            
+            # Check the dropdown button options
+            self.check_user_button_permission(expected_options, response)
+        
+        # 2 - Testing with accepted and reviewed audit log
+        
+        # Create another test audit log to ensure multiple entries for off and on class atribute testing
+        second_audit_log = create_test_audit_log(self.recipe, self.task)
+        second_audit_log.accept(changed_by=self.app_admin_user)
+        second_audit_log.review(changed_by=self.app_admin_user)
+        second_url = reverse('audit_log_detail', kwargs={'id': second_audit_log.id})
+        
+        # Define test cases with expected options
+        test_cases = [
+            (self.placeholder_user, {}),
+            (self.company_user, {}),
+            (self.normal_user, {}),
+            (self.company_staff_user, {}),
+            (self.company_admin_user, { }),
+            (self.app_staff_user, {
+            UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log"
+            }),
+            (self.app_admin_user, {
+            UNACCEPT_AUDIT_LOG_BUTTON_ID: "can_unaccept_audit_log",
+            UNREVIEW_AUDIT_LOG_BUTTON_ID: "can_unreview_audit_log",
+            DELETE_AUDIT_LOG_BUTTON_ID: "can_delete_audit_log"
+            }),
+        ]
+        
+        # Iterate through test cases
+        for user, expected_options in test_cases:
+            
+            self.client.force_login(user)
+            response = self.client.get(second_url)
+            
+            # Check if the user has the required permission
+            if user.has_perm(self.permission_):
+                self.assertEqual(response.status_code, 200, f"User {user.email} expected 200 but got {response.status_code}")
+            else:
+                response = self.client.get(self.url)
+                self.assertEqual(response.status_code, 403, f"User {user.email} expected 403 but got {response.status_code}")
+                continue
+            
+            # Check the dropdown button options
+            self.check_user_button_permission(expected_options, response)
+
+##
+#      Functions
+#
 
        
-class AuditLogDeleteViewFunctionTest(AuditLogFunctionTestCase):
+class AuditLogDeleteFunctionTest(_AuditLogViewFunctionTestCase):
     
     permission = "can_delete_audit_log"
     
@@ -474,15 +647,13 @@ class AuditLogDeleteViewFunctionTest(AuditLogFunctionTestCase):
         # Ensure the audit log no longer exists
         self.assertFalse(RecipeAuditLog.objects.filter(id=self.audit_log.id).exists())
     
-    
-class AuditLogAcceptViewFunctionTest(AuditLogFunctionTestCase):
+class AuditLogAcceptFunctionTest(_AuditLogViewFunctionTestCase):
     
     permission = "can_accept_audit_log"
     
     def setUp(self):
         super().setUp()
-        self.url = reverse('audit_log_accept', kwargs={'id': self.audit_log.id})        
-        
+        self.url = reverse('audit_log_accept', kwargs={'id': self.audit_log.id})
         
     ##
     #   Testing View permissions
@@ -594,7 +765,7 @@ class AuditLogAcceptViewFunctionTest(AuditLogFunctionTestCase):
         # Ensure the recipe is now verified
         self.assertTrue(self.recipe.verified)   
 
-class AuditLogUnacceptViewFunctionTest(AuditLogFunctionTestCase):
+class AuditLogUnacceptFunctionTest(_AuditLogViewFunctionTestCase):
     
     permission = "can_unaccept_audit_log"
     
@@ -663,13 +834,12 @@ class AuditLogUnacceptViewFunctionTest(AuditLogFunctionTestCase):
         self.assertEqual(history_entries[2].status, RecipeAuditLogStatusHistory.Status.Unreviewed)
         self.assertEqual(history_entries[3].status, RecipeAuditLogStatusHistory.Status.Unaccepted)
     
-
-class AuditLogReviewViewFunctionTest(AuditLogFunctionTestCase):
+class AuditLogReviewFunctionTest(_AuditLogViewFunctionTestCase):
     
     permission = "can_review_audit_log"
     
     def setUp(self):
-        super().setUp()
+        super().setUp()  
         self.url = reverse('audit_log_review', kwargs={'id': self.audit_log.id})
 
     ##
@@ -720,7 +890,7 @@ class AuditLogReviewViewFunctionTest(AuditLogFunctionTestCase):
         self.assertEqual(history_entries.count(), 1)
         self.assertEqual(history_entries.first().status, RecipeAuditLogStatusHistory.Status.Reviewed)
 
-class AuditLogUnreviewViewFunctionTest(AuditLogFunctionTestCase):
+class AuditLogUnreviewFunctionTest(_AuditLogViewFunctionTestCase):
     
     permission = "can_unreview_audit_log"
     
@@ -788,24 +958,23 @@ class AuditLogUnreviewViewFunctionTest(AuditLogFunctionTestCase):
 #
 ##
 
-class RecipeReportFunctionTestCase(BaseViewTestCase):
-        
-    def setUp(self):
-        super().setUp()
-        self.recipe = create_test_recipe()
-        self.recipe_report = create_test_recipe_report(self.recipe, self.app_admin_user)
-   
+from apps.recipe_app.tests.models import _RecipeReportViewTestCase,_RecipeReportViewFunctionTestCase
 
-
-class RecipeReportTableViewTest(RecipeReportFunctionTestCase):
+##
+#      Views
+#
+  
+  
+class RecipeReportTableViewTest(_RecipeReportViewTestCase):
     
     url = reverse('recipe_reports')
     template_name = 'recipe_app/report/table.html'
     permission = "can_view_recipe_reports"
-    buttons = [DROPDOWN_DETAILS_BUTTON_ID, DROPDOWN_DELETE_BUTTON_ID, DROPWON_REVIEW_BUTTON_ID, DROPWON_UNREVIEW_BUTTON_ID]
+    buttons = [DROPDOWN_DETAILS_BUTTON_ID, DROPDOWN_DELETE_BUTTON_ID, DROPWON_REVIEW_RECIPE_BUTTON_ID, DROPWON_UNREVIEW_RECIPE_BUTTON_ID]
     
     def setUp(self):
         super().setUp()
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))   
 
     ##
     #   Testing View permissions
@@ -965,13 +1134,13 @@ class RecipeReportTableViewTest(RecipeReportFunctionTestCase):
             }),
             (self.app_staff_user, {
                 DROPDOWN_DETAILS_BUTTON_ID: "can_view_recipe_report",
-                DROPWON_REVIEW_BUTTON_ID: "can_review_recipe_report",
-                DROPWON_UNREVIEW_BUTTON_ID: "can_unreview_recipe_report"
+                DROPWON_REVIEW_RECIPE_BUTTON_ID: "can_review_recipe_report",
+                DROPWON_UNREVIEW_RECIPE_BUTTON_ID: "can_unreview_recipe_report"
             }),
             (self.app_admin_user, {
                 DROPDOWN_DETAILS_BUTTON_ID: "can_view_recipe_report",
-                DROPWON_REVIEW_BUTTON_ID: "can_review_recipe_report",
-                DROPWON_UNREVIEW_BUTTON_ID: "can_unreview_recipe_report",
+                DROPWON_REVIEW_RECIPE_BUTTON_ID: "can_review_recipe_report",
+                DROPWON_UNREVIEW_RECIPE_BUTTON_ID: "can_unreview_recipe_report",
                 DROPDOWN_DELETE_BUTTON_ID: "can_delete_recipe_report"
             }),
         ]
@@ -992,30 +1161,37 @@ class RecipeReportTableViewTest(RecipeReportFunctionTestCase):
             
             # Check the dropdown button options
             self.check_user_button_permission(expected_options, response)
-      
 
-class RecipeReportCreateViewTest(BaseViewTestCase):
+class RecipeReportCreateViewTest(_RecipeReportViewTestCase):
+    
+    url = reverse('recipe_report_create')
+    template_name = 'recipe_app/recipe_report/create.html'
+        
     def setUp(self):
         super().setUp()
-        self.url = reverse('recipe_report_create')
-        self.template_name = 'recipe_app/recipe_report/create.html'
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))   
 
-class RecipeReportDetailViewTest(BaseViewTestCase):
+class RecipeReportDetailViewTest(_RecipeReportViewTestCase):
+    
     def setUp(self):
         super().setUp()
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))  
         self.report_id = 1
         self.url = reverse('recipe_report_detail', kwargs={'id': self.report_id})
         self.template_name = 'recipe_app/recipe_report/detail.html'
+    
         
+##
+#      Functions
+#
 
-class RecipeReportReviewViewFunctionTest(BaseViewFunctionTestCase):
+
+class RecipeReportReviewViewFunctionTest(_RecipeReportViewFunctionTestCase):
     
     permission = "can_review_recipe_report"
     
     def setUp(self):
-        super().setUp()
-        self.recipe = create_test_recipe(self.company, self.company_admin_user)
-        self.recipe_report = create_test_recipe_report(self.recipe, self.app_admin_user)
+        super().setUp()  
         self.url = reverse('recipe_report_review', kwargs={'id': self.recipe_report.id})
         
 
@@ -1062,15 +1238,13 @@ class RecipeReportReviewViewFunctionTest(BaseViewFunctionTestCase):
         # Ensure the audit log is now reviewed
         self.assertTrue(self.recipe_report.reviewed)
         
-
-class RecipeReportUnreviewViewFunctionTest(BaseViewFunctionTestCase):
+class RecipeReportUnreviewViewFunctionTest(_RecipeReportViewFunctionTestCase):
     
     permission = "can_unreview_recipe_report"
     
     def setUp(self):
         super().setUp()
-        self.recipe = create_test_recipe(self.company, self.company_admin_user)
-        self.recipe_report = create_test_recipe_report(self.recipe, self.app_admin_user)
+        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))   
         self.url = reverse('recipe_report_unreview', kwargs={'id': self.recipe_report.id})
 
     ##

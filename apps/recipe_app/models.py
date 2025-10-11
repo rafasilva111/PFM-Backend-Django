@@ -68,11 +68,10 @@ class Recipe(BaseModel):
     company = models.ForeignKey('user_app.Company', related_name='recipes', on_delete=models.CASCADE, null=True)
 
     difficulty = models.CharField(max_length=255, null=True)
-    portion_lower = models.CharField(max_length=255, null=True)
-    portion_upper = models.CharField(max_length=255, null=True)
+    portion_lower = models.IntegerField(default=0, null=True)
+    portion_upper = models.IntegerField(default=0, null=True)
     portion_units = models.CharField(max_length=255, null=True)
-    time = models.CharField(max_length=255, null=True)
-    time_units = models.CharField(null=True)
+    time = models.IntegerField(default=0, null=True)
     
     views = models.IntegerField(default=0, null=False)
     created_by = models.ForeignKey(User, related_name='created_recipes', on_delete=models.CASCADE, null=True)

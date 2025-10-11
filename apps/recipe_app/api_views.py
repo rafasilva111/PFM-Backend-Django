@@ -360,10 +360,10 @@ class RecipeListView(APIView):
             if search_string.isdigit():
                 query = query.filter(Q(id=search_string))
             else:
-                query = query.filter(Q(title__icontains=search_string)|Q(tags__title__icontains=search_string))
+                query = query.filter(Q(title__icontains=search_string)|Q(tags__text__icontains=search_string))
 
         if search_tag:
-            query = query.filter(tags__title__icontains=search_tag)
+            query = query.filter(tags__text__icontains=search_tag)
             
         if ingredients:
             ingredients = ingredients.split(',')
@@ -1121,7 +1121,7 @@ class RecipesSavedView(APIView):
         
         # Validate User
         
-        if user.user_type == User.UserType.PREMIUM:
+        if user.type == User.UserType.PREMIUM:
             if user.saved_recipes.all().count() >= MAX_USER_PREMIUM_SAVED_RECIPES:
                 return Response(ErrorResponseSerializer.from_params(type = ERROR_TYPES.RESOURCE_LIMIT.value,message=f"You can only save {MAX_USER_PREMIUM_SAVED_RECIPES} recipes.").data,status=status.HTTP_400_BAD_REQUEST)
         else:

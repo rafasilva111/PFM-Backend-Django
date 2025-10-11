@@ -36,25 +36,25 @@
 
                 <!-- Accept -->
                 {% if can_accept_audit_log and not instance.accepted %}
-                <a href="{% url 'audit_log_accept' instance.id %}" class="btn btn-success py-1">Accept</a>
+                <a href="{% url 'audit_log_accept' instance.id %}" class="btn btn-success py-1" data-test-id="accept-audit-log-button">Accept</a>
                 {% endif %}
 
                 {% if can_accept_audit_log and instance.accepted %}
-                <a href="{% url 'audit_log_unaccept' instance.id %}" class="btn btn-warning py-1">Unaccept</a>
+                <a href="{% url 'audit_log_unaccept' instance.id %}" class="btn btn-warning py-1" data-test-id="unaccept-audit-log-button">Unaccept</a>
                 {% endif %}
 
                 <!-- Review -->
                 {% if can_accept_audit_log and not instance.reviewed %}
-                <a href="{% url 'audit_log_review' instance.id %}" class="btn btn-success py-1">Review</a>
+                <a href="{% url 'audit_log_review' instance.id %}" class="btn btn-success py-1" data-test-id="review-audit-log-button">Review</a>
                 {% endif %}
 
                 {% if can_accept_audit_log and instance.reviewed %}
-                <a href="{% url 'audit_log_unreview' instance.id %}" class="btn btn-warning py-1">Unreview</a>
+                <a href="{% url 'audit_log_unreview' instance.id %}" class="btn btn-warning py-1" data-test-id="unreview-audit-log-button">Unreview</a>
                 {% endif %}
 
                 <!-- Delete -->
                 {% if can_delete_audit_log %}
-                <a href="{% url 'audit_log_delete' instance.id %}" class="btn btn-danger py-1">Delete</a>
+                <a href="{% url 'audit_log_delete' instance.id %}" class="btn btn-danger py-1" data-test-id="delete-audit-log-button">Delete</a>
                 {% endif %}
             </div>
             </div>

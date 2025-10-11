@@ -151,7 +151,7 @@ class NotificationListView(APIView):
             return Response(ErrorResponseSerializer.from_dict({ERROR_TYPES.PAGINATION.value:"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
         
         # Build metadata
-        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "notification_list")
+        metadata = PaginationMetadataSerializer.build_metadata(page, page_size, total_pages, total_items, "api_notification_list")
         
         # Serialize the data
         serializer = NotificationSerializer(recipes_page, many=True)

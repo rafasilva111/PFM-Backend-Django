@@ -48,7 +48,7 @@ from apps.user_app.models import User, Invitation, Company
 #   Functions
 #
 
-from apps.common.tests.functions import print_prologue, create_test_users, create_test_company
+from apps.common.tests.functions import print_prologue, create_test_users, create_test_company, perm_string
 
 
 ##
@@ -65,13 +65,9 @@ from apps.user_app.constants import GROUPS_PERMISSIONS
 #   
 ##
 
-def perm_string(permission):
-    """
-    Given a Permission object, return the proper 'app_label.codename' string
-    """
-    return f"{permission.content_type.app_label}.{permission.codename}"
 
-class BaseViewTestCase(TestCase):
+
+class _BaseViewTestCase(TestCase):
     """Custom TestCase with a default setup for authenticated user testing."""
     url = None
     template_name = None
@@ -89,15 +85,13 @@ class BaseViewTestCase(TestCase):
     app_staff_user = None
     app_admin_user = None
 
+
     
     def setUp(self):
         """Set up test environment with users, groups, and permissions."""
         self.company = create_test_company(name="Good Bites")
-        
-        create_test_users(self, self.company)
-        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))
-    
-    
+        create_test_users(self, self.company)  
+
     def assertValidSetup(self):
         if not self.url or not self.template_name:
             self.skipTest("Subclasses must define self.url and self.template_name, this should won't be relevant if this is a base class")
@@ -147,6 +141,7 @@ class BaseViewTestCase(TestCase):
             self.assertNotIn(self.permission, GROUPS_PERMISSIONS[user.type], f"User with UserType '{user.type}' should not have permission '{self.permission}' but does.")
 
         # Check if the user has the required permission
+        user_permissions = user.get_all_permissions()
         has_permission = user.has_perm(self.permission_)
         
         self.assertEqual(has_permission, should_have_permission, f"User with UserType '{user.type}' permission check mismatch for '{self.permission}' defined in Security Rules.")
@@ -170,10 +165,14 @@ class BaseViewTestCase(TestCase):
         # Check that no unexpected options are present
         for option in self.buttons:
             if option not in expected_options:
-                self.assertNotContains(response, option, msg_prefix= f"Unexpected option '{option}' found in response.")
+                self.assertNotRegex(
+                    response.content.decode(),
+                    rf"\b{option}\b",
+                    msg=f"Unexpected option '{option}' found in response."
+                )
         
     
-class BaseViewFunctionTestCase(TestCase):
+class _BaseViewFunctionTestCase(TestCase):
     """Custom TestCase with a default setup for authenticated user testing."""
     url = None
     template_name = None
@@ -193,9 +192,9 @@ class BaseViewFunctionTestCase(TestCase):
     
     def setUp(self):
         """Set up test environment with users, groups, and permissions."""
-        create_test_company(self)
+        
+        self.company = create_test_company(name="GoodBites")
         create_test_users(self, self.company)
-        self.permission_ = perm_string(Permission.objects.get(codename=self.permission))
     
     def assertValidSetup(self):
         if not self.url:
@@ -203,9 +202,9 @@ class BaseViewFunctionTestCase(TestCase):
     
     def test_page_renders_correctly_not_authed(self):
         """Test that the company create page redirects unauthenticated users."""
-        print_prologue()
-        
         self.assertValidSetup()
+        
+        print_prologue()
         
         response = self.client.get(self.url)
         self.assertRedirects(response, f"/login?next={self.url}")
@@ -231,6 +230,7 @@ class BaseViewFunctionTestCase(TestCase):
             self.assertNotIn(self.permission, GROUPS_PERMISSIONS[user.type], f"User with UserType '{user.type}' should not have permission '{self.permission}' but does.")
 
         # Check if the user has the required permission
+        permissions = user.get_all_permissions()
         has_permission = user.has_perm(self.permission_)
         
         self.assertEqual(has_permission, should_have_permission, f"User with UserType '{user.type}' permission check mismatch for '{self.permission}' defined in Security Rules.")

@@ -108,7 +108,7 @@ class RecipeTableView(PermissionRequiredMixin, TemplateView):
 @method_decorator(login_required, name='dispatch')
 class RecipeDetailView(PermissionRequiredMixin, TemplateView):
     template_name = 'recipe_app/recipe/detail.html'
-    permission_required = "task_app.can_view_recipe"
+    permission_required = "recipe_app.can_view_recipe"
     page_size = 10
 
     def get_context_data(self, **kwargs):
@@ -294,6 +294,15 @@ class AuditLogDetailView(PermissionRequiredMixin, TemplateView):
                 "page_obj": page_obj,
                 "can_accept_audit_log": self.request.user.has_perm(
                     "recipe_app.can_accept_audit_log"
+                ),
+                "can_unaccept_audit_log": self.request.user.has_perm(
+                    "recipe_app.can_unaccept_audit_log"
+                ),
+                "can_review_audit_log": self.request.user.has_perm(
+                    "recipe_app.can_review_audit_log"
+                ),
+                "can_unreview_audit_log": self.request.user.has_perm(
+                    "recipe_app.can_unreview_audit_log"
                 ),
                 "can_delete_audit_log": self.request.user.has_perm(
                     "recipe_app.can_delete_audit_log"

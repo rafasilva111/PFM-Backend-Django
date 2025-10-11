@@ -21,7 +21,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('Creating user groups...'))
         call_command('create_groups', assign_test_users=True)
         
-        self.stdout.write(self.style.SUCCESS('Creating user groups...'))
+        self.stdout.write(self.style.SUCCESS('Install gecko driver...'))
         call_command('install_geckodriver')
         
         self.stdout.write(self.style.SUCCESS('All commands executed successfully!'))

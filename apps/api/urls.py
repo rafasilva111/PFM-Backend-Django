@@ -87,8 +87,8 @@ urlpatterns = [
     #   Notifications
     ##
     
-    path('notification', NotificationView.as_view(), name="notification"), # get, post, put, delete Recipe Report
-    path('notification/list', NotificationListView.as_view(), name="notification_list"), # get, put, delete Notification List
+    path('notification', NotificationView.as_view(), name="api_notification"), # get, post, put, delete Recipe Report
+    path('notification/list', NotificationListView.as_view(), name="api_notification_list"), # get, put, delete Notification List
     
     
     ###
@@ -101,32 +101,32 @@ urlpatterns = [
     #   Recipe
     ##
 
-    path('recipe', RecipeView.as_view(), name="recipe"), # post Recipe
-    path('recipe/list', RecipeListView.as_view(), name="recipe_list"), # get Recipes
+    path('recipe', RecipeView.as_view(), name="api_recipe"), # post Recipe
+    path('recipe/list', RecipeListView.as_view(), name="api_recipe_list"), # get Recipes
     
     ###
     #   Comments
     ##
     
-    path('recipe/comment', CommentView.as_view(), name="comment"), # get, post, put, delete Comment
-    path('recipe/comment/list', CommentListView.as_view(), name="comment_list"), # get Comments
-    path('recipe/comment/like', CommentLikeView.as_view(), name="comment_like"), # post, delete Comment like
+    path('recipe/comment', CommentView.as_view(), name="api_comment"), # get, post, put, delete Comment
+    path('recipe/comment/list', CommentListView.as_view(), name="api_comment_list"), # get Comments
+    path('recipe/comment/like', CommentLikeView.as_view(), name="api_comment_like"), # post, delete Comment like
     
     ###
     #   Backgrounds
     ##
     
-    path('recipe/background', RecipeBackgroundView.as_view(), name="recipes_liked_list"), # get Recipes Background
-    path('recipe/like', RecipesLikedView.as_view(), name="recipes_liked"), # get Recipes Liked; post, delete Recipe Like
-    path('recipe/save', RecipesSavedView.as_view(), name="recipes_saved"), # get Recipes Saved; post, delete Recipe Save
-    path('recipe/create', RecipesCreatedView.as_view(), name="recipes_created"), # get Recipes Created
+    path('recipe/background', RecipeBackgroundView.as_view(), name="api_recipes_liked_list"), # get Recipes Background
+    path('recipe/like', RecipesLikedView.as_view(), name="api_recipes_liked"), # get Recipes Liked; post, delete Recipe Like
+    path('recipe/save', RecipesSavedView.as_view(), name="api_recipes_saved"), # get Recipes Saved; post, delete Recipe Save
+    path('recipe/create', RecipesCreatedView.as_view(), name="api_recipes_created"), # get Recipes Created
     
     ###
     #   Recipe Report
     ##
     
-    path('recipe/report', RecipeReportView.as_view(), name="recipe_report"), # get, post, put, delete Recipe Report
-    path('recipe/report/list', RecipeReportListView.as_view(), name="recipe_report_list"), # get Recipe Reports
+    path('recipe/report', RecipeReportView.as_view(), name="api_recipe_report"), # get, post, put, delete Recipe Report
+    path('recipe/report/list', RecipeReportListView.as_view(), name="api_recipe_report_list"), # get Recipe Reports
     
     
     ###

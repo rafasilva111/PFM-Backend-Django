@@ -30,7 +30,7 @@ import inspect
 
 from apps.user_app.models import User
 from apps.etl_app.models import Task
-from apps.common.tests.models import BaseViewTestCase
+from apps.common.tests.models import _BaseViewTestCase
 
 
 ##
@@ -63,7 +63,7 @@ from apps.common.tests.functions import print_prologue
 
 from apps.etl_app.views import TaskTableView
 
-class TaskTableViewTestCase(BaseViewTestCase):
+class TaskTableViewTestCase(_BaseViewTestCase):
     
     def setUp(self):
         """Set up a user for testing."""

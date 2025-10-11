@@ -222,6 +222,7 @@ class User(AbstractBaseUser, PermissionsMixin):
         PLACEHOLDER = "Placeholder", "Placeholder"
         COMPANY = "Company", "Company"
         NORMAL = "Normal", "Normal"
+        PREMIUM = "Premium", "Premium"
         APP_STAFF = "Application Staff", "Application Staff"
         APP_ADMIN = "Application Admin", "Application Admin"
         COMPANY_STAFF = "Company Staff", "Company Staff"

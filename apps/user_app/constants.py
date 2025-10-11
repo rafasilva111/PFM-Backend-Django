@@ -7,12 +7,8 @@ GROUPS_PERMISSIONS = {
     User.UserType.COMPANY: [
     ],
     User.UserType.NORMAL: [
-        # User permissions
-        "can_view_user","can_view_users",
-        # Recipe permissions
-        "can_view_recipe","can_view_recipes",
-        # Recipe Report permissions
-        "can_view_recipe_report", "can_view_recipe_reports"
+    ],
+    User.UserType.PREMIUM: [
     ],
     User.UserType.COMPANY_STAFF: [
         # User permissions

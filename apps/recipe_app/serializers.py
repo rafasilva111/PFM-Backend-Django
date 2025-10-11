@@ -58,7 +58,7 @@ class RecipeSerializer(serializers.ModelSerializer):
         model = Recipe
         fields = ['id','title','description','image', 'video_link','verified','difficulty',\
             'portion_lower', 'portion_upper', 'portion_units', 'ingredients','tags',\
-            'preparation','time','time_units','likes','saves','views','nutrition_information',\
+            'preparation','time','likes','saves','views','nutrition_information',\
             'rating','source_rating','source_link','created_at', 'updated_at','saved','liked',\
             'created_by']  # Include all fields
         

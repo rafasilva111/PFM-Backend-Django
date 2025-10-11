@@ -78,6 +78,8 @@ def transform_recipe(logger, task, recipe):
     _time, _time_units = normalize_time(logger, recipe.time)
     _portion_lower_bound, _portion_upper_bound, _portion_units = normalize_portion(logger, recipe.portion)
     
+    _source_rating = float(recipe.rating) if recipe.rating else float(0)
+    
     _recipe = Recipe_T(
         company=task.company.name,
         title=recipe.title,
@@ -90,7 +92,7 @@ def transform_recipe(logger, task, recipe):
         portion_lower=_portion_lower_bound,
         portion_upper=_portion_upper_bound,
         portion_units=_portion_units,
-        source_rating = recipe.rating,
+        source_rating = _source_rating,
         source_link=recipe.link,
         preparation=recipe.preparation
     )

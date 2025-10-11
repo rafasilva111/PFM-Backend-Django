@@ -29,7 +29,7 @@ import inspect
 
 from apps.common.models import ProcessType
 from apps.user_app.models import User, Company
-from apps.recipe_app.models import Recipe, RecipeReport
+from apps.recipe_app.models import Recipe, RecipeReport, RecipeAuditLog
 from apps.etl_app.models import Job, Task, Condition
 
 ##
@@ -62,6 +62,11 @@ import string
 #
 ##
 
+def perm_string(permission):
+    """
+    Given a Permission object, return the proper 'app_label.codename' string
+    """
+    return f"{permission.content_type.app_label}.{permission.codename}"
 
 def random_string(length=10):
     characters = string.ascii_letters + string.digits  # A-Z, a-z, 0-9
@@ -178,6 +183,18 @@ def create_test_recipe_report(recipe: Recipe = None, user: User = None):
         message=random_string(12),
         recipe=recipe,
         user=user
+    )
+
+def create_test_audit_log(recipe: Recipe, task: Task):
+    
+    return RecipeAuditLog.objects.create(
+        recipe = recipe,
+        task = task,
+        description="This is a test audit log.",
+        field="name",
+        old_value="Old Recipe Name",
+        new_value="New Recipe Name",
+        type=RecipeAuditLog.Type.Create
     )
 
 ##

@@ -1,6 +1,7 @@
 from datetime import timedelta
 from django.utils import timezone
 from pytz import utc
+from datetime import datetime
 
 import logging
 
@@ -35,17 +36,8 @@ def parse_date(date_str):
     Raises:
         ValueError: If the date string is in an invalid format.
     """
-    try:
-        # Try parsing the date string with fractional seconds
-        aware_datetime = timezone.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%S.%fZ').replace(tzinfo=utc)
-    except ValueError:
-        try:
-            # Try parsing the date string without fractional seconds
-            aware_datetime = timezone.datetime.strptime(date_str, '%Y-%m-%dT%H:%M:%SZ').replace(tzinfo=utc)
-        except ValueError:
-            logger.error(f"Error parsing date string '{date_str}'")
-            raise ValueError("Invalid date format. Please use 'YYYY-MM-DDTHH:MM:SS.sssZ' or 'YYYY-MM-DDTHH:MM:SSZ' format.")
-    return aware_datetime
+
+    return datetime.fromisoformat(date_str)
 
 
 def build_paginated_url(request, page_number):

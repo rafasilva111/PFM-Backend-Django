@@ -11,7 +11,8 @@ from drf_yasg import openapi
 ##
 
 from apps.recipe_app.api_views import RecipeListView,RecipeView,RecipeReportView,CommentView,RecipeReportListView,CommentListView,CommentLikeView,RecipesLikedView,RecipesSavedView,\
-    RecipesCreatedView,RecipeBackgroundView
+    RecipesCreatedView,RecipeBackgroundView,\
+    RecipeRatingView,RecipeRatingListView
 from apps.calendar_app.api_views import CalendarListView, CalendarView, CalendarIngredientsListView, CalendarEntryListCheckView
 from apps.notification_app.api_views import NotificationView,NotificationListView
 from apps.user_app.api_views import LoginView,AuthView,UserView,UserListView,CustomTokenRefreshView #UsersToFollowView,FollowView,FollowRequestView,FollowersListView,FollowsListView,FollowRequestListView,\
@@ -128,6 +129,12 @@ urlpatterns = [
     path('recipe/report', RecipeReportView.as_view(), name="api_recipe_report"), # get, post, put, delete Recipe Report
     path('recipe/report/list', RecipeReportListView.as_view(), name="api_recipe_report_list"), # get Recipe Reports
     
+    ##
+    #   Recipe Rating
+    ##
+    
+    path('recipe/rating', RecipeRatingView.as_view(), name="api_recipe_rating"), # get, post, put, delete Recipe Rating
+    path('recipe/rating/list', RecipeRatingListView.as_view(), name="api_recipe_rating_list"), # get Recipe Ratings
     
     ###
     #

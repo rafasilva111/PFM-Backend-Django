@@ -4,6 +4,8 @@ from apps.user_app.models import User
 from apps.common.models import BaseModel
 import urllib.parse
 
+from config.settings import FIREBASE_TOKEN
+
 ###
 #   Recipe Models
 ##
@@ -76,7 +78,7 @@ class Recipe(BaseModel):
     views = models.IntegerField(default=0, null=False)
     created_by = models.ForeignKey(User, related_name='created_recipes', on_delete=models.CASCADE, null=True)
     nutrition_information = models.OneToOneField(NutritionInformation, related_name='recipe', null=True, on_delete=models.CASCADE)
-    rating = models.FloatField(default=0)
+    
     
     source_rating = models.FloatField(null=True)
     source_link = models.CharField(max_length=255, null=True,unique=True)
@@ -87,9 +89,6 @@ class Recipe(BaseModel):
     
     users_liked = models.ManyToManyField(User, related_name='liked_recipes', blank=True)
     users_saved = models.ManyToManyField(User, related_name='saved_recipes', blank=True)
-
-    def get_average_rating(self):
-        return self.ratings.aggregate(avg_rating=Avg('rating'))['avg_rating'] or 0.0
     
     def get_image_url(self):
         """
@@ -97,7 +96,7 @@ class Recipe(BaseModel):
         """
         if self.image:
             encoded_path = urllib.parse.quote(self.image, safe='')
-            return f"https://firebasestorage.googleapis.com/v0/b/project-food-manager.firebasestorage.app/o/{encoded_path}?alt=media&token=711bb47a-dac0-43ae-82b2-189299641377"
+            return f"https://firebasestorage.googleapis.com/v0/b/project-food-manager.firebasestorage.app/o/{encoded_path}?alt=media&token={FIREBASE_TOKEN}"
         return None
 
     @property
@@ -108,6 +107,14 @@ class Recipe(BaseModel):
     def saves(self):
         return self.users_saved.count()
     
+    @property
+    def saves(self):
+        return self.users_saved.count()
+    
+    @property
+    def rating(self):
+        return self.ratings.aggregate(avg_rating=Avg('rating'))['avg_rating'] or self.source_rating or 0.0
+        
     
 
     class Meta:
@@ -135,15 +142,6 @@ class Tag(BaseModel):
     """
     text = models.CharField(max_length=30, unique=True)
     recipes = models.ManyToManyField(Recipe, related_name='tags')
-
-
-class RecipeRating(BaseModel):
-    """
-    Model to store ratings for recipes.
-    """
-    recipe = models.ForeignKey(Recipe, related_name='ratings', on_delete=models.CASCADE)
-    user = models.ForeignKey(User, related_name='rated_recipes', on_delete=models.CASCADE)
-    rating = models.IntegerField(null=True)
 
 
 class UsefulTool(BaseModel):
@@ -238,6 +236,30 @@ class RecipeReport(BaseModel):
         
         self.reviewed_by = None
         self.save()
+        
+###
+#   Recipe Rating
+##
+
+class RecipeRating(BaseModel):
+    """
+    Model to store ratings for recipes.
+    """
+    recipe = models.ForeignKey(Recipe, related_name='ratings', on_delete=models.CASCADE)
+    user = models.ForeignKey(User, related_name='recipe_ratings', on_delete=models.CASCADE)
+    rating = models.IntegerField()
+    
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=['recipe', 'user'], name='unique_recipe_user_rating')
+        ]
+        permissions = [
+            ("can_view_recipes_rated", "Can view Recipes Rated list"),
+            ("can_create_recipe_rating", "Can create Recipe Rating"),
+            ("can_delete_recipe_rating", "Can delete Recipe Rating"),
+        ]
+
+
 ###
 #   Recipe Audit Log
 ##

@@ -191,14 +191,14 @@ class CalendarListView(generics.ListAPIView):
 
             # Group entries by date
             date_to_entries = defaultdict(list)
-
+            
             for item in base_query:
-                date_string = item.realization_date.strftime("%d/%m/%Y")
+                date_string = item.realization_date.strftime("%Y-%m-%d")
                 date_to_entries[date_string].append(CalendarEntrySerializer(item).data)
 
             # Create a date range and initialize result dictionary with empty arrays
             date_range = [from_date + timedelta(days=i) for i in range((to_date - from_date).days + 1)]
-            response_holder["result"] = {date.strftime("%d/%m/%Y"): [] for date in date_range}
+            response_holder["result"] = {date.strftime("%Y-%m-%d"): [] for date in date_range}
 
             # Fill the result dictionary with grouped entries
             for date_string, entries in date_to_entries.items():
@@ -216,7 +216,7 @@ class CalendarListView(generics.ListAPIView):
             return Response(ErrorResponseSerializer.from_dict({"exception":"Page does not exist."}).data, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
-            ListResponseSerializer.build_(request,page, paginator, serializer=CalendarEntrySerializer(records_page, many=True), endpoint_name="calendar_list").data,
+            ListResponseSerializer.build_(request,page, paginator, serializer=CalendarEntrySerializer(records_page, many=True), endpoint_name="api_calendar_list").data,
             status=status.HTTP_200_OK
         )
 

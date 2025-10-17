@@ -46,11 +46,9 @@ class RecipeSerializer(serializers.ModelSerializer):
     ingredients = IngredientQuantitySerializer(many = True,required = False)
     tags = TagSerializer(many = True,required = False)
     
-    likes = serializers.SerializerMethodField()
-    saves = serializers.SerializerMethodField()
-    
     liked = serializers.SerializerMethodField()
     saved = serializers.SerializerMethodField()
+    rated = serializers.SerializerMethodField()
     
     
     
@@ -59,10 +57,10 @@ class RecipeSerializer(serializers.ModelSerializer):
         fields = ['id','title','description','image', 'video_link','verified','difficulty',\
             'portion_lower', 'portion_upper', 'portion_units', 'ingredients','tags',\
             'preparation','time','likes','saves','views','nutrition_information',\
-            'rating','source_rating','source_link','created_at', 'updated_at','saved','liked',\
+            'rating','source_link','created_at', 'updated_at','saved','liked','rated',\
             'created_by']  # Include all fields
         
-        read_only_fields = ['id', 'created_at', 'updated_at','created_by','ingredients','preparation','tags','nutrition_information','saved','liked']
+        read_only_fields = ['id', 'created_at', 'updated_at','created_by','ingredients','preparation','tags','nutrition_information','saved','liked','rated']
         
         
     def create(self, validated_data):
@@ -102,12 +100,6 @@ class RecipeSerializer(serializers.ModelSerializer):
         return recipe_instance
 
 
-    def get_likes(self, obj):
-        return obj.users_liked.count()
-    
-    def get_saves(self, obj):
-        return obj.users_saved.count()
-
     def get_liked(self, obj):
         user = self.context.get('user')
         
@@ -125,6 +117,15 @@ class RecipeSerializer(serializers.ModelSerializer):
         
         return None
     
+    def get_rated(self, obj):
+        user = self.context.get('user')
+        
+        if user:
+            recipe_rating =  obj.ratings.filter(user=user.id).first()
+            if recipe_rating:
+                return recipe_rating.rating
+            
+        return None
 
     
 class SimpleRecipeSerializer(RecipeSerializer):
@@ -164,10 +165,7 @@ class RecipePatchSerializer(RecipeSerializer):
             'created_by': {'required': False},
         }
 
-class RecipeRatingSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = RecipeRating
-        fields = '__all__'
+
 
 ###
 #   Backgrounds
@@ -260,3 +258,32 @@ class RecipeReportPatchSerializer(RecipeReportSerializer):
             'status': {'required': False}
         }
         
+##
+#   Recipe Rating
+##
+
+class RecipeRatingSerializer(serializers.ModelSerializer):
+    
+    class Meta:
+        model = RecipeRating
+        fields = '__all__'
+        read_only_fields = ['id','user','recipe','created_at','updated_at']
+        
+    
+        
+    
+    def create(self, validated_data):
+        
+        # Create the Recipe instance
+        recipe_rating_instance, created = RecipeRating.objects.get_or_create(
+            user = self.context['user'],
+            recipe = self.context['recipe'],
+            **validated_data
+            )
+
+        return recipe_rating_instance
+
+    def validate_rating(self, value):
+        if not (1 <= value <= 5):
+            raise serializers.ValidationError("Rating must be between 1 and 5.")
+        return value

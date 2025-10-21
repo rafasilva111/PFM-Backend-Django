@@ -53,7 +53,12 @@ def task_failure_handler(sender=None, task_id=None, exception=None, args=None, k
 
     logger.warning(f'Task {task_id} failed', exc_info=(type(exception), exception, traceback))
     if task_id:
-        task = Task.objects.get(celery_task_id=task_id)
+        try:
+            task = Task.objects.get(celery_task_id=task_id)
+            
+        except Task.DoesNotExist:
+            logger.error(f'Task with celery_task_id {task_id} does not exist in the database.')
+            return
         task.finished_at = timezone.now()
         task.status = Task.Status.FAILED
         task.save()

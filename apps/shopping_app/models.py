@@ -27,6 +27,7 @@ class ShoppingIngredient(BaseModel):
     checked = models.BooleanField(default=False)
     quantity = models.FloatField(null=False)
     extra_quantity = models.FloatField(null=True)
-    units = models.CharField(default='G', max_length=255)
+    units = models.CharField(default='g', max_length=255)
     extra_units = models.CharField(max_length=255, null=True)
+    price = models.FloatField(null=True)
     

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from apps.shopping_app.models import ShoppingList, ShoppingIngredient
 from apps.recipe_app.serializers import IngredientSerializer
+from apps.ingredient_app.serializers import IngredientSerializer as ShoppingIngredientSerializer
 from apps.recipe_app.models import Ingredient
 
 ##
@@ -10,10 +11,10 @@ from apps.recipe_app.models import Ingredient
 from apps.common.constants import MAX_USER_NORMAL_SHOPPING_LISTS,MAX_USER_PREMIUM_SHOPPING_LISTS,MAX_USER_NORMAL_SHOPPING_LISTS_GROUPS,MAX_USER_PREMIUM_SHOPPING_LISTS_GROUPS
 
 
-
 class ShoppingIngredientSerializer(serializers.ModelSerializer):
     
     ingredient = IngredientSerializer()
+    ingredient_matched = ShoppingIngredientSerializer()
     
     class Meta:
         model = ShoppingIngredient

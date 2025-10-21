@@ -8,35 +8,30 @@
 #
 from datetime import datetime, timedelta
 from django.utils import timezone
+from math import ceil
 
 ##
 #   Django Rest Framework
 #
-
 from rest_framework import status, generics
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.views import APIView
 from rest_framework.response import Response
-
 
 ##
 #   Api Swagger
 #
 from drf_yasg import openapi
 from drf_yasg.utils import swagger_auto_schema
-
 from django.core.paginator import Paginator
 
 ##
 #   Extras
 #
-
 import math
 from collections import defaultdict
 
-
-
-###
+##
 #       App specific imports
 ##
 
@@ -44,10 +39,10 @@ from collections import defaultdict
 ##
 #   Models
 #
-
 from apps.calendar_app.models import CalendarEntry
 from apps.recipe_app.models import Recipe, IngredientQuantity
 from apps.user_app.models import User
+from apps.ingredient_app.models import Ingredient as ShoppingIngredient
 
 ##
 #   Serializers
@@ -543,41 +538,70 @@ class CalendarIngredientsListView(APIView):
         response_holder = {}
         from django.db.models import Q
 
-        # Filter IngredientQuantity based on CalendarEntry's user and realization_date range
-        # Assuming user_logged_id is an integer and from_date, to_date are datetime objects
-        query = (IngredientQuantity.objects
-                .filter(
-                    recipe__calendar_entries__user=user,
-                    recipe__calendar_entries__realization_date__range=(from_date, to_date)
-                )
-                .distinct())
+        
+        calendar_entries = (
+            user.calendar_entries
+            .filter(realization_date__range=(from_date, to_date))
+            .select_related("recipe")  # Avoid fetching recipe per entry
+            .prefetch_related("recipe__ingredients__ingredient")  # Avoid N+1 for ingredients
+        )
 
-        # Get total ingredients 
+        ingredient_map = defaultdict(lambda: {
+            "ingredient": None,
+            "quantity": 0.0,
+            "extra_quantity": 0.0,
+            "units": None,
+            "extra_units": None,
+            "price": None
+        })
+        
+        # Calculate total ingredients
+        for entry in calendar_entries:
+            for iq in entry.recipe.ingredients.all():
+                
+                # Calculate ratio based on recipe portion
+                if  'pessoas' == entry.recipe.portion_units:
+                    ratio = int(entry.recipe.portion_lower) / entry.portion
+                else:
+                    ratio = 1
 
-        total_ingredients = {}
+                item = ingredient_map[iq.ingredient.name]
 
-        ## TODO recheck this
-        for item in query:
-            ratio = 1
-            if item.recipe.portion and 'pessoas' in item.recipe.portion:
-                portion = int(item.recipe.portion.split(" ")[0])
-                if user.user_portion >= 1:
-                    ratio = user.user_portion / portion
+                # Initialize ingredient info once
+                if item["ingredient"] is None:
+                    item["ingredient"] = iq.ingredient
+                    item["units"] = iq.units_normalized
+                    item["extra_units"] = iq.extra_units
+                    item["ingredient_matched"] = ShoppingIngredient.objects.filter(
+                        name=iq.ingredient.name,
+                    ).first()
+                    
 
-            ingredient_name = item.ingredient.name
-            if ingredient_name in total_ingredients:
-                total_ingredients[ingredient_name]["quantity"] += float(item.quantity_normalized) * ratio
-                if item.extra_quantity:
-                    total_ingredients[ingredient_name]["extra_quantity"] += float(item.extra_quantity) * ratio
-            else:
-                total_ingredients[ingredient_name] = ShoppingIngredientSerializer({
-                    "ingredient": item.ingredient,
-                    "quantity": math.ceil(float(item.quantity_normalized) * ratio),
-                    "extra_quantity": math.ceil(float(item.extra_quantity) * ratio) if item.extra_quantity else None,
-                    "units": item.units_normalized,
-                    "extra_units": item.extra_units,
+                # Skip 'q.b.' units
+                if iq.units_normalized == 'q.b.':
+                    continue
+
+                # Accumulate quantities 
+                item["quantity"] += float(iq.quantity_normalized) * ratio
+                if iq.extra_quantity:
+                    item["extra_quantity"] += float(iq.extra_quantity) * ratio
+                    
+                if item["ingredient_matched"]:
+                        item["price"] = item["quantity"] * float(item["ingredient_matched"].price) / float(item["ingredient_matched"].quantity)
+
+        # Serialize once at the end
+        response_holder['result'] = []
+        for item in ingredient_map.values():
+            response_holder['result'].append(
+                ShoppingIngredientSerializer({
+                    "ingredient": item["ingredient"],
+                    "quantity": ceil(item["quantity"]),
+                    "extra_quantity": ceil(item["extra_quantity"]) if item["extra_quantity"] else None,
+                    "units": item["units"],
+                    "extra_units": item["extra_units"],
+                    "price": item["price"],
+                    "ingredient_matched": item["ingredient_matched"]
                 }).data
-
-        response_holder["result"] = list(total_ingredients.values())
+            )
 
         return Response(response_holder, status=status.HTTP_200_OK)

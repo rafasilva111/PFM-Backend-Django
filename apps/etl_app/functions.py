@@ -211,32 +211,36 @@ def start_sub_db(logger, task, models, database_proxy):
 from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.firefox.service import Service
 from selenium import webdriver
+from selenium.common.exceptions import WebDriverException
 
 PAGE_LOAD_TIMEOUT = 60  # seconds
 
-def create_driver(debug_mode=False):
-    
 
-    if debug_mode:
-        driver_path = os.path.join(os.getcwd(), "bin/geckodriver")
-    else:
-        driver_path = "/app/bin/geckodriver"
-    
+def create_driver(debug_mode=False):
+    driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/app/bin/geckodriver"
     if not os.path.exists(driver_path):
         raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
-    
-    service = Service(driver_path)
+
+    if not os.path.exists("/usr/bin/firefox"):
+        raise FileNotFoundError("Firefox not found at /usr/bin/firefox. Please install it inside the container.")
+
     options = webdriver.FirefoxOptions()
     options.add_argument("--window-size=1920,1080")
+    options.add_argument("--headless")  # required for Docker
     options.binary_location = "/usr/bin/firefox"
-    options.add_argument("--headless")
+
+    service = Service(driver_path, log_path="/tmp/geckodriver.log")
+
+    try:
+        driver = webdriver.Firefox(service=service, options=options)
+        # If elenium.common.exceptions.SessionNotCreatedException: Message: Expected browser binary location, but unable to find binary in default location
+        #sudo add-apt-repository ppa:mozillateam/ppa -y
+        #sudo apt update
+        #sudo apt install firefox -y
     
-    driver = webdriver.Firefox(service=service, options=options)
-    # If elenium.common.exceptions.SessionNotCreatedException: Message: Expected browser binary location, but unable to find binary in default location
-    #sudo add-apt-repository ppa:mozillateam/ppa -y
-    #sudo apt update
-    #sudo apt install firefox -y
-    
+    except WebDriverException as e:
+        raise RuntimeError(f"Failed to start Firefox driver: {e}")
+
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver
 

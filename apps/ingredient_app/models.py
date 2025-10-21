@@ -1,12 +1,32 @@
 from django.db import models
 from apps.common.models import BaseModel
 
-# Create your models here.
-
 class Ingredient(BaseModel):
-    name = models.CharField(max_length=255, unique=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    quantity = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    # General
+    title = models.CharField(max_length=255)
+    brand = models.CharField(max_length=255)
+    description = models.TextField(null=True)
+    link = models.URLField(null=True)
+    category = models.CharField(max_length=255, blank=True, default="")
 
-    def __str__(self):
-        return self.name
+    # Size and money
+    size = models.CharField(max_length=100, blank=True, default="")
+    price_per_unit = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    price_bulk = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    bulk_unit = models.CharField(max_length=100, blank=True, default="")
+
+    # About the Product
+    about_the_product = models.TextField(null=True)
+
+    # Characteristics
+    characteristics = models.TextField(null=True)
+
+    # Other Information
+    other_information = models.TextField(null=True)
+
+    # Nutritional Information
+    nutrition_information = models.TextField(null=True)
+
+    # Legal Info
+    legal_info = models.TextField(null=True)
+

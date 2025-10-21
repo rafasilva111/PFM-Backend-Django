@@ -34,7 +34,7 @@ FIRST_TIME = True
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
-RESET_INTERVAL = 1000
+RESET_INTERVAL = 50  # Restart WebDriver after this many items
 
 " Maps "
 
@@ -327,6 +327,8 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
             # Add the tag to the ingredient
             ingredient_db.tags.add(tag)
     
+    driver.quit()
+    
     
 def pull_ingredients(logger, task):
     """
@@ -418,8 +420,7 @@ def pull_ingredients(logger, task):
             except TimeoutException:
                 logger.warning(f"Timeout while extracting {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
                 if attempt == MAX_RETRIES:
-                    logger.error(f"Failed to extract {ingredient_link.link} after {MAX_RETRIES} attempts")
-                    task.increment_errors()
+                    task.increment_errors(logger=logger,message=f"Timeout while extracting {ingredient_link.link}",stack_trace=None)
                 else:
                     time.sleep(RETRY_DELAY)
             except WebDriverException as e:

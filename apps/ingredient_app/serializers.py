@@ -5,3 +5,5 @@ class IngredientSerializer(serializers.ModelSerializer):
     class Meta:
         model = Ingredient
         fields = ['id', 'name', 'price', 'quantity']
+        
+        

@@ -424,12 +424,10 @@ def pull_ingredients(logger, task):
                 else:
                     time.sleep(RETRY_DELAY)
             except WebDriverException as e:
-                logger.error(f"WebDriver error while extracting {ingredient_link.link}: {str(e)}")
-                task.increment_errors()
+                task.increment_errors(logger,"WebDriver error while extracting {ingredient_link.link}",traceback.format_exc())
                 break
             except Exception as e:
-                logger.exception(f"Unexpected error while extracting {ingredient_link.link}")
-                task.increment_errors()
+                task.increment_errors(logger,"Unexpected error while extracting {ingredient_link.link}",traceback.format_exc())
                 break
 
         task.step += 1

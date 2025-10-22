@@ -430,3 +430,20 @@ def _reap_zombie_tasks():
     print(f"Reaped {len(zombie_tasks) + counter} zombie tasks.")
     
     return len(zombie_tasks)
+
+import psutil
+
+@app.task
+def kill_orphaned_firefox():
+    """Kill leftover headless Firefox processes."""
+    killed_pids = []
+    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+        try:
+            name = (proc.info['name'] or '').lower()
+            cmdline = ' '.join(proc.info.get('cmdline') or [])
+            if 'firefox' in name and '--headless' in cmdline:
+                proc.kill()
+                killed_pids.append(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            continue
+    return killed_pids

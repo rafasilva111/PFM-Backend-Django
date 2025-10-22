@@ -215,9 +215,6 @@ from selenium.common.exceptions import WebDriverException
 import traceback
 PAGE_LOAD_TIMEOUT = 60  # seconds
 
-os.environ["MOZ_LOG"] = "timestamp,driver:5,geckodriver:5"
-os.environ["MOZ_LOG_FILE"] = "/app/gecko_env.log"
-
 def create_driver(debug_mode=False):
     driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/usr/local/bin/geckodriver"
     if not os.path.exists(driver_path):

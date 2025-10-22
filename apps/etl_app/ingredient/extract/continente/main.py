@@ -31,6 +31,7 @@ PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
+MAX_THREADS = 4
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
@@ -287,7 +288,12 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
         if counter > 0:
             file_storage += f"_{counter}"
             
-        image_source_link = image['src']
+            
+        image_source_link = image.get('src',None)
+        
+        if not image_source_link:
+            image_source_link = image.get('data-src',None)
+            
         img_source = f'{CONTINENTE_INGREDIENTS_IMAGES_FOLDER}/{file_storage}.png'
         image_db.path = img_source
         try:
@@ -329,127 +335,108 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
     
     
     
-def pull_ingredients(logger, task):
-    """
-    Extracts ingredient data from a list of links and updates task statistics.
-    This function retrieves ingredient links from the database, navigates to each link using a 
-    headless Firefox browser, extracts ingredient data, and updates the task statistics with 
-    the number of items processed, warnings, and errors encountered.
-    Args:
-        logger (logging.Logger): Logger instance for logging information, warnings, and errors.
-        task (Task): Task object used to track the progress and statistics of the extraction process.
-    Workflow:
-        1. Logs the start of the ingredient extraction process.
-        2. Counts the total number of recipes in the database.
-        3. Configures and initializes a headless Firefox browser.
-        4. Iterates over ingredient links from the database that have not been processed.
-        5. Extracts data from each link and updates warnings and errors counters.
-        6. Updates the task statistics with the total items, warnings, and errors.
-        7. Logs the completion of the extraction process and provides a summary.
-    Notes:
-        - The function uses Selenium for web scraping with a headless Firefox browser.
-        - The `max_ingredients` variable can be used to limit the number of ingredients processed.
-        - The `extract_data_from_link` function is assumed to handle the actual data extraction.
-    Raises:
-        Any exceptions raised by Selenium or database operations should be handled appropriately 
-        outside this function.
-    """
-    
-    
-    " Initialize the Control variables "    
-    OFFSET = None
-    FIRST_TIME = True
-    
-    logger.info("")
-    logger.info("Starting to pull Recipes")
-    logger.info("")
-    logger.info(f"Recipe {task.process} is on step {task.step}...")
-    logger.info("")
-    
-    " Get the Threshold Stopping condition"
-    from apps.etl_app.models import ThresholdCondition, JobTriggerHistory
-    if task.owner_job and task.owner_job.stopping_condition and isinstance(task.owner_job.stopping_condition, ThresholdCondition):
-        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
-    
-    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
-    if task.step != 0:
-        instances_in_db = Ingredient.select().count()
-        if instances_in_db > task.step:
-            # Delete tasks until step matches recipes_in_db
-            instances_to_delete = Ingredient.select().order_by(Ingredient.id.desc())
-            for t in instances_to_delete:
-                if task.step == instances_in_db:
-                    break
-                t.tags.clear()
-                t.delete_instance()
-                instances_in_db -= 1
-    
-    
-    " Initialize the Selenium WebDriver and Firefox options "
-    
-    driver = create_driver()  # Initial driver
+import concurrent.futures
+import threading
+import time
+import traceback
+from selenium.common.exceptions import TimeoutException, WebDriverException
+
+
+# Thread-local storage for WebDriver and state
+thread_local = threading.local()
+
+def create_thread_driver():
+    driver = getattr(thread_local, "driver", None)
     if driver is None:
-        raise RuntimeError("Failed to create WebDriver.")
+        driver = create_driver()
+        thread_local.driver = driver
+    return driver
 
-    for idx, ingredient_link in enumerate(IngredientLink.select().where(IngredientLink.id > task.step)):
-        
-        # Reset browser at fixed intervals
-        if idx > 0 and idx % RESET_INTERVAL == 0:
-            logger.info(f"Restarting WebDriver at item {ingredient_link.id}")
-            try:
-                driver.quit()
-            except Exception:
-                pass
-            driver = create_driver()
-            if driver is None:
-                raise RuntimeError("Failed to create WebDriver.")
 
-        if OFFSET and ingredient_link.id > OFFSET:
-            task.owner_job.create_job_trigger_history(
-                type=JobTriggerHistory.Type.STOPPING_CONDITION,
-                action=JobTriggerHistory.Action.REST,
-            )
-            logger.info(f"Job Stopping Condition triggered. Paused extraction at {ingredient_link.id}...")
-            return task, False
+def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
+    from apps.etl_app.models import Task  # Re-import inside thread
+    from apps.etl_app.models import JobTriggerHistory
+    task = Task.objects.get(id=task_id)
+    driver = create_thread_driver()
+    MAX_RETRIES = 3
+    RETRY_DELAY = 5
 
-        logger.info(f"Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
-
-        for attempt in range(1, MAX_RETRIES + 1):
-            try:
-                extract_data_from_link(
-                    logger, task, driver, ingredient_link.link, first_time=FIRST_TIME
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            if stopping_offset and ingredient_link.id > stopping_offset:
+                task.owner_job.create_job_trigger_history(
+                    type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                    action=JobTriggerHistory.Action.REST,
                 )
-                
-            except TimeoutException:
-                logger.warning(f"Timeout while extracting {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
-                if attempt == MAX_RETRIES:
-                    task.increment_errors(logger=logger,message=f"Timeout while extracting {ingredient_link.link}",stack_trace=None)
-                else:
-                    time.sleep(RETRY_DELAY)
-                    
-            except WebDriverException as e:
-                task.increment_errors(logger,f"WebDriver error while extracting {ingredient_link.link}",traceback.format_exc())
+                logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
+                return False
 
-            except Exception as e:
-                task.increment_errors(logger,f"Unexpected error while extracting {ingredient_link.link}",traceback.format_exc())
+            logger.info(f"[Thread {threading.current_thread().name}] Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+
+            extract_data_from_link(logger, task, driver, ingredient_link.link, first_time)
+            return True
+
+        except TimeoutException:
+            logger.warning(f"Timeout on {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
+            if attempt == MAX_RETRIES:
+                task.increment_errors(logger, f"Timeout: {ingredient_link.link}", None)
+            else:
+                time.sleep(RETRY_DELAY)
+
+        except WebDriverException:
+            task.increment_errors(logger, f"WebDriver error: {ingredient_link.link}", traceback.format_exc())
+            break
+
+        except Exception:
+            task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
+            break
+
+    return False
 
 
-        task.step += 1
-        task.items_processed += 1
-        task.save()
+def pull_ingredients(logger, task, max_threads=MAX_THREADS):
+    from apps.etl_app.models import ThresholdCondition
+    logger.info("")
+    logger.info("Starting parallel recipe extraction")
+    logger.info("")
 
-        FIRST_TIME = False
+    # Compute stopping offset if any
+    OFFSET = None
+    if (
+        task.owner_job
+        and task.owner_job.stopping_condition
+        and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
+    ):
+        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
 
-    " Final cleanup "
+    ingredient_links = list(IngredientLink.select().where(IngredientLink.id > task.step))
+    FIRST_TIME = True
+    total_processed = 0
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
+        futures = [
+            executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET)
+            for link in ingredient_links
+        ]
+
+        for future in concurrent.futures.as_completed(futures):
+            result = future.result()
+            if result:
+                total_processed += 1
+                task.step += 1
+                task.items_processed += 1
+                task.save()
+
+    logger.info(f"{total_processed} ingredients processed in parallel.")
+    logger.info("")
+
+    # Clean up drivers per thread
     try:
-        driver.quit()
+        if hasattr(thread_local, "driver"):
+            thread_local.driver.quit()
     except Exception:
         pass
-    
-    " Log the completion of the extraction process "
-    logger.info(f"{task.items_processed} Recipes pulled ...")
-    logger.info("")
-    
+
     return task, True
 
 

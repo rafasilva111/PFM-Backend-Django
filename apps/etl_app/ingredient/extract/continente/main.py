@@ -31,7 +31,7 @@ PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
-MAX_THREADS = 4
+MAX_THREADS = 3
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
@@ -354,45 +354,49 @@ def create_thread_driver():
 
 
 def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
-    from apps.etl_app.models import Task  # Re-import inside thread
-    from apps.etl_app.models import JobTriggerHistory
-    task = Task.objects.get(id=task_id)
-    driver = create_thread_driver()
-    MAX_RETRIES = 3
-    RETRY_DELAY = 5
+    from apps.etl_app.models import Task, JobTriggerHistory
+    driver = None
+    try:
+        task = Task.objects.get(id=task_id)
+        driver = create_driver()  # Create new driver explicitly per call, not thread-local
 
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            if stopping_offset and ingredient_link.id > stopping_offset:
-                task.owner_job.create_job_trigger_history(
-                    type=JobTriggerHistory.Type.STOPPING_CONDITION,
-                    action=JobTriggerHistory.Action.REST,
-                )
-                logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
-                return False
+        for attempt in range(1, MAX_RETRIES + 1):
+            try:
+                if stopping_offset and ingredient_link.id > stopping_offset:
+                    task.owner_job.create_job_trigger_history(
+                        type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                        action=JobTriggerHistory.Action.REST,
+                    )
+                    logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
+                    return False
 
-            logger.info(f"[Thread {threading.current_thread().name}] Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+                logger.info(f"[Thread {threading.current_thread().name}] Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+                extract_data_from_link(logger, task, driver, ingredient_link.link, first_time)
+                return True
 
-            extract_data_from_link(logger, task, driver, ingredient_link.link, first_time)
-            return True
+            except TimeoutException:
+                logger.warning(f"Timeout on {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
+                if attempt == MAX_RETRIES:
+                    task.increment_errors(logger, f"Timeout: {ingredient_link.link}", None)
+                else:
+                    time.sleep(RETRY_DELAY)
 
-        except TimeoutException:
-            logger.warning(f"Timeout on {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
-            if attempt == MAX_RETRIES:
-                task.increment_errors(logger, f"Timeout: {ingredient_link.link}", None)
-            else:
-                time.sleep(RETRY_DELAY)
+            except WebDriverException:
+                task.increment_errors(logger, f"WebDriver error: {ingredient_link.link}", traceback.format_exc())
+                break
 
-        except WebDriverException:
-            task.increment_errors(logger, f"WebDriver error: {ingredient_link.link}", traceback.format_exc())
-            break
+            except Exception:
+                task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
+                break
 
-        except Exception:
-            task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
-            break
-    driver.quit()
-    
-    return False
+        return False
+
+    finally:
+        if driver:
+            try:
+                driver.quit()
+            except Exception:
+                pass
 
 
 def pull_ingredients(logger, task, max_threads=MAX_THREADS):

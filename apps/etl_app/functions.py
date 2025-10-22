@@ -212,12 +212,14 @@ from selenium.webdriver.support.wait import WebDriverWait
 from selenium.webdriver.firefox.service import Service
 from selenium import webdriver
 from selenium.common.exceptions import WebDriverException
-
+import traceback
 PAGE_LOAD_TIMEOUT = 60  # seconds
 
+os.environ["MOZ_LOG"] = "timestamp,driver:5,geckodriver:5"
+os.environ["MOZ_LOG_FILE"] = "/app/gecko_env.log"
 
 def create_driver(debug_mode=False):
-    driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/app/bin/geckodriver"
+    driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/usr/local/bin/geckodriver"
     if not os.path.exists(driver_path):
         raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
 
@@ -225,12 +227,13 @@ def create_driver(debug_mode=False):
         raise FileNotFoundError("Firefox not found at /usr/bin/firefox. Please install it inside the container.")
 
     options = webdriver.FirefoxOptions()
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--headless")  # required for Docker
-    options.binary_location = "/usr/bin/firefox"
-
-    service = Service(driver_path, log_path="/tmp/geckodriver.log")
-
+    options.add_argument("--headless")
+    options.add_argument("--no-sandbox")
+    
+    options.binary_location = "/usr/bin/firefox-esr"
+    
+    
+    service = Service(driver_path)
     try:
         driver = webdriver.Firefox(service=service, options=options)
         # If elenium.common.exceptions.SessionNotCreatedException: Message: Expected browser binary location, but unable to find binary in default location
@@ -240,6 +243,7 @@ def create_driver(debug_mode=False):
     
     except WebDriverException as e:
         raise RuntimeError(f"Failed to start Firefox driver: {e}")
+
 
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver

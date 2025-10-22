@@ -150,7 +150,7 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
 
     
     
-    if first_time:
+    if False:
         try:
             # Aguarda o popup de cookies aparecer
             cookie_popup_button = WebDriverWait(driver, 5).until(
@@ -327,7 +327,6 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
             # Add the tag to the ingredient
             ingredient_db.tags.add(tag)
     
-    driver.quit()
     
     
 def pull_ingredients(logger, task):
@@ -388,7 +387,9 @@ def pull_ingredients(logger, task):
     
     " Initialize the Selenium WebDriver and Firefox options "
     
-    driver = create_driver(task.debug_mode)  # Initial driver
+    driver = create_driver()  # Initial driver
+    if driver is None:
+        raise RuntimeError("Failed to create WebDriver.")
 
     for idx, ingredient_link in enumerate(IngredientLink.select().where(IngredientLink.id > task.step)):
         
@@ -400,6 +401,8 @@ def pull_ingredients(logger, task):
             except Exception:
                 pass
             driver = create_driver()
+            if driver is None:
+                raise RuntimeError("Failed to create WebDriver.")
 
         if OFFSET and ingredient_link.id > OFFSET:
             task.owner_job.create_job_trigger_history(
@@ -416,19 +419,20 @@ def pull_ingredients(logger, task):
                 extract_data_from_link(
                     logger, task, driver, ingredient_link.link, first_time=FIRST_TIME
                 )
-                break
+                
             except TimeoutException:
                 logger.warning(f"Timeout while extracting {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
                 if attempt == MAX_RETRIES:
                     task.increment_errors(logger=logger,message=f"Timeout while extracting {ingredient_link.link}",stack_trace=None)
                 else:
                     time.sleep(RETRY_DELAY)
+                    
             except WebDriverException as e:
-                task.increment_errors(logger,"WebDriver error while extracting {ingredient_link.link}",traceback.format_exc())
-                break
+                task.increment_errors(logger,f"WebDriver error while extracting {ingredient_link.link}",traceback.format_exc())
+
             except Exception as e:
-                task.increment_errors(logger,"Unexpected error while extracting {ingredient_link.link}",traceback.format_exc())
-                break
+                task.increment_errors(logger,f"Unexpected error while extracting {ingredient_link.link}",traceback.format_exc())
+
 
         task.step += 1
         task.items_processed += 1

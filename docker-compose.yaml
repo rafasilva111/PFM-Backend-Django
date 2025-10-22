@@ -51,7 +51,7 @@ services:
   celery-worker:
     build:
       context: .
-      dockerfile: ./DockerFiles/Dockerfile
+      dockerfile: ./DockerFiles/Dockerfile-Celery-Worker
     container_name: celery-worker
     env_file:
       - .env

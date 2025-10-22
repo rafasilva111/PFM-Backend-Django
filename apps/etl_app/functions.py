@@ -223,27 +223,24 @@ def create_driver(debug_mode=False):
     if not os.path.exists(driver_path):
         raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
 
-    if not os.path.exists("/usr/bin/firefox"):
-        raise FileNotFoundError("Firefox not found at /usr/bin/firefox. Please install it inside the container.")
+    if not os.path.exists("/usr/bin/firefox-esr"):
+        raise FileNotFoundError("Firefox not found at /usr/bin/firefox-esr.")
 
     options = webdriver.FirefoxOptions()
     options.add_argument("--headless")
     options.add_argument("--no-sandbox")
-    
     options.binary_location = "/usr/bin/firefox-esr"
-    
-    
+
+    # ✅ Limit content processes
+    options.set_preference("dom.ipc.processCount", 1)
+    options.set_preference("browser.tabs.remote.autostart", True)
+    options.set_preference("browser.tabs.remote.autostart.2", False)
+
     service = Service(driver_path)
     try:
         driver = webdriver.Firefox(service=service, options=options)
-        # If elenium.common.exceptions.SessionNotCreatedException: Message: Expected browser binary location, but unable to find binary in default location
-        #sudo add-apt-repository ppa:mozillateam/ppa -y
-        #sudo apt update
-        #sudo apt install firefox -y
-    
     except WebDriverException as e:
         raise RuntimeError(f"Failed to start Firefox driver: {e}")
-
 
     driver.set_page_load_timeout(PAGE_LOAD_TIMEOUT)
     return driver

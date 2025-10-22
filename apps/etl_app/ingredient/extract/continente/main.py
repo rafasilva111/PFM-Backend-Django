@@ -34,7 +34,7 @@ FIRST_TIME = True
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
-RESET_INTERVAL = 50  # Restart WebDriver after this many items
+RESET_INTERVAL = 10  # Restart WebDriver after this many items
 
 " Maps "
 

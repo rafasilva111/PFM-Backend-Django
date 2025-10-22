@@ -390,7 +390,8 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
         except Exception:
             task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
             break
-
+    driver.quit()
+    
     return False
 
 

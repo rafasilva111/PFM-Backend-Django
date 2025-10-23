@@ -1,70 +1,42 @@
 # ---------------------------------------------
 #  Base Image
 # ---------------------------------------------
-FROM python:3.11-slim
+FROM python:3.11-alpine
 
 # ---------------------------------------------
-#  Environment setup
+#  Install System Dependencies
 # ---------------------------------------------
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
-
-# ---------------------------------------------
-#  System dependencies (minimal for Firefox headless)
-# ---------------------------------------------
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apk update && apk add --no-cache \
+    postgresql-dev \
+    gcc \
+    python3-dev \
+    musl-dev \
+    libc-dev \
+    icu-data-full \
     firefox-esr \
-    wget \
-    curl \
-    fonts-freefont-ttf \
-    libgtk-3-0 \
-    libdbus-glib-1-2 \
-    libnss3 \
-    libx11-xcb1 \
-    libxcomposite1 \
-    libxdamage1 \
-    libxrandr2 \
-    libasound2 \
-    libpangocairo-1.0-0 \
-    ca-certificates \
-    && rm -rf /var/lib/apt/lists/*
+    geckodriver \
+    dbus \
+    ttf-freefont \
+    mesa-dri-gallium
 
-# ---------------------------------------------
-#  Install latest Geckodriver
-# ---------------------------------------------
-RUN GECKODRIVER_VERSION=$(curl -s https://api.github.com/repos/mozilla/geckodriver/releases/latest \
-    | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/') && \
-    wget -O /tmp/geckodriver.tar.gz \
-        "https://github.com/mozilla/geckodriver/releases/download/v${GECKODRIVER_VERSION}/geckodriver-v${GECKODRIVER_VERSION}-linux64.tar.gz" && \
-    tar -xzf /tmp/geckodriver.tar.gz -C /usr/local/bin && \
-    rm /tmp/geckodriver.tar.gz && \
-    chmod +x /usr/local/bin/geckodriver && \
-    # Remove curl/wget to slim down the image
-    apt-get purge -y curl wget && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 # ---------------------------------------------
 #  Upgrade pip
 # ---------------------------------------------
-RUN pip install --no-cache-dir --upgrade pip
+RUN pip install --upgrade pip
 
 # ---------------------------------------------
-#  Set working directory
+#  Set Working Directory
 # ---------------------------------------------
 WORKDIR /app
 
 # ---------------------------------------------
-#  Install Python dependencies
+#  Install Python Dependencies
 # ---------------------------------------------
-COPY requirements.txt .
+COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # ---------------------------------------------
-#  Copy application files
+#  Copy Application Files
 # ---------------------------------------------
-COPY . .
-
-# ---------------------------------------------
-#  Default command (Celery worker)
-# ---------------------------------------------
-CMD ["celery", "-A", "config", "worker", "--loglevel=INFO"]
+COPY config /app/config

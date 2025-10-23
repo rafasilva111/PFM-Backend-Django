@@ -11,13 +11,15 @@ RUN apk update && apk add --no-cache \
     gcc \
     python3-dev \
     musl-dev \
+    linux-headers \
+    libc-dev \
     icu-data-full \
-    firefox \
+    firefox-esr \
     geckodriver \
-    xvfb \
     dbus \
     ttf-freefont \
     mesa-dri-gallium
+
 
 # ---------------------------------------------
 #  Upgrade pip

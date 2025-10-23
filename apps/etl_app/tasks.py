@@ -431,19 +431,30 @@ def _reap_zombie_tasks():
     
     return len(zombie_tasks)
 
-import psutil
+import subprocess
 
 @app.task
 def kill_orphaned_firefox():
     """Kill leftover headless Firefox processes."""
     killed_pids = []
-    for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
-        try:
-            name = (proc.info['name'] or '').lower()
-            cmdline = ' '.join(proc.info.get('cmdline') or [])
-            if 'firefox' in name and '--headless' in cmdline:
-                proc.kill()
-                killed_pids.append(proc.info['pid'])
-        except (psutil.NoSuchProcess, psutil.AccessDenied):
-            continue
+
+    # Use pgrep to get all firefox processes
+    try:
+        result = subprocess.run(
+            ["pgrep", "-f", "firefox.*--headless"],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+        pids = result.stdout.strip().split("\n")
+        for pid in filter(None, pids):
+            try:
+                subprocess.run(["kill", "-9", pid], check=False)
+                killed_pids.append(int(pid))
+            except Exception:
+                continue
+    except FileNotFoundError:
+        # pgrep or kill not found
+        pass
+
     return killed_pids

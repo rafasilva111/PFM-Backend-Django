@@ -216,7 +216,7 @@ import traceback
 PAGE_LOAD_TIMEOUT = 60  # seconds
 
 def create_driver(debug_mode=False):
-    driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/usr/local/bin/geckodriver"
+    driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/app/bin/geckodriver"
     if not os.path.exists(driver_path):
         raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
 

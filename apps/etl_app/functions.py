@@ -216,7 +216,15 @@ import traceback
 PAGE_LOAD_TIMEOUT = 60  # seconds
 
 def create_driver(debug_mode=False):
+    """
+    To use the debug mode, make sure to have firefox and geckodriver installed locally.
+    
+    sudo add-apt-repository ppa:mozillateam/ppa
+    sudo apt update
+    sudo apt install -y firefox-esr
+    """
     driver_path = os.path.join(os.getcwd(), "bin/geckodriver") if debug_mode else "/app/bin/geckodriver"
+    
     if not os.path.exists(driver_path):
         raise FileNotFoundError(f"Geckodriver not found at path: {driver_path}")
 

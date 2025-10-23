@@ -345,12 +345,6 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 # Thread-local storage for WebDriver and state
 thread_local = threading.local()
 
-def create_thread_driver():
-    driver = getattr(thread_local, "driver", None)
-    if driver is None:
-        driver = create_driver()
-        thread_local.driver = driver
-    return driver
 
 
 def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
@@ -358,7 +352,7 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
     driver = None
     try:
         task = Task.objects.get(id=task_id)
-        driver = create_driver()  # Create new driver explicitly per call, not thread-local
+        driver = create_driver(task.debug_mode)
 
         for attempt in range(1, MAX_RETRIES + 1):
             try:

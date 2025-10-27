@@ -285,6 +285,7 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
         
         image_db = Image()
         file_storage = unidecode.unidecode(ingredient_db.title).replace(" ", "_")
+        file_storage = file_storage.replace("/", "_")
         if counter > 0:
             file_storage += f"_{counter}"
             
@@ -345,25 +346,38 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 # Thread-local storage for WebDriver and state
 thread_local = threading.local()
 
-
-
 def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
     from apps.etl_app.models import Task, JobTriggerHistory
+    from apps.etl_app.worker_signals import stop_thread_event
+
+    task = Task.objects.get(id=task_id)
+
+    # Early stop check
+    if stop_thread_event.is_set():
+        # Only log once per thread
+        logger.debug(f"Thread {threading.current_thread().name} detected stop signal, exiting.")
+        return None
+
     driver = None
     try:
-        task = Task.objects.get(id=task_id)
         driver = create_driver(task.debug_mode)
 
         for attempt in range(1, MAX_RETRIES + 1):
-            try:
-                if stopping_offset and ingredient_link.id > stopping_offset:
-                    task.owner_job.create_job_trigger_history(
-                        type=JobTriggerHistory.Type.STOPPING_CONDITION,
-                        action=JobTriggerHistory.Action.REST,
-                    )
-                    logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
-                    return False
+            # Check stopping offset
+            if stopping_offset and ingredient_link.id > stopping_offset:
+                task.owner_job.create_job_trigger_history(
+                    type=JobTriggerHistory.Type.STOPPING_CONDITION,
+                    action=JobTriggerHistory.Action.REST,
+                )
+                logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
+                return False
 
+            # Early stop check inside loop
+            if stop_thread_event.is_set():
+                logger.debug(f"Thread {threading.current_thread().name} detected stop signal mid-processing, exiting.")
+                return None
+
+            try:
                 logger.info(f"[Thread {threading.current_thread().name}] Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
                 extract_data_from_link(logger, task, driver, ingredient_link.link, first_time)
                 return True
@@ -392,6 +406,7 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
             except Exception:
                 pass
 
+from apps.etl_app.worker_signals import stop_thread_event
 
 def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     from apps.etl_app.models import ThresholdCondition
@@ -412,21 +427,42 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     FIRST_TIME = True
     total_processed = 0
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
-        futures = [
-            executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET)
-            for link in ingredient_links
-        ]
+    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+        futures = []
 
-        for future in concurrent.futures.as_completed(futures):
-            result = future.result()
-            if result:
-                total_processed += 1
-                task.step += 1
-                task.items_processed += 1
-                task.save()
+        for link in ingredient_links:
+            # Before submitting new tasks, check stop event
+            if stop_thread_event.is_set():
+                logger.info("Stop signal detected — no new tasks will be submitted.")
+                break
+            futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET))
 
-    logger.info(f"{total_processed} ingredients processed in parallel.")
+        try:
+            for future in concurrent.futures.as_completed(futures):
+                # Stop check inside main loop
+                if stop_thread_event.is_set():
+                    logger.info("Stop signal detected — waiting for running threads to finish...")
+                    break
+
+                try:
+                    result = future.result()
+                except Exception as e:
+                    logger.error(f"Future raised an exception: {e}", exc_info=True)
+                    continue
+
+                if result:
+                    total_processed += 1
+                    task.step += 1
+                    task.items_processed += 1
+                    task.save()
+
+        finally:
+            # Proper cleanup
+            executor.shutdown(wait=True, cancel_futures=True)
+            logger.info(f"Executor shut down. Total processed: {total_processed}")
+
+    logger.info("")
+    logger.info(f"{total_processed} ingredients processed.")
     logger.info("")
 
     # Clean up drivers per thread
@@ -656,6 +692,9 @@ def pull_ingredients_links(logger, task):
 
 def __extract_continente_ingredients(logger, task, resume):
     
+    " Reset the stop event ( used to stop threads gracefully on Paused/Canceled ) "
+    stop_thread_event.clear()
+    
     " Log the start of the extraction process"
     logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
     logger.info("")
@@ -679,8 +718,7 @@ def __extract_continente_ingredients(logger, task, resume):
     
     
     " Pulls Ingredients from above links "
-    task, completed = pull_ingredients(logger, task)
-        
+    task, completed = pull_ingredients(logger, task) 
     
     " Log the completion of the extraction process "
     logger.info("Summary:")
@@ -697,6 +735,8 @@ def __extract_continente_ingredients(logger, task, resume):
     else:
         task.pause()
     
+    " Final cleanup "
+    task.kill_orphaned_firefox_instances()
     
     " Log the completion of the extraction process "
     logger.info("")

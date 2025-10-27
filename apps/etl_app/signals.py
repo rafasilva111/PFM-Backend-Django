@@ -141,3 +141,11 @@ def delete_issue_if_no_tasks(sender, instance, **kwargs):
     for issue in instance.issues.all():
         if issue.task.count() == 0:
             issue.delete()
+
+from celery.signals import task_revoked
+from apps.etl_app.worker_signals import stop_thread_event
+
+@task_revoked.connect
+def handle_task_revoked(request, terminated, signum, expired, **kwargs):
+    print(f"⚠️ Celery task revoked: {request.id}, signal={signum}, terminated={terminated}")
+    stop_thread_event.set()

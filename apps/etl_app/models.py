@@ -24,6 +24,7 @@ from django.conf import settings
 ## Models
 from apps.common.models import BaseModel
 from apps.user_app.models import Company,User
+from apps.etl_app.worker_signals import stop_thread_event
 
 ## Tasks and Functions
 from apps.common.models import ProcessType
@@ -658,15 +659,13 @@ class Task(BaseTask):
             self.paused_at = timezone.now()
             self.status = Task.Status.PAUSED
             self.save()
-            self.__kill_current_celery_task()
-            self.__kill_orphaned_firefox_instances()
+            self.__die_gracefully()
         else:
             logger.warning(f"Task {self.id} is not running. Cannot pause.")
 
     def resume(self):
         
         if self.status == Task.Status.PAUSED:
-
             self.resumed_at = timezone.now()
             self.save()
             self.launch(resume=True)
@@ -692,16 +691,14 @@ class Task(BaseTask):
         self.status = Task.Status.FINISHED
         
         self.__calculate_duration()
-        self.__kill_current_celery_task()
-        self.__kill_orphaned_firefox_instances()
+        self.__die_gracefully()
         self.save()
     
     def fail(self):
         self.finished_at = timezone.now()
         self.status = Task.Status.FAILED
         self.__calculate_duration()
-        self.__kill_current_celery_task()
-        self.__kill_orphaned_firefox_instances()
+        self.__die_gracefully()
         self.save()
     
     def get_type_process_display(self):
@@ -749,6 +746,12 @@ class Task(BaseTask):
             task=self,
             message=message
         )
+        
+    def __die_gracefully(self):
+        """
+        Kills the task gracefully by revoking the Celery task and stopping threads.
+        """
+        self.__kill_current_celery_task()
     
     def __kill_current_celery_task(self):
         """
@@ -757,7 +760,7 @@ class Task(BaseTask):
         
         if self.celery_task_id:
             result = AsyncResult(self.celery_task_id, app=app)
-            result.revoke(terminate=True)
+            result.revoke(terminate=True, signal='SIGTERM')
         else:
             logger.warning(f"Task {self.id} does not have a Celery task ID. Cannot kill Celery task.")
         
@@ -772,11 +775,19 @@ class Task(BaseTask):
         else:
             self.duration = None
             
-    def __kill_orphaned_firefox_instances(self):
+    def kill_orphaned_firefox_instances(self):
         """
         Kills any orphaned Firefox instances for Selenium tasks.
         """
         from apps.etl_app.tasks import kill_orphaned_firefox
         kill_orphaned_firefox.delay()
+        
+    def __kill_threads(self):
+        """ 
+        Kills any threads associated with this task.
+        """
+        stop_thread_event.set()
+        
+        print(f"stop_thread_event: {stop_thread_event.is_set()}")
 
 

@@ -9,9 +9,8 @@ class EtlAppConfig(AppConfig):
     def ready(self):
         
         # Import task Signals
-        
         from apps.etl_app.signals import post_delete_task_handler, task_success_handler
-        
+
         # create etl logs base dir
         
         makedirs(JOBS_LOG_DIR, exist_ok=True)

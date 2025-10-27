@@ -240,6 +240,8 @@ def _launch_task(task_id, resume=True):
         task_id (int): ID of the Task to launch.
     """
     from apps.etl_app.models import Task
+    from apps.etl_app.worker_signals import register_sigterm_handler
+    register_sigterm_handler()
 
     task = Task.objects.get(id=task_id)
 

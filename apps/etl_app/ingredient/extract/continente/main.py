@@ -565,6 +565,8 @@ def pull_ingredients_links(logger, task):
         categories.pop('Casa, Mobiliário, Decoração')
 
     " Add neccessary categories "
+    categories["Bebé"] = 'https://www.continente.pt/bebe/ver-todos/'
+    
     if "Frutas e Legumes" not in categories:
         categories["Frutas e Legumes"] = 'https://www.continente.pt/frutas-e-legumes/frutas/'
 
@@ -599,7 +601,7 @@ def pull_ingredients_links(logger, task):
         
 
         category_response = requests.get(value)
-        html = BeautifulSoup(category_response.content, 'html.parser')
+        html = BeautifulSoup(category_response.content, features= 'html.parser')
         try:
             max_ingredients_category = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
             logger.info(f"Category has {max_ingredients_category} ingredients")
@@ -628,24 +630,32 @@ def pull_ingredients_links(logger, task):
         base_data_url = base_data_url.split("&")
         base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={PAGE_LINKS_OFFSET}"
 
+        pull_ingredients_retries = 0
         while start < max_ingredients_category:
-
+            
             extra = f"&start={start}"
-            base_data_url += extra
+            pulling_url = f"{base_data_url}{ extra}"
+            category_response = requests.get(pulling_url)
 
-            category_response = requests.get(base_data_url)
+            
             html = BeautifulSoup(category_response.content, 'html.parser')
 
             ingredients_link = html.find_all("div", class_="ct-pdp-link col-pdp-link")
             
             if not ingredients_link:
-                logger.info(f"No more ingredients found on link {base_data_url}")
-                if key == last_key:
-                    completed = True
-                break
-            
-            base_data_url = base_data_url.replace(extra, "")
-            
+                logger.info(f"No more ingredients found on link {pulling_url}")
+                    
+                if pull_ingredients_retries >= MAX_RETRIES:
+                    pull_ingredients_retries = 0
+                    logger.info(f"Max retries reached for link {pulling_url}, moving to next category...")
+                    with open(f"{key}.html", "w", encoding="utf-8") as f:
+                        f.write(html.prettify())
+                    break
+                else:
+                    pull_ingredients_retries += 1 
+                    logger.info(f"Retrying to pull ingredients links from {pulling_url} (Retry {pull_ingredients_retries}/{MAX_RETRIES})...")
+                    
+                    continue
             
             links_added = 0
             for ingredient_link in ingredients_link:
@@ -675,6 +685,9 @@ def pull_ingredients_links(logger, task):
             start += links_added
             logger.info(f"Added {links_added} ingredients links, total {start} links found so far...")
             
+        if key == last_key:
+                    completed = True
+         
         if stopping_condition_triggered:
             break
         
@@ -718,7 +731,8 @@ def __extract_continente_ingredients(logger, task, resume):
     
     
     " Pulls Ingredients from above links "
-    task, completed = pull_ingredients(logger, task) 
+    #task, completed = pull_ingredients(logger, task) 
+    completed = True
     
     " Log the completion of the extraction process "
     logger.info("Summary:")

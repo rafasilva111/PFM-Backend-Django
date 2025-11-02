@@ -15,8 +15,7 @@ from selenium.common.exceptions import TimeoutException, WebDriverException
 from apps.etl_app.functions import create_driver
 import time
 import traceback
-
-
+from apps.etl_app.functions import normalize_text
 models_ = [Ingredient, Tag, IngredientTagThrough, IngredientLink, Image]
 
 """
@@ -518,7 +517,28 @@ def pull_ingredients_links(logger, task):
 
     " Get Main Category's Pages "
     logger.info("Finding Categories...")
-    base_response = requests.get(BASE_URL)
+    session = requests.Session()
+    session.headers.update({
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 (KHTML, like Gecko) "
+                    "Chrome/141.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
+                "image/avif,image/webp,image/apng,*/*;q=0.8,"
+                "application/signed-exchange;v=b3;q=0.7",
+        "Accept-Language": "pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Referer": "https://www.continente.pt/",
+        "Upgrade-Insecure-Requests": "1",
+        "Sec-Fetch-Dest": "document",
+        "Sec-Fetch-Mode": "navigate",
+        "Sec-Fetch-Site": "none",
+        "Sec-Fetch-User": "?1",
+        "Sec-Ch-Ua": '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+        "Sec-Ch-Ua-Platform": '"Windows"',
+        "Sec-Ch-Ua-Mobile": "?0",
+        "Connection": "keep-alive",
+        "cookie": "realUserVerifier=Verified;",
+    })
+    base_response = session.get(BASE_URL)
     html = BeautifulSoup(base_response.content, 'html.parser')
     homepage = html.find('div', class_='container-dropdown-first-column')
     categories = {}
@@ -600,7 +620,7 @@ def pull_ingredients_links(logger, task):
         logger.info(f"Extracting Ingredient's Links from category: {key}")
         
 
-        category_response = requests.get(value)
+        category_response = session.get(value)
         html = BeautifulSoup(category_response.content, features= 'html.parser')
         try:
             max_ingredients_category = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
@@ -643,12 +663,11 @@ def pull_ingredients_links(logger, task):
             ingredients_link = html.find_all("div", class_="ct-pdp-link col-pdp-link")
             
             if not ingredients_link:
-                logger.info(f"No more ingredients found on link {pulling_url}")
-                    
+
                 if pull_ingredients_retries >= MAX_RETRIES:
                     pull_ingredients_retries = 0
                     logger.info(f"Max retries reached for link {pulling_url}, moving to next category...")
-                    with open(f"{key}.html", "w", encoding="utf-8") as f:
+                    with open(f"{normalize_text(key)}.html", "w", encoding="utf-8") as f:
                         f.write(html.prettify())
                     break
                 else:

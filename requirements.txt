@@ -162,3 +162,4 @@ whitenoise==6.6.0
 wsproto==1.2.0
 xanadu-sphinx-theme==0.13.0
 zope.interface==6.4.post2
+playwright

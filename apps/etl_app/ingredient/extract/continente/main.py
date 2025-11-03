@@ -1,26 +1,42 @@
-
-from django.utils import timezone
-import requests
-import unidecode
 from bs4 import BeautifulSoup
-from time import sleep	
-
+from django.utils import timezone
+from selenium.common.exceptions import TimeoutException, WebDriverException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.wait import WebDriverWait
-from apps.etl_app.functions import start_db
-from apps.etl_app.ingredient.extract.continente.models import Tag, Ingredient, database_proxy, IngredientLink, Image, IngredientTagThrough
-from apps.etl_app.constants import EXTRACT_CONTINENTE_INGREDIENTS_DB, CONTINENTE_INGREDIENTS_IMAGES_FOLDER
-from selenium.common.exceptions import TimeoutException, WebDriverException
-from apps.etl_app.functions import create_driver
+from time import sleep
+import concurrent.futures
+import random
+import requests
+import threading
 import time
 import traceback
-from apps.etl_app.functions import normalize_text
-models_ = [Ingredient, Tag, IngredientTagThrough, IngredientLink, Image]
+import unidecode
 
-"""
-Define constants for the scraping process
-"""
+
+
+
+from apps.etl_app.constants import (
+    CONTINENTE_INGREDIENTS_IMAGES_FOLDER,
+    EXTRACT_CONTINENTE_INGREDIENTS_DB,
+)
+from apps.etl_app.functions import (
+    create_driver,
+    normalize_text,
+    start_db,
+)
+from apps.etl_app.ingredient.extract.continente.models import (
+    Image,
+    Ingredient,
+    IngredientLink,
+    IngredientTagThrough,
+    Tag,
+    database_proxy,
+)
+models_ = [Ingredient, Tag, IngredientTagThrough, IngredientLink, Image]
+from apps.etl_app.worker_signals import stop_thread_event
+
+# Define constants for the scraping process
 BASE_URL = "https://www.continente.pt"
 BASE_HEADERS = {
     "cookie": "realUserVerifier=Verified;",
@@ -36,9 +52,10 @@ MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
 RESET_INTERVAL = 10  # Restart WebDriver after this many items
 
-" Maps "
+TIME_BETWEEN_REQUESTS_LOW_BOUND = 1  # seconds
+TIME_BETWEEN_REQUESTS_HIGH_BOUND = 2.5  # seconds
 
-# Map the Caracteristcs and information to the corresponding attribute in the model
+# Maps
 caracteristics_and_info_name_map = {
     'Descrição:': 'description',
     'Tipo de produto:': 'product_type',
@@ -49,7 +66,6 @@ caracteristics_and_info_name_map = {
     'Aviso Legal:': 'legal_advise',
 }
 
-# Map the nutrient name to the corresponding attribute in the model
 nutrient_name_map = {
     'energia': 'energia',
     'lípidos': 'gordura',
@@ -61,7 +77,6 @@ nutrient_name_map = {
     'sal': 'sal',
 }
 
-# Map the legal information to the corresponding attribute in the model
 legal_name_map = {
     'Nome do Produtor:': 'productor_name',
     'Morada do Produtor:': 'productor_address',
@@ -70,7 +85,6 @@ legal_name_map = {
     'Nome Regulamentar do Produto:': 'regular_product_name',
 }
 
-# Map the aditional information to the corresponding attribute in the model
 aditional_information_name_map = {
     'Informação Adicional:': 'productor_name',
     'Embalagem:': 'productor_address',
@@ -79,15 +93,9 @@ aditional_information_name_map = {
     'Nome Regulamentar do Produto:': 'regular_product_name',
 }
 
+# Thread-local storage for WebDriver and state
+thread_local = threading.local()
 
-"""
-        Notes:
-        
-    This scrapper should run more tham one time, extra tabs ( nutritional info, legal info, advises)
-    dont always load (their fault).
-
-
-"""
 
 def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
     """
@@ -333,87 +341,146 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
             # Add the tag to the ingredient
             ingredient_db.tags.add(tag)
     
-    
-    
-import concurrent.futures
-import threading
-import time
-import traceback
-from selenium.common.exceptions import TimeoutException, WebDriverException
-
-
-# Thread-local storage for WebDriver and state
-thread_local = threading.local()
-
 def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
+    """
+    Process a single ingredient link to extract detailed ingredient data.
+
+    This function handles the extraction of ingredient details from a given link using Selenium.
+    It manages retries for transient errors, checks for stopping conditions, and respects stop signals.
+
+    Workflow:
+        1. Retrieves the task instance associated with the given task ID.
+        2. Checks for early stop signals to exit gracefully if requested.
+        3. Creates a Selenium WebDriver instance for the current thread.
+        4. Attempts to extract ingredient data, retrying on timeouts up to a maximum limit.
+        5. Handles stopping conditions based on the ingredient link ID and task configuration.
+        6. Logs progress, warnings, and errors during the extraction process.
+        7. Cleans up resources, including the WebDriver instance, after processing.
+
+    Args:
+        logger (logging.Logger): Logger instance for structured logging.
+        task_id (int): ID of the task being processed.
+        ingredient_link (IngredientLink): The ingredient link object to process.
+        first_time (bool): Indicates if this is the first attempt to process the link.
+        stopping_offset (int or None): The stopping condition offset, if applicable.
+
+    Returns:
+        bool or None: 
+            - True if the ingredient was successfully processed.
+            - False if the stopping condition was hit or the link could not be processed.
+            - None if the thread was stopped early.
+
+    Notes:
+        - The function respects stop signals to allow graceful interruption.
+        - Errors during extraction are logged, and the task's error count is incremented.
+        - The WebDriver instance is cleaned up after processing to avoid resource leaks.
+    """
     from apps.etl_app.models import Task, JobTriggerHistory
     from apps.etl_app.worker_signals import stop_thread_event
 
+    # Retrieve the task instance
     task = Task.objects.get(id=task_id)
 
-    # Early stop check
+    # Early stop check before processing
     if stop_thread_event.is_set():
-        # Only log once per thread
-        logger.debug(f"Thread {threading.current_thread().name} detected stop signal, exiting.")
+        logger.debug(f"[Thread {threading.current_thread().name}] Stop signal detected, exiting before processing.")
         return None
 
     driver = None
     try:
+        # Create a Selenium WebDriver instance for the current thread
         driver = create_driver(task.debug_mode)
 
         for attempt in range(1, MAX_RETRIES + 1):
-            # Check stopping offset
+            # Check if the stopping condition offset is reached
             if stopping_offset and ingredient_link.id > stopping_offset:
                 task.owner_job.create_job_trigger_history(
                     type=JobTriggerHistory.Type.STOPPING_CONDITION,
                     action=JobTriggerHistory.Action.REST,
                 )
-                logger.info(f"[Thread {threading.current_thread().name}] Stopping condition hit at {ingredient_link.id}")
+                logger.info(f"[Thread {threading.current_thread().name}] Stopping condition reached at ingredient link ID {ingredient_link.id}.")
                 return False
 
-            # Early stop check inside loop
+            # Early stop check inside the retry loop
             if stop_thread_event.is_set():
-                logger.debug(f"Thread {threading.current_thread().name} detected stop signal mid-processing, exiting.")
+                logger.debug(f"[Thread {threading.current_thread().name}] Stop signal detected mid-processing, exiting.")
                 return None
 
             try:
-                logger.info(f"[Thread {threading.current_thread().name}] Extracting Ingredient {ingredient_link.id} from {ingredient_link.link}")
+                # Log the start of the extraction process
+                logger.info(f"[Thread {threading.current_thread().name}] Processing ingredient link ID {ingredient_link.id} from {ingredient_link.link}.")
+                
+                # Extract ingredient data from the link
                 extract_data_from_link(logger, task, driver, ingredient_link.link, first_time)
                 return True
 
             except TimeoutException:
-                logger.warning(f"Timeout on {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES})")
+                # Handle timeout exceptions with retries
+                logger.warning(f"[Thread {threading.current_thread().name}] Timeout on {ingredient_link.link} (Attempt {attempt}/{MAX_RETRIES}).")
                 if attempt == MAX_RETRIES:
                     task.increment_errors(logger, f"Timeout: {ingredient_link.link}", None)
                 else:
                     time.sleep(RETRY_DELAY)
 
             except WebDriverException:
+                # Handle WebDriver-specific exceptions
                 task.increment_errors(logger, f"WebDriver error: {ingredient_link.link}", traceback.format_exc())
                 break
 
             except Exception:
+                # Handle unexpected exceptions
                 task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
                 break
 
+        # Return False if all retries are exhausted or an error occurred
         return False
 
     finally:
+        # Ensure the WebDriver instance is cleaned up
         if driver:
             try:
                 driver.quit()
             except Exception:
                 pass
 
-from apps.etl_app.worker_signals import stop_thread_event
-
 def pull_ingredients(logger, task, max_threads=MAX_THREADS):
+    """
+    Extract detailed ingredient data in parallel using multiple threads.
+
+    This function processes ingredient links stored in the database, extracting detailed
+    information for each ingredient using Selenium and BeautifulSoup. It leverages a 
+    thread pool to perform parallel extraction, improving efficiency for large datasets.
+
+    Workflow:
+        1. Computes the stopping offset based on the job's threshold condition.
+        2. Retrieves ingredient links from the database, starting from the last processed step.
+        3. Submits extraction tasks to a thread pool executor for parallel processing.
+        4. Monitors for stop signals to gracefully halt new task submissions.
+        5. Updates the task's progress, including the number of processed items.
+        6. Cleans up resources, including thread-local WebDriver instances.
+
+    Args:
+        logger (logging.Logger): Logger instance for structured logging.
+        task (Task): Task model instance tracking the job's progress, steps, and statistics.
+        max_threads (int, optional): Maximum number of threads to use. Defaults to MAX_THREADS.
+
+    Returns:
+        tuple: A tuple containing:
+            - task (Task): Updated task instance with progress metrics.
+            - completed (bool): True if all ingredients were processed, False otherwise.
+
+    Notes:
+        - The function respects stop signals to allow graceful interruption.
+        - Thread-local storage is used to manage WebDriver instances per thread.
+        - Errors during extraction are logged, and the task's error count is incremented.
+    """
     from apps.etl_app.models import ThresholdCondition
+
     logger.info("")
-    logger.info("Starting parallel recipe extraction")
+    logger.info("Starting parallel ingredient extraction")
     logger.info("")
 
-    # Compute stopping offset if any
+    # Compute stopping offset if a threshold condition is defined
     OFFSET = None
     if (
         task.owner_job
@@ -422,23 +489,27 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     ):
         OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
 
+    # Retrieve ingredient links from the database, starting from the last processed step
     ingredient_links = list(IngredientLink.select().where(IngredientLink.id > task.step))
     FIRST_TIME = True
     total_processed = 0
 
-    with concurrent.futures.ThreadPoolExecutor(max_workers=MAX_THREADS) as executor:
+    # Use a ThreadPoolExecutor for parallel processing
+    with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
         futures = []
 
+        # Submit tasks for each ingredient link
         for link in ingredient_links:
-            # Before submitting new tasks, check stop event
+            # Check for stop signal before submitting new tasks
             if stop_thread_event.is_set():
                 logger.info("Stop signal detected — no new tasks will be submitted.")
                 break
             futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET))
 
         try:
+            # Process completed futures as they finish
             for future in concurrent.futures.as_completed(futures):
-                # Stop check inside main loop
+                # Check for stop signal during processing
                 if stop_thread_event.is_set():
                     logger.info("Stop signal detected — waiting for running threads to finish...")
                     break
@@ -450,13 +521,14 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
                     continue
 
                 if result:
+                    # Update task progress for successfully processed ingredients
                     total_processed += 1
                     task.step += 1
                     task.items_processed += 1
                     task.save()
 
         finally:
-            # Proper cleanup
+            # Ensure proper cleanup of the executor
             executor.shutdown(wait=True, cancel_futures=True)
             logger.info(f"Executor shut down. Total processed: {total_processed}")
 
@@ -464,7 +536,7 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     logger.info(f"{total_processed} ingredients processed.")
     logger.info("")
 
-    # Clean up drivers per thread
+    # Clean up thread-local WebDriver instances
     try:
         if hasattr(thread_local, "driver"):
             thread_local.driver.quit()
@@ -473,308 +545,314 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
 
     return task, True
 
-
 def pull_ingredients_links(logger, task):
     """
-    Extracts ingredient links from the Continente website and stores them in the database.
-    This function navigates through the Continente website to retrieve ingredient links 
-    categorized by their respective categories. It handles pagination, filters unnecessary 
-    categories, and adds missing ones. The extracted links are saved in the database, and 
-    the task statistics are updated accordingly.
+    Extract ingredient links from Continente's website using Selenium with Firefox (headless).
+
+    This function automates browser navigation through Continente's category pages to collect 
+    all ingredient (product) links and store them in the database. It leverages a real browser 
+    session to bypass anti-bot systems and ensure JavaScript-rendered content is captured.
+
     Args:
-        logger (logging.Logger): Logger instance for logging information, warnings, and errors.
-        task (Task): Task object used to track the progress and statistics of the extraction process.
-        continue_mode (bool, optional): If True, resumes the extraction process from where it left off. 
-                                        Defaults to False.
+        logger (logging.Logger): Active logger for logging info, warnings, and errors.
+        task (Task): Task model instance tracking the job's progress, steps, and statistics.
+
     Workflow:
-        1. Initializes warnings and errors counters.
-        2. Retrieves the main categories from the Continente homepage.
-        3. Filters out subcategories and unnecessary categories.
-        4. Adds any missing necessary categories.
-        5. Iterates through each category to extract ingredient links:
-            - Handles pagination to retrieve all links.
-            - Saves the links to the database.
-        6. Updates the task statistics with the number of links, warnings, and errors.
-        7. Logs the completion of the extraction process.
-    Notes:
-        - The function assumes the existence of a `BASE_URL` constant for the Continente website.
-        - The `IngredientLink` model is used to store the extracted links in the database.
-        - The function logs warnings for categories or pages that cannot be processed.
+        1. Launches a Selenium Firefox driver (headless) for realistic browsing.
+        2. Loads the homepage and extracts top-level product categories.
+        3. Filters out irrelevant or subcategories and ensures key ones exist.
+        4. Iterates through each valid category to extract product/ingredient links:
+            - Loads the category page to determine total product count.
+            - Builds paginated data URLs.
+            - Loops through paginated requests to extract product links.
+            - Inserts links into the database and tracks progress.
+        5. Monitors for stopping thresholds (from the parent job configuration).
+        6. Gracefully shuts down and updates task statistics when complete.
+
+    Returns:
+        tuple: (task, completed)
+            - task (Task): Updated task with current link count.
+            - completed (bool): True if all categories processed, False if stopped early.
+
     Raises:
-        Exception: If there are issues with parsing the HTML or extracting data.
+        RuntimeError: If the Firefox driver or page loading fails critically.
     """
 
-    " Initialize the Control variables "
+    # === INITIAL SETUP ========================================================
     stopping_condition_triggered = False
     total_ingredients_links_already_done = None
     total_links_counter = 0
     completed = False
-    
-    " Gets all Ingredients's Links from Continente "
+
     logger.info("")
-    logger.info("Starting to pull Ingredient's Links...")
+    logger.info("=== Starting Ingredient Link Extraction (Selenium Mode) ===")
     logger.info("")
 
-    " Get Main Category's Pages "
-    logger.info("Finding Categories...")
-    session = requests.Session()
-    session.headers.update({
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/141.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,"
-                "image/avif,image/webp,image/apng,*/*;q=0.8,"
-                "application/signed-exchange;v=b3;q=0.7",
-        "Accept-Language": "pt-PT,pt;q=0.9,en-US;q=0.8,en;q=0.7",
-        "Referer": "https://www.continente.pt/",
-        "Upgrade-Insecure-Requests": "1",
-        "Sec-Fetch-Dest": "document",
-        "Sec-Fetch-Mode": "navigate",
-        "Sec-Fetch-Site": "none",
-        "Sec-Fetch-User": "?1",
-        "Sec-Ch-Ua": '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
-        "Sec-Ch-Ua-Platform": '"Windows"',
-        "Sec-Ch-Ua-Mobile": "?0",
-        "Connection": "keep-alive",
-        "cookie": "realUserVerifier=Verified;",
-    })
-    base_response = session.get(BASE_URL)
-    html = BeautifulSoup(base_response.content, 'html.parser')
-    homepage = html.find('div', class_='container-dropdown-first-column')
+    # Create Selenium WebDriver instance (headless Firefox)
+    driver = create_driver(debug_mode=False)
+
+    # === STEP 1: LOAD HOMEPAGE & EXTRACT CATEGORY LINKS =======================
+    logger.info("Loading homepage and extracting category links...")
+    try:
+        driver.get(BASE_URL)
+        time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # Add human-like delay
+    except TimeoutException:
+        raise RuntimeError("Timeout while loading the Continente homepage.")
+
+    html = BeautifulSoup(driver.page_source, "html.parser")
+    homepage = html.find("div", class_="container-dropdown-first-column")
     categories = {}
 
-    for item in homepage.find_all('li', class_="dropdown-item dropdown"):
-        url = item.find('a', class_='dropdown-link pwc-font--primary-regular-italic col-view-all')
-
-        if url['role'] != 'menuitem':
+    # Extract top-level category names and URLs
+    for item in homepage.find_all("li", class_="dropdown-item dropdown"):
+        url = item.find("a", class_="dropdown-link pwc-font--primary-regular-italic col-view-all")
+        if not url or url.get("role") != "menuitem":
             continue
 
-        category_text = item.find('div', class_='category-info').text.strip()
-        url = url['href']
-        
-        categories.update({category_text: url})
+        category_text = item.find("div", class_="category-info").text.strip()
+        href = url["href"]
+        categories[category_text] = href
 
-    " Remove Subcategories "
-    for key, value in categories.copy().items():
-        if value.count('/') != 4:
+    # === STEP 2: CLEAN CATEGORY DICTIONARY ====================================
+    # Remove nested or unwanted categories
+    for key, value in list(categories.items()):
+        if value.count("/") != 4:
             categories.pop(key)
 
-    " Remove unneccessary categories "
-    if "Destaques" in categories:
-        categories.pop("Destaques")
+    for to_remove in [
+        "Destaques", "Loja de Marcas", "Lojas de Marcas", "Jardim, Bricolage e Auto",
+        "Brinquedos e Jogos", "Livraria e Papelaria", "Desporto, Bagagens, Roupa",
+        "Casa, Mobiliário, Decoração"
+    ]:
+        categories.pop(to_remove, None)
 
-    if 'Loja de Marcas' in categories:
-        categories.pop('Loja de Marcas')
-
-    if 'Lojas de Marcas' in categories:
-        categories.pop('Lojas de Marcas')
-
-    if 'Jardim, Bricolage e Auto' in categories:
-        categories.pop('Jardim, Bricolage e Auto')
-
-    if 'Brinquedos e Jogos' in categories:
-        categories.pop('Brinquedos e Jogos')
-
-    if 'Livraria e Papelaria' in categories:
-        categories.pop('Livraria e Papelaria')
-
-    if 'Desporto, Bagagens, Roupa' in categories:
-        categories.pop('Desporto, Bagagens, Roupa')
-
-    if 'Casa, Mobiliário, Decoração' in categories:
-        categories.pop('Casa, Mobiliário, Decoração')
-
-    " Add neccessary categories "
-    categories["Bebé"] = 'https://www.continente.pt/bebe/ver-todos/'
-    
+    # Ensure key categories exist
+    categories["Bebé"] = "https://www.continente.pt/bebe/ver-todos/"
     if "Frutas e Legumes" not in categories:
-        categories["Frutas e Legumes"] = 'https://www.continente.pt/frutas-e-legumes/frutas/'
+        categories["Frutas e Legumes"] = "https://www.continente.pt/frutas-e-legumes/frutas/"
 
+    logger.info(f"Found {len(categories)} valid categories to process.")
     logger.info("")
-    logger.info(f"Found {len(categories)} categories")
-    logger.info("")
-    
-    logger.info(f"Ingredient {task.process} is on step {task.step}...")
-    logger.info("")
-    
-    " Get the Threshold Stopping condition"
+
+    # === STEP 3: DETERMINE STOPPING CONDITION & TASK RESUMPTION ================
     from apps.etl_app.models import ThresholdCondition
     stopping_condition_offset = (
         task.owner_job.stopping_condition.threshold_value
         if task.owner_job and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
         else None
     )
-        
-    " Check if we are resuming the task, and if so, delete the Recipes that are above the step "
+
+    # If resuming a partial task, delete already-processed records beyond last step
     if task.step != 0:
         IngredientLink.delete().where(IngredientLink.id > task.step).execute()
         total_ingredients_links_already_done = task.step
 
-    """ Get all Ingredient's Links for each category """
-    logger.info("Finding all ingredients links for each category...")
+    logger.info("Starting category-by-category ingredient extraction...")
 
-    last_key = next(reversed(categories)) 
+    last_key = next(reversed(categories))
+
+    # === STEP 4: PROCESS EACH CATEGORY ========================================
     for key, value in categories.items():
+    
+        if stop_thread_event.is_set():
+            break
         
         logger.info("")
-        logger.info(f"Extracting Ingredient's Links from category: {key}")
-        
+        logger.info(f"→ Category: {key}")
 
-        category_response = session.get(value)
-        html = BeautifulSoup(category_response.content, features= 'html.parser')
+        # --- Load category page ---
         try:
-            max_ingredients_category = int(html.find("div", class_="search-results-products-counter d-flex justify-content-center").text.split(" ")[2])
-            logger.info(f"Category has {max_ingredients_category} ingredients")
+            driver.get(value)
+            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))
+        except TimeoutException:
+            logger.warning(f"Timeout loading {value}, skipping category.")
+            continue
+
+        html = BeautifulSoup(driver.page_source, "html.parser")
+
+        # --- Extract total number of ingredients in this category ---
+        try:
+            max_ingredients_category = int(
+                html.find("div", class_="search-results-products-counter d-flex justify-content-center")
+                .text.split(" ")[2]
+            )
+            logger.info(f"Category contains {max_ingredients_category} ingredients.")
         except Exception:
             task.increment_warnings(
-                    logger=logger,
-                    message=f"Unable to Extract the Max Recipes from {key} category...",
-                    stack_trace=None
-                )
+                logger=logger,
+                message=f"Could not extract max ingredient count for category '{key}'.",
+                stack_trace=None
+            )
             continue
-        logger.info("")
-        
-        base_data_url = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")['data-url']
-        
-        " Skip already extracted categories "
+
+        # --- Extract data-url for pagination ---
+        data_div = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")
+        if not data_div or not data_div.get("data-url"):
+            logger.warning(f"No pagination data-url found for '{key}', skipping.")
+            continue
+
+        base_data_url = data_div["data-url"]
+        base_data_url = base_data_url.split("&")
+        base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={PAGE_LINKS_OFFSET}"
+
+        # --- Handle task resumption offsets ---
         if total_ingredients_links_already_done:
             if total_ingredients_links_already_done >= max_ingredients_category:
                 total_ingredients_links_already_done -= max_ingredients_category
-                logger.info(f"Category already extracted, skipping...")
+                logger.info("Category already extracted; skipping.")
                 continue
             else:
                 start = total_ingredients_links_already_done
         else:
             start = 0
 
-        base_data_url = base_data_url.split("&")
-        base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={PAGE_LINKS_OFFSET}"
-
+        # --- Paginate through ingredient listings ---
         pull_ingredients_retries = 0
         while start < max_ingredients_category:
+            if stop_thread_event.is_set():
+                logger.warning("Stop signal detected. Exiting before new page.")
+                break
             
-            extra = f"&start={start}"
-            pulling_url = f"{base_data_url}{ extra}"
-            category_response = requests.get(pulling_url)
+            pulling_url = f"{base_data_url}&start={start}"
 
-            
-            html = BeautifulSoup(category_response.content, 'html.parser')
-
-            ingredients_link = html.find_all("div", class_="ct-pdp-link col-pdp-link")
-            
-            if not ingredients_link:
-
+            try:
+                driver.get(pulling_url)
+                time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # simulate human read time
+            except TimeoutException:
+                pull_ingredients_retries += 1
                 if pull_ingredients_retries >= MAX_RETRIES:
-                    pull_ingredients_retries = 0
-                    logger.info(f"Max retries reached for link {pulling_url}, moving to next category...")
-                    with open(f"{normalize_text(key)}.html", "w", encoding="utf-8") as f:
-                        f.write(html.prettify())
+                    logger.warning(f"Max retries reached for {pulling_url}")
                     break
-                else:
-                    pull_ingredients_retries += 1 
-                    logger.info(f"Retrying to pull ingredients links from {pulling_url} (Retry {pull_ingredients_retries}/{MAX_RETRIES})...")
-                    
-                    continue
-            
-            links_added = 0
-            for ingredient_link in ingredients_link:
+                continue
 
-                ingredient_link = IngredientLink(
-                    link=ingredient_link.find('a')['href'],
-                    page=start // PAGE_LINKS_OFFSET, 
+            html = BeautifulSoup(driver.page_source, "html.parser")
+            ingredients_link = html.find_all("div", class_="ct-pdp-link col-pdp-link")
+
+            # Retry if no links found
+            if not ingredients_link:
+                pull_ingredients_retries += 1
+                if pull_ingredients_retries >= MAX_RETRIES:
+                    logger.warning(f"No links found after {MAX_RETRIES} retries for {pulling_url}")
+                    break
+                continue
+
+            # --- Insert links into DB ---
+            links_added = 0
+            for ing_link in ingredients_link:
+                link_url = ing_link.find("a")["href"]
+                IngredientLink.create(
+                    link=link_url,
+                    page=start // PAGE_LINKS_OFFSET,
                     base_search_link=value,
-                    category = key
-                    )
-                ingredient_link.save()
-                
+                    category=key
+                )
                 links_added += 1
                 total_links_counter += 1
-                
-                # Check StoppingCondition
+
+                # Stop if job threshold reached
                 if stopping_condition_offset and total_links_counter >= stopping_condition_offset:
                     logger.info("")
-                    logger.info(f"Job Stopping Condition triggered. Paused extraction at {total_links_counter} links...")
+                    logger.info(f"Stopping condition reached at {total_links_counter} links.")
                     logger.info("")
                     stopping_condition_triggered = True
                     break
-            
+
             if stopping_condition_triggered:
                 break
-            
+
             start += links_added
-            logger.info(f"Added {links_added} ingredients links, total {start} links found so far...")
-            
+            logger.info(f"Added {links_added} links; total {start} processed for category.")
+            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # short delay before next batch
+
         if key == last_key:
-                    completed = True
-         
+            completed = True
         if stopping_condition_triggered:
             break
-        
-    " Update Task Statistics"
+
+    # === STEP 5: FINALIZE JOB ================================================
     task.links = IngredientLink.select().count()
     task.save()
-    
-    " Log the completion of the extraction process "
+
     logger.info("")
-    logger.info("All Ingredient's Links pulled ...")
+    logger.info("=== Ingredient Link Extraction Completed Successfully ===")
     logger.info("")
-    
+
+    driver.quit()
     return task, completed
-    
 
 def __extract_continente_ingredients(logger, task, resume):
-    
-    " Reset the stop event ( used to stop threads gracefully on Paused/Canceled ) "
-    stop_thread_event.clear()
-    
-    " Log the start of the extraction process"
-    logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
-    logger.info("")
-        
+    """
+    Main entry point for extracting ingredient data from Continente.
 
-    " Starts the db "
-    logger.info(f"Initializing {task.type} database ...")
+    This function orchestrates the full extraction pipeline for the Continente ETL job:
+        1. Initializes the database for ingredient extraction.
+        2. Extracts ingredient links from Continente categories.
+        3. Optionally (if enabled) extracts detailed ingredient information.
+        4. Handles task completion, pausing, and cleanup depending on results.
+
+    Args:
+        logger (logging.Logger): Logger used for structured logging throughout the process.
+        task (Task): Current ETL task object tracking process state, errors, and metrics.
+        resume (bool): Whether to resume from a previous run (avoids DB reset).
+
+    Returns:
+        Task: Updated task object with metrics and final state.
+
+    Workflow:
+        - Resets thread stop events (for graceful interruption handling).
+        - Starts or resumes the ingredient database.
+        - Pulls all product/ingredient links from Continente.
+        - Optionally triggers detailed ingredient extraction (currently disabled).
+        - Updates and finalizes the ETL task.
+        - Cleans up any orphaned browser processes.
+    """
+
+    # === INITIALIZATION ========================================================
+    # Reset stop event — ensures no leftover cancellation flag from previous run
+    stop_thread_event.clear()
+
+    logger.info(f"Initializing {task.type} for all {task.process} from {task.company}...")
+    logger.info("")
+
+    # Initialize or resume the ingredient database
+    logger.info(f"Initializing {task.type} database...")
     task, database = start_db(
         logger=logger,
         task=task,
         models=models_,
         path=EXTRACT_CONTINENTE_INGREDIENTS_DB,
         database_proxy=database_proxy,
-        reset=not resume # we want to reset the database if we are not resuming
+        reset=not resume  # Reset DB only when not resuming
     )
     logger.info("")
-    
 
-    " Pull Ingredients links "
+    # === STEP 1: LINK EXTRACTION ===============================================
+    logger.info("Starting ingredient link extraction phase...")
     task, l_completed = pull_ingredients_links(logger, task)
-    
-    
-    " Pulls Ingredients from above links "
-    #task, completed = pull_ingredients(logger, task) 
-    completed = True
-    
-    " Log the completion of the extraction process "
-    logger.info("Summary:")
-    logger.info(f"Ingredients Links: {task.links}")
-    logger.info(f"Ingredients: {task.items_processed}")
+
+    # === STEP 2: INGREDIENT EXTRACTION =========================================
+    task, completed = pull_ingredients(logger, task)
+
+
+    # === STEP 3: SUMMARY & LOGGING =============================================
+    logger.info("Extraction Summary:")
+    logger.info(f"  - Ingredient Links: {task.links}")
+    logger.info(f"  - Ingredients Extracted: {task.items_processed}")
     logger.info("")
-    logger.info(f"Total errors: {task.errors}")
-    logger.info(f"Total warnings: {task.warnings}")
-    
-    
-    " Finish task "
+    logger.info(f"  - Total Errors: {task.errors}")
+    logger.info(f"  - Total Warnings: {task.warnings}")
+    logger.info("")
+
+    # === STEP 4: FINALIZATION ==================================================
+    # Mark task as finished or paused depending on completion state
     if completed and l_completed:
         task.finish(kill_celery_task=False)
+        logger.info("✅ Task successfully completed.")
     else:
         task.pause()
-    
-    " Final cleanup "
-    task.kill_orphaned_firefox_instances()
-    
-    " Log the completion of the extraction process "
-    logger.info("")
-    logger.info(f"> Done...")
-    logger.info("")
-    
-    return task
+        logger.info("⚠️ Task paused before full completion.")
 
+    # Clean up any orphaned Firefox/GeckoDriver processes
+    task.kill_orphaned_firefox_instances()
+
+    return task

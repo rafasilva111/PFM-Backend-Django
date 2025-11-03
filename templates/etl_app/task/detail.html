@@ -195,6 +195,13 @@
                     </div>
                     {% endif %}
 
+                    {% if instance.celery_task_id %}
+                    <div class="col-md-3 pb-3">
+                        <h6>Celery Job Id:</h6>
+                        <a  class="badge bg-label-primary me-1">{{ instance.celery_task_id }}</a>
+                    </div>
+                    {% endif %}
+
                 </div>
 
                 <!-- File Paths -->

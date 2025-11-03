@@ -12,7 +12,7 @@ from apps.etl_app.functions import start_db, normalize_text
 from apps.etl_app.recipe.extract.continente.constants import *
 from apps.etl_app.recipe.extract.continente.models import database_proxy, Recipe, RecipeLink, NutritionInformation, Ingredient, Tag, UsefulTool
 from apps.etl_app.constants import EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_RECIPES_IMAGES_FOLDER
-
+from apps.etl_app.worker_signals import stop_thread_event
 
 " Define the through model for Recipe and Tag relationship "
 recipeTagThrough = Recipe.tags.get_through_model()
@@ -362,6 +362,10 @@ def pull_recipes(logger,task):
         
     " Extract data from each recipe link "
     for recipe_link in RecipeLink.select().where(RecipeLink.id > task.step):
+        
+        if stop_thread_event.is_set():
+            logger.info("Stop signal detected — no new tasks will be submitted.")
+            break
 
         if OFFSET and recipe_link.id > OFFSET:
             task.owner_job.create_job_trigger_history(
@@ -514,53 +518,73 @@ def pull_all_recipes_links(logger, task):
     return task, completed
     
 
-def __extract_continente_recipes(logger, task, resume = False):
-    
-    " Log the start of the extraction process"
-    logger.info(f"Initializing the {task.type} all {task.process} from {task.company}...")
+def __extract_continente_recipes(logger, task, resume=False):
+    """
+    Main entry point for extracting recipe data from Continente.
+
+    This function orchestrates the full extraction pipeline for the Continente ETL job:
+        1. Initializes the database for recipe extraction.
+        2. Extracts recipe links from Continente categories.
+        3. Extracts detailed recipe information from the collected links.
+        4. Handles task completion, pausing, and cleanup depending on results.
+
+    Args:
+        logger (logging.Logger): Logger instance for structured logging throughout the process.
+        task (Task): Current ETL task object tracking process state, errors, and metrics.
+        resume (bool): Whether to resume from a previous run (avoids DB reset).
+
+    Returns:
+        Task: Updated task object with metrics and final state.
+
+    Workflow:
+        - Resets thread stop events (for graceful interruption handling).
+        - Starts or resumes the recipe database.
+        - Pulls all recipe links from Continente.
+        - Extracts detailed recipe data from the collected links.
+        - Updates and finalizes the ETL task.
+    """
+
+    # === INITIALIZATION ========================================================
+    # Log the start of the extraction process
+    logger.info(f"Initializing {task.type} for all {task.process} from {task.company}...")
     logger.info("")
-    
-    
-    " Starts the db "
-    logger.info(f"Initializing {task.type} database ...")
+
+    # Initialize or resume the recipe database
+    logger.info(f"Initializing {task.type} database...")
     task, database = start_db(
         logger=logger,
         task=task,
         models=models_,
         path=EXTRACT_CONTINENTE_RECIPES_DB,
         database_proxy=database_proxy,
-        reset=not resume # we want to reset the database if we are not resuming
+        reset=not resume  # Reset DB only when not resuming
     )
     logger.info("")
-    
-    
-    " Get Recipes links "
+
+    # === STEP 1: LINK EXTRACTION ===============================================
+    logger.info("Starting recipe link extraction phase...")
     task, l_completed = pull_all_recipes_links(logger, task)
 
-
-    " Pulls Recipes from above links "
+    # === STEP 2: RECIPE EXTRACTION =============================================
+    logger.info("Starting detailed recipe extraction phase...")
     task, completed = pull_recipes(logger, task)
-    
-    
-    " Log the completion of the extraction process "
-    logger.info("Summary:")
-    logger.info(f"Recipe Links: {task.links}")
-    logger.info(f"Recipes: {task.items_processed}")
+
+    # === STEP 3: SUMMARY & LOGGING =============================================
+    logger.info("Extraction Summary:")
+    logger.info(f"  - Recipe Links: {task.links}")
+    logger.info(f"  - Recipes Extracted: {task.items_processed}")
     logger.info("")
-    logger.info(f"Total errors: {task.errors}")
-    logger.info(f"Total warnings: {task.warnings}")
-    
-    
-    " Finish task "
+    logger.info(f"  - Total Errors: {task.errors}")
+    logger.info(f"  - Total Warnings: {task.warnings}")
+    logger.info("")
+
+    # === STEP 4: FINALIZATION ==================================================
+    # Mark task as finished or paused depending on completion state
     if completed and l_completed:
         task.finish(kill_celery_task=False)
+        logger.info("✅ Task successfully completed.")
     else:
         task.pause()
-    
-    
-    " Log the completion of the extraction process "
-    logger.info("")
-    logger.info(f"> Done...")
-    logger.info("")
+        logger.info("⚠️ Task paused before full completion.")
 
     return task

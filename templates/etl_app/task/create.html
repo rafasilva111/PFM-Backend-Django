@@ -122,19 +122,6 @@
             </div>
           </div>
 
-          <!-- Max records field -->
-          {{ form.max_records.label_tag }}
-          <div class="col-md-12 mt-2 mb-3">
-            {{ form.max_records }}
-            {% if form.max_records.errors %}
-              <div class="invalid-feedback d-block">
-                {% for error in form.max_records.errors %}
-                  {{ error }}
-                {% endfor %}
-              </div>
-            {% endif %}
-          </div>
-
           <!-- Debug Mode field -->
           <div class="col-md-12 mt-2 mb-3">
             {{ form.debug_mode.label_tag }} {{ form.debug_mode }}

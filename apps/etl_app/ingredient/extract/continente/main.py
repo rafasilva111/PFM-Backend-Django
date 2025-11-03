@@ -831,9 +831,8 @@ def __extract_continente_ingredients(logger, task, resume):
     task, l_completed = pull_ingredients_links(logger, task)
 
     # === STEP 2: INGREDIENT EXTRACTION =========================================
-    # (Currently disabled to focus on link collection only)
-    # task, completed = pull_ingredients(logger, task)
-    completed = True
+    task, completed = pull_ingredients(logger, task)
+
 
     # === STEP 3: SUMMARY & LOGGING =============================================
     logger.info("Extraction Summary:")

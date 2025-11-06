@@ -240,6 +240,8 @@ def create_driver(debug_mode=False):
     options.set_preference("dom.ipc.processCount", 1)
     options.set_preference("browser.tabs.remote.autostart", True)
     options.set_preference("browser.tabs.remote.autostart.2", False)
+    options.set_preference("permissions.default.stylesheet", 2)
+    options.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", False)
 
     service = Service(driver_path)
     try:

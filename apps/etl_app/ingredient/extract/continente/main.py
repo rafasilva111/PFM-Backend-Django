@@ -12,7 +12,7 @@ import threading
 import time
 import traceback
 import unidecode
-
+from queue import Queue
 
 
 
@@ -46,7 +46,7 @@ PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
-MAX_THREADS = 2
+MAX_THREADS = 4
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
@@ -95,6 +95,7 @@ aditional_information_name_map = {
 
 # Thread-local storage for WebDriver and state
 thread_local = threading.local()
+
 
 
 def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEFAULT_SLEEP_TIME, first_time=True):
@@ -341,7 +342,7 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
             # Add the tag to the ingredient
             ingredient_db.tags.add(tag)
     
-def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset):
+def process_ingredient_link(logger, task_id, ingredient_link, first_time, stopping_offset, driver_pool):
     """
     Process a single ingredient link to extract detailed ingredient data.
 
@@ -380,17 +381,16 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
 
     # Retrieve the task instance
     task = Task.objects.get(id=task_id)
+    
+    # Get a WebDriver instance from the pool
+    driver = driver_pool.get()
 
     # Early stop check before processing
     if stop_thread_event.is_set():
         logger.debug(f"[Thread {threading.current_thread().name}] Stop signal detected, exiting before processing.")
         return None
 
-    driver = None
     try:
-        # Create a Selenium WebDriver instance for the current thread
-        driver = create_driver(task.debug_mode)
-
         for attempt in range(1, MAX_RETRIES + 1):
             # Check if the stopping condition offset is reached
             if stopping_offset and ingredient_link.id > stopping_offset:
@@ -437,11 +437,7 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
 
     finally:
         # Ensure the WebDriver instance is cleaned up
-        if driver:
-            try:
-                driver.quit()
-            except Exception:
-                pass
+        driver_pool.put(driver)
 
 def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     """
@@ -493,6 +489,11 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     ingredient_links = list(IngredientLink.select().where(IngredientLink.id > task.step))
     FIRST_TIME = True
     total_processed = 0
+    
+    # Initialize the webdriver pool
+    driver_pool = Queue()
+    for _ in range(MAX_THREADS):
+        driver_pool.put(create_driver(debug_mode=False))
 
     # Use a ThreadPoolExecutor for parallel processing
     with concurrent.futures.ThreadPoolExecutor(max_workers=max_threads) as executor:
@@ -504,7 +505,7 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
             if stop_thread_event.is_set():
                 logger.info("Stop signal detected — no new tasks will be submitted.")
                 break
-            futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET))
+            futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET, driver_pool))
 
         try:
             # Process completed futures as they finish
@@ -530,6 +531,15 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
         finally:
             # Ensure proper cleanup of the executor
             executor.shutdown(wait=True, cancel_futures=True)
+            
+            # Clean up the WebDriver instances in the pool
+            while not driver_pool.empty():
+                driver = driver_pool.get_nowait()
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+                
             logger.info(f"Executor shut down. Total processed: {total_processed}")
 
     logger.info("")
@@ -537,11 +547,11 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     logger.info("")
 
     # Clean up thread-local WebDriver instances
-    try:
-        if hasattr(thread_local, "driver"):
-            thread_local.driver.quit()
-    except Exception:
-        pass
+    #try:
+    #    if hasattr(thread_local, "driver"):
+    #        thread_local.driver.quit()
+    #except Exception:
+    #    pass
 
     return task, True
 

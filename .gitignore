@@ -184,7 +184,7 @@ apps/etl_app/recipe/extract/continente/images/*.png
 
 apps/etl_app/ingredient/extract/continente/images/*.png
 
-apps/common/secrets/
+apps/common/secrets/*.json
 
 *.sql-journal
 

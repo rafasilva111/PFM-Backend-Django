@@ -46,7 +46,7 @@ PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
-MAX_THREADS = 4
+MAX_THREADS = 3
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
@@ -302,7 +302,10 @@ def extract_data_from_link(logger, task, driver, ingredient_link, sleep_time=DEF
         
         if not image_source_link:
             image_source_link = image.get('data-src',None)
-            
+        
+        if not image_source_link:
+            continue
+
         img_source = f'{CONTINENTE_INGREDIENTS_IMAGES_FOLDER}/{file_storage}.png'
         image_db.path = img_source
         try:
@@ -431,13 +434,10 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
                 # Handle unexpected exceptions
                 task.increment_errors(logger, f"Unexpected error: {ingredient_link.link}", traceback.format_exc())
                 break
-
-        # Return False if all retries are exhausted or an error occurred
-        return False
-
     finally:
         # Ensure the WebDriver instance is cleaned up
         driver_pool.put(driver)
+        return False
 
 def pull_ingredients(logger, task, max_threads=MAX_THREADS):
     """
@@ -506,6 +506,8 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
                 logger.info("Stop signal detected — no new tasks will be submitted.")
                 break
             futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET, driver_pool))
+            
+            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))
 
         try:
             # Process completed futures as they finish

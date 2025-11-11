@@ -143,4 +143,5 @@ volumes:
 
 networks:
   develop-net:
+    name: pfm-develop-net
     driver: bridge

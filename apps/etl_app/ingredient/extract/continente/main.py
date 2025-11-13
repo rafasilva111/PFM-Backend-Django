@@ -46,7 +46,7 @@ PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 FIRST_TIME = True
 
-MAX_THREADS = 1
+MAX_THREADS = 2
 PAGE_LOAD_TIMEOUT = 60  # seconds
 MAX_RETRIES = 3
 RETRY_DELAY = 5  # seconds
@@ -393,6 +393,10 @@ def process_ingredient_link(logger, task_id, ingredient_link, first_time, stoppi
         logger.debug(f"[Thread {threading.current_thread().name}] Stop signal detected, exiting before processing.")
         return None
 
+    # Add a small random delay to mimic human behavior
+    time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))
+    
+    # Attempt to extract ingredient data with retries
     try:
         for attempt in range(1, MAX_RETRIES + 1):
             # Check if the stopping condition offset is reached
@@ -506,8 +510,6 @@ def pull_ingredients(logger, task, max_threads=MAX_THREADS):
                 logger.info("Stop signal detected — no new tasks will be submitted.")
                 break
             futures.append(executor.submit(process_ingredient_link, logger, task.id, link, FIRST_TIME, OFFSET, driver_pool))
-            
-            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))
 
         try:
             # Process completed futures as they finish

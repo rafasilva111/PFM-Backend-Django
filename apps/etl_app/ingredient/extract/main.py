@@ -1,26 +1,37 @@
-
-from apps.common.constants import COMPANY_CONTINENTE, COMPANY_PINGO_DOCE
 from apps.etl_app.ingredient.extract.continente.main import __extract_continente_ingredients
 from apps.etl_app.models import ProcessType
+from apps.common.constants import COMPANY_CONTINENTE, COMPANY_PINGO_DOCE
 
-
-def _extract_ingredients(logger, task, continue_mode):
+def _extract_ingredients(logger, task, resume):
     """
-            Extract ingredients
-            :param task: task object
-            :param continue_mode: if True, it will continue the extraction from the last page
-    """
+    Extract ingredients for a given task based on the company's name and processes.
 
-    if ProcessType.RECIPES.value not in task.company.processes:
-        logger.error(f"Company of task does not have a Recipe's process.")
-        task.increment_errors()
+    This function determines the appropriate ingredient extraction method based on the
+    company associated with the task. It ensures that the company has the required
+    processes implemented and logs the extraction process. If the company's ingredient
+    extraction process is not implemented, an error is logged.
+
+    Args:
+        logger (logging.Logger): The logger instance used for logging messages.
+        task (Task): The task object containing information about the company and its processes.
+        resume (bool): A flag indicating whether to continue from a previous state.
+
+    Notes:
+        - Supports ingredient extraction for specific companies such as Continente.
+        - Logs an error if the company's ingredient extraction process is not implemented.
+        - Ensures that the company has the required ingredient process before proceeding.
+    """
+    
+    if ProcessType.INGREDIENTS.value not in task.company.processes:
+        task.increment_errors(logger, f"Company of task does not have a {ProcessType.INGREDIENTS.value}'s process.")
         return
-        
+    
     if task.company.name == COMPANY_CONTINENTE:
-        return __extract_continente_ingredients(logger,task, continue_mode)
+        return __extract_continente_ingredients(logger, task, resume)
+
     else:
-        logger.error(f"Company of task does not have a Ingredient's process implemented.")
-        task.increment_errors()
+        task.increment_errors(logger, f"Company of task does not have a {ProcessType.INGREDIENTS.value}'s process.")
+        return
 
 
 

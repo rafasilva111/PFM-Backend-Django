@@ -1,51 +1,96 @@
 from django.contrib import admin
-from apps.ingredient_app.models import Ingredient
+from .models import Ingredient, Image, Tag
 
+
+# ---------------------------------------
+# IMAGE INLINE (for Ingredient admin)
+# ---------------------------------------
+class ImageInline(admin.TabularInline):
+    model = Image
+    extra = 1
+    fields = ("path",)
+    readonly_fields = ()
+
+
+# ---------------------------------------
+# INGREDIENT ADMIN
+# ---------------------------------------
+@admin.register(Ingredient)
 class IngredientAdmin(admin.ModelAdmin):
-    # Columns shown in the changelist
     list_display = (
+        "id",
         "title",
         "brand",
-        "category",
+        "company",
         "size",
-        "price_per_unit",
-        "price_bulk",
-        "bulk_unit",
-        "created_at",
+        "bulk_price",
+        "size_type",
+        "is_valid",
     )
+    list_filter = ("brand", "company", "size_type", "is_valid")
+    search_fields = ("title", "brand", "company", "description")
+    inlines = [ImageInline]
 
-    # Make price fields editable directly from the list view
-    list_editable = ("price_per_unit", "price_bulk")
+    filter_horizontal = ("tags",)   # ManyToMany
 
-    # Filters and search
-    list_filter = ("category", "brand", "created_at")
-    search_fields = ("title", "brand", "category", "description", "characteristics")
-    ordering = ("title",)
-
-    # Useful date navigation
-    date_hierarchy = "created_at"
-
-    # Readonly fields (timestamps should not be editable)
-    readonly_fields = ("created_at", "updated_at")
-
-    # Field grouping in the detail/edit view
     fieldsets = (
         ("General", {
-            "fields": ("title", "brand", "category", "link")
+            "fields": (
+                "title",
+                "brand",
+                "description",
+                "link",
+                "company",
+                "category",
+                "source_link",
+            )
         }),
-        ("Pricing & Size", {
-            "fields": ("size", ("price_per_unit", "price_bulk", "bulk_unit"))
+        ("Size & Pricing", {
+            "fields": (
+                "old_size",
+                "size",
+                "portions",
+                "portion_size",
+                "portion_unit",
+                "portion_price",
+                "bulk_price",
+                "bulk_unit",
+                "size_type",
+                "minimum_size_for_bulk",
+            )
         }),
-        ("Product Info", {
-            "fields": ("description", "about_the_product", "characteristics", "other_information")
+        ("Product Details", {
+            "fields": (
+                "about_the_product",
+                "caracteristics",
+                "other_information",
+                "nutrition_information",
+                "legal_info",
+            )
         }),
-        ("Nutrition & Legal", {
-            "fields": ("nutrition_information", "legal_info")
+        ("Validation", {
+            "fields": ("is_valid",)
         }),
-        ("Timestamps", {
-            "classes": ("collapse",),
-            "fields": ("created_at",),
-        }),
+        ("Tags", {
+            "fields": ("tags",)
+        })
     )
-    
-admin.site.register(Ingredient, IngredientAdmin)
+
+
+# ---------------------------------------
+# IMAGE ADMIN
+# ---------------------------------------
+@admin.register(Image)
+class ImageAdmin(admin.ModelAdmin):
+    list_display = ("id", "path", "ingredient")
+    search_fields = ("path",)
+    list_filter = ("ingredient",)
+
+
+# ---------------------------------------
+# TAG ADMIN
+# ---------------------------------------
+@admin.register(Tag)
+class TagAdmin(admin.ModelAdmin):
+    list_display = ("id", "text", )
+    search_fields = ("text",)

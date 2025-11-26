@@ -3,400 +3,443 @@
 {% load static %}
 {% load i18n %}
 
-{% block title %}Task Details{% endblock %}
+{% block title %}
+  Task {{instance.type}} {{instance.process}} Details
+{% endblock %}
 
 {% block vendor_css %}
-{{ block.super }}
-<link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
-{% endblock vendor_css %}
+  {{ block.super }}
+  <link rel="stylesheet" href="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.css' %}" />
+{% endblock %}
 
 {% block vendor_js %}
-{{ block.super }}
-<script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
-{% endblock vendor_js %}
+  {{ block.super }}
+  <script src="{% static 'vendor/libs/perfect-scrollbar/perfect-scrollbar.js' %}"></script>
+{% endblock %}
 
 {% block page_js %}
-{{ block.super }}
-<script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
-{% endblock page_js %}
+  {{ block.super }}
+  <script src="{% static 'js/extended-ui-perfect-scrollbar.js' %}"></script>
+{% endblock %}
 
 {% block content %}
-<h4 class="py-3 mb-4">
-    <span class="text-muted fw-light">Task / </span> Task {{instance.id}} Details
-</h4>
+  <h4 class="py-3 mb-4"><span class="text-muted fw-light">Task /</span> Task {{ instance.id }} Details</h4>
 
-<!-- Error Messages Container -->
-{% if messages %}
-<div class="col-12">
-    <div class="alert alert-danger">
+  <!-- Error Messages Container -->
+  {% if messages %}
+    <div class="col-12">
+      <div class="alert alert-danger">
         {% for message in messages %}
-            <p>{{ message }}</p>
+          <p>{{ message }}</p>
         {% endfor %}
+      </div>
     </div>
-</div>
-{% endif %}
+  {% endif %}
 
-<!-- Details -->
-<div class="row">
-
+  <!-- Details -->
+  <div class="row">
     <!-- Task Detail Card -->
     <div class="col-md-12 col-sm-12">
-        <div class="card overflow-hidden mb-4" style="height: auto;">
-            <div class="container-fluid d-flex align-items-center justify-content-between">
-                <h4 class="card-header">Task Details</h4>
-                <div>
-                    <!-- Top Options -->
+      <div class="card overflow-hidden mb-4" style="height: auto;">
+        <div class="container-fluid d-flex align-items-center justify-content-between">
+          <h4 class="card-header">Task Details</h4>
+          <div>
+            <!-- Top Options -->
 
-                    <!-- Cancel-->
-                    {% if can_cancel_task  and instance.status == 'RUNNING' %}
-                    <a href="{% url 'task_cancel' instance.id %}" class="btn btn-warning py-1">
-                        Cancel
-                    </a>
-                    {% endif %}
+            <!-- Cancel -->
+            {% if can_cancel_task and instance.status == 'RUNNING' %}
+              <a href="{% url 'task_cancel' instance.id %}" class="btn btn-warning py-1">Cancel</a>
+            {% endif %}
 
-                    <!-- Restart Task -->
-                    {% if can_restart_task and instance.status != 'RUNNING' %}
-                    <a href="{% url 'task_restart' instance.id %}" class="btn btn-success py-1">
-                        Restart
-                    </a>
-                    {% endif %}
+            <!-- Restart Task -->
+            {% if can_restart_task and instance.status != 'RUNNING' %}
+              <a href="{% url 'task_restart' instance.id %}" class="btn btn-success py-1">Restart</a>
+            {% endif %}
 
-                    <!-- Enable/Disable Job -->
-                    {% if can_pause_task and instance.status == 'RUNNING' %}
-                    <a href="{% url 'task_pause' instance.id %}" class="btn btn-warning py-1">
-                        Pause
-                    </a>
-                    {% endif %}
-                    {% if can_resume_task and instance.status == 'PAUSED' %}
-                    <a href="{% url 'task_resume' instance.id %}" class="btn btn-success py-1">
-                        Resume
-                    </a>
-                    {% endif %}
+            <!-- Enable/Disable Job -->
+            {% if can_pause_task and instance.status == 'RUNNING' %}
+              <a href="{% url 'task_pause' instance.id %}" class="btn btn-warning py-1">Pause</a>
+            {% endif %}
+            {% if can_resume_task and instance.status == 'PAUSED' %}
+              <a href="{% url 'task_resume' instance.id %}" class="btn btn-success py-1">Resume</a>
+            {% endif %}
 
-                    <!-- Edit Task -->
-                    {% if can_edit_task %}
-                    <a href="{% url 'task_edit' instance.id %}" class="btn btn-info py-1">
-                        Edit
-                    </a>
-                    {% endif %}
-                    
-                    <!-- Delete Job -->
-                    {% if can_delete_task %}
-                    <a href="{% url 'task_delete' instance.id %}" class="btn btn-danger py-1">
-                        Delete
-                    </a>
-                    {% endif %}
-                </div>
+            <!-- Edit Task -->
+            {% if can_edit_task %}
+              <a href="{% url 'task_edit' instance.id %}" class="btn btn-info py-1">Edit</a>
+            {% endif %}
+
+            <!-- Delete Job -->
+            {% if can_delete_task %}
+              <a href="{% url 'task_delete' instance.id %}" class="btn btn-danger py-1">Delete</a>
+            {% endif %}
+          </div>
+        </div>
+        <div class="card-body task-details">
+          <div class="row pb-3">
+            <!-- Type -->
+            <div class="col-md-2">
+              <h6>Type:</h6>
+              <p class="badge bg-label-primary me-1">{{ instance.get_type_process_display }}</p>
             </div>
-            <div class="card-body task-details">
-                <div class="row pb-3">
 
-                    <!-- Type -->
-                    <div class="col-md-2">
-                        <h6>Type:</h6>
-                        <p class="badge bg-label-primary me-1">{{ instance.get_type_process_display }}</p>
-                    </div>
+            <!-- Company -->
+            <div class="col-md-2">
+              <h6>Company:</h6>
+              <p class="badge bg-label-primary me-1">{{ instance.company }}</p>
+            </div>
 
-                    <!-- Company -->
-                    <div class="col-md-2">
-                        <h6>Company:</h6>
-                        <p class="badge bg-label-primary me-1">{{ instance.company }}</p>
-                    </div>
-
-                    <!-- Status --> 
-                    <div class="col-md-1">
-                        <h6>Status:</h6>
-                        <span id="status" class="
+            <!-- Status -->
+            <div class="col-md-1">
+              <h6>Status:</h6>
+              <span id="status"
+                class="
                         badge 
                         {% if instance.status == 'WAITING' %}
+                  
+                  
+                  
                             bg-label-primary
-                        {% elif instance.status == 'RUNNING' %}
+
+
+
+                {% elif instance.status == 'RUNNING' %}
+                  
+                  
+                  
                             bg-label-info
-                        {% elif instance.status == 'CANCELED' %}
+
+
+
+                {% elif instance.status == 'CANCELED' %}
+                  
+                  
+                  
                             bg-label-warning
-                        {% elif instance.status == 'FAILED' %}
+
+
+
+                {% elif instance.status == 'FAILED' %}
+                  
+                  
+                  
                             bg-label-danger
-                        {% elif instance.status == 'FINISHED' %}
+
+
+
+                {% elif instance.status == 'FINISHED' %}
+                  
+                  
+                  
                             bg-label-success
-                        {% else %}
+
+
+
+                {% else %}
+                  
+                  
+                  
                             bg-label-secondary
-                        {% endif %}
-                        me-1">{{ instance.get_status_display }}</span>
-                    </div>
-
-                    <!-- Step --> 
-                    {% if instance.step != 0 %}
-                    <div class="col-md-2">
-                        <h6>Step:</h6>
-                        <span id="status" class="badge bg-label-primary me-1">{{ instance.step }}</span>
-                    </div>
-                    {% endif %}
-
-                    <!-- Debug Mode --> 
-                    {% if instance.debug_mode %}
-                    <div class="col-md-2">
-                        <h6>Debug mode:</h6>
-                        <span id="status" class="badge bg-label-info me-1">{{ instance.debug_mode }}</span>
-                    </div>
-                    {% endif %}
-
-                </div>
-
-                <!-- Task timings -->
-                <div class="row">
-
-                    <!-- Started at -->
-                    <div class="col-md-3">
-                        <h6>Started At:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ instance.started_at }}</p>
-                    </div>
-
-                    <!-- Finished at -->
-                    {% if instance.finished_at %}
-                    <div class="col-md-3">
-                        <h6>Finished At:</h6>
-                        <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.finished_at }}</p>
-                    </div>
-                    {% endif %}
-
-                    <!-- Duration -->
-                    {% if instance.duration and instance.finished_at  %}
-                    <div class="col-md-3">
-                        <h6>Duration:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ instance.duration }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Parent Task -->
-                <div class="row">
-
-                    <!-- Parent Task -->
-                    {% if instance.parent_task %}
-                    <div class="col-md-3 pb-3">
-                        <h6>Parent Task:</h6>
-                        <a href="{% url 'task_detail' instance.parent_task.id %}" class="badge bg-label-primary me-1">{{ instance.parent_task }}</a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Parent Job -->
-                    {% if instance.parent_job %}
-                    <div class="col-md-3 pb-3">
-                        <h6>Parent Job:</h6>
-                        <a href="{% url 'job_detail' instance.parent_job.id %}" class="badge bg-label-primary me-1">{{ instance.parent_job }}</a>
-                    </div>
-                    {% endif %}
-
-                    <!-- Owner Job -->
-                    {% if instance.owner_job %}
-                    <div class="col-md-3 pb-3">
-                        <h6>Owner Job:</h6>
-                        <a href="{% url 'job_detail' instance.owner_job.id %}" class="badge bg-label-primary me-1">{{ instance.owner_job }}</a>
-                    </div>
-                    {% endif %}
-
-                    {% if instance.celery_task_id %}
-                    <div class="col-md-3 pb-3">
-                        <h6>Celery Job Id:</h6>
-                        <a  class="badge bg-label-primary me-1">{{ instance.celery_task_id }}</a>
-                    </div>
-                    {% endif %}
-
-                </div>
-
-                <!-- File Paths -->
-                <div class="row">
-
-                    
-                    <!-- Log Path -->
-                    {% if instance.log_path %}
-                    <div class="col-md-4">
-                        <h6>Log Path:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ instance.log_path }}</p>
-                    </div>
-                    {% endif %}
-
-                    <!-- SQL File -->
-                    {% if instance.sql_path %}
-                    <div class="col-md-3">
-                        <h6>SQL Path:</h6>
-                        <p class="badge bg-label-primary  me-1">{{ instance.sql_path }}</p>
-                    </div>
-                    {% endif %}
-                </div>
-                
-                <!-- Task Statistics -->
-                {% if instance.status != "RUNNING" %}
-                <div>
-                    <h4 class="card-header">Task Statistics</h4>
-                    <div class="row pb-3">
-                        
-                        <!-- Links -->
-                        {% if instance.type == "EXTRACT" %}
-                        <div class="col-md-3">
-                            <h6>Links:</h6>
-                            
-                            <p class="badge bg-label-primary me-1">{{ instance.links }}</p>
-                        </div>
-                        {% endif %}
-
-                        <!-- Items Expected  -->
-                        {% if instance.type == "TRANSFORM" or instance.type == "LOAD" %}
-                        <div class="col-md-3">
-                            <h6>Items Expected:</h6>
-                            <p class="badge bg-label-primary me-1">{{ instance.items_expected }} </p>
-                        </div>
-                        {% endif %}
-
-                        <!-- Items Processed  -->
-                        <div class="col-md-3">
-                            <h6>Items Processed:</h6>
-                            <p class="badge bg-label-primary me-1">{{ instance.items_processed }} </p>
-                        </div>
-
-                        
-                        
-                    </div>
-                    <div class="row pb-3">
-
-                        <!-- Total Errors -->
-                        <div class="col-md-3">
-                            <h6>Errors:</h6>
-                            <p class="badge bg-label-primary me-1">{{ instance.errors }}</p>
-                        </div>
-
-                        <!-- Items Errors -->
-                        <div class="col-md-3">
-                            <h6>Warnings</h6>
-                            <p class="badge bg-label-primary me-1">{{ instance.warnings }}</p>
-                        </div>
 
 
-                    </div>
-                </div>
+
                 {% endif %}
+                        me-1">
+                {{ instance.get_status_display }}
+              </span>
             </div>
+
+            <!-- Step -->
+            {% if instance.step != 0 %}
+              <div class="col-md-2">
+                <h6>Step:</h6>
+                <span id="status" class="badge bg-label-primary me-1">{{ instance.step }}</span>
+              </div>
+            {% endif %}
+
+            <!-- Debug Mode -->
+            {% if instance.debug_mode %}
+              <div class="col-md-2">
+                <h6>Debug mode:</h6>
+                <span id="status" class="badge bg-label-info me-1">{{ instance.debug_mode }}</span>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Task timings -->
+          <div class="row">
+            <!-- Started at -->
+            <div class="col-md-3">
+              <h6>Started At:</h6>
+              <p class="badge bg-label-primary me-1">{{ instance.started_at }}</p>
+            </div>
+
+            <!-- Finished at -->
+            {% if instance.finished_at %}
+              <div class="col-md-3">
+                <h6>Finished At:</h6>
+                <p id="finished-at" class="badge bg-label-primary me-1">{{ instance.finished_at }}</p>
+              </div>
+            {% endif %}
+
+            <!-- Duration -->
+            {% if instance.duration and instance.finished_at %}
+              <div class="col-md-3">
+                <h6>Duration:</h6>
+                <p class="badge bg-label-primary me-1">{{ instance.duration }}</p>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Parent Task -->
+          <div class="row">
+            <!-- Parent Task -->
+            {% if instance.parent_task %}
+              <div class="col-md-3 pb-3">
+                <h6>Parent Task:</h6>
+                <a href="{% url 'task_detail' instance.parent_task.id %}" class="badge bg-label-primary me-1">{{ instance.parent_task }}</a>
+              </div>
+            {% endif %}
+
+            <!-- Parent Job -->
+            {% if instance.parent_job %}
+              <div class="col-md-3 pb-3">
+                <h6>Parent Job:</h6>
+                <a href="{% url 'job_detail' instance.parent_job.id %}" class="badge bg-label-primary me-1">{{ instance.parent_job }}</a>
+              </div>
+            {% endif %}
+
+            <!-- Owner Job -->
+            {% if instance.owner_job %}
+              <div class="col-md-3 pb-3">
+                <h6>Owner Job:</h6>
+                <a href="{% url 'job_detail' instance.owner_job.id %}" class="badge bg-label-primary me-1">{{ instance.owner_job }}</a>
+              </div>
+            {% endif %}
+
+            {% if instance.celery_task_id %}
+              <div class="col-md-3 pb-3">
+                <h6>Celery Job Id:</h6>
+                <a class="badge bg-label-primary me-1">{{ instance.celery_task_id }}</a>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- File Paths -->
+          <div class="row">
+            <!-- Log Path -->
+            {% if instance.log_path %}
+              <div class="col-md-4">
+                <h6>Log Path:</h6>
+                <p class="badge bg-label-primary me-1">{{ instance.log_path }}</p>
+              </div>
+            {% endif %}
+
+            <!-- SQL File -->
+            {% if instance.sql_path %}
+              <div class="col-md-3">
+                <h6>SQL Path:</h6>
+                <p class="badge bg-label-primary me-1">{{ instance.sql_path }}</p>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Task Properties -->
+          {% if instance.properties %}
+            <div class="mt-3">
+              <h4 class="card-header">Properties</h4>
+
+              <!-- Properties -->
+              <div class="row">
+                {% for key, value in instance.properties.items %}
+                  <div class="col-md-4">
+                    <h6>{{ key }}:</h6>
+                    <p class="badge bg-label-primary me-1">{{ value }}</p>
+                  </div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Task Statistics -->
+          {% if instance.status != 'RUNNING' %}
+            <div>
+              <h4 class="card-header">Task Statistics</h4>
+              <div class="row pb-3">
+                <!-- Links -->
+                {% if instance.type == 'EXTRACT' %}
+                  <div class="col-md-3">
+                    <h6>Links:</h6>
+
+                    <p class="badge bg-label-primary me-1">{{ instance.links }}</p>
+                  </div>
+                {% endif %}
+
+                <!-- Items Expected -->
+                {% if instance.type == 'TRANSFORM' or instance.type == 'LOAD' %}
+                  <div class="col-md-3">
+                    <h6>Items Expected:</h6>
+                    <p class="badge bg-label-primary me-1">{{ instance.items_expected }}</p>
+                  </div>
+                {% endif %}
+
+                <!-- Items Processed -->
+                <div class="col-md-3">
+                  <h6>Items Processed:</h6>
+                  <p class="badge bg-label-primary me-1">{{ instance.items_processed }}</p>
+                </div>
+              </div>
+              <div class="row pb-3">
+                <!-- Total Errors -->
+                <div class="col-md-3">
+                  <h6>Errors:</h6>
+                  <p class="badge bg-label-primary me-1">{{ instance.errors }}</p>
+                </div>
+
+                <!-- Items Errors -->
+                <div class="col-md-3">
+                  <h6>Warnings</h6>
+                  <p class="badge bg-label-primary me-1">{{ instance.warnings }}</p>
+                </div>
+              </div>
+            </div>
+          {% endif %}
         </div>
+      </div>
     </div>
-    
+
     <!-- Log Container -->
     <div class="col-12">
-        {% if log %}
+      {% if log %}
         <div class="card overflow-hidden mb-4" style="height: 550px;">
+          <!-- Container Header -->
+          <div class="container-fluid d-flex align-items-center justify-content-between">
+            <h4 class="card-header">Task Log</h4>
 
-            <!-- Container Header -->
-            <div class="container-fluid d-flex align-items-center justify-content-between">
-                <h4 class="card-header">Task Log</h4>
-                
-                <!-- Log Options -->  
-                {% if instance.status != "RUNNING" %}
-                <div>
-                    
-                    {% if instance.sql_path %}
-                    <a href="{% url 'task_db_download' instance.id %}" class="btn btn-success" role="button">Download DB</a>
-                    {% endif %}
-                    
-                    <a href="{% url 'task_log_download' instance.id %}" class="btn btn-success" role="button">Download Log</a>
-                </div>
+            <!-- Log Options -->
+            {% if instance.status != 'RUNNING' %}
+              <div>
+                {% if instance.sql_path %}
+                  <a href="{% url 'task_db_download' instance.id %}" class="btn btn-success" role="button">Download DB</a>
                 {% endif %}
-            </div>
 
-            <!-- Container Body -->
-            <div class="card-body" id="both-scrollbars-example" style="margin-bottom: 20px;">
-                <div id="log-container" style="white-space: pre-wrap; max-height: 400px;">{{ log|safe }}</div>
-            </div>
+                <a href="{% url 'task_log_download' instance.id %}" class="btn btn-success" role="button">Download Log</a>
+              </div>
+            {% endif %}
+          </div>
+
+          <!-- Log Body -->
+          <div class="card-body" id="log-body" style="overflow: auto;">
+            <div id="log-container">{{ log|safe }}</div>
+          </div>
+
+          <!-- Log Pagination -->
+          {% include 'common/default/pagination_without_page_size.html' %}
         </div>
-        {% else %}
+      {% else %}
         <div class="card overflow-hidden mb-4" style="height: 200px;">
-
-            <!-- Container Header -->
-            <div class="container-fluid d-flex align-items-center">
-                <h5 class="card-header">Task Log</h5>
+          <!-- Container Header -->
+          <div class="container-fluid d-flex align-items-center">
+            <h5 class="card-header">Task Log</h5>
+          </div>
+          <div class="card-body d-flex align-items-center justify-content-center" style="height: 100%;">
+            <div class="text-center w-100">
+              <span class="fs-5 text-muted">No logs available.</span>
             </div>
-            <div class="card-body d-flex align-items-center justify-content-center" style="height: 100%;">
-                <div class="text-center w-100">
-                    <span class="fs-5 text-muted">No logs available.</span>
-                </div>
-            </div>
+          </div>
         </div>
-        {% endif %}
-
+      {% endif %}
     </div>
 
     <!-- Issues Table Card -->
     <div class="col-12">
-        <div class="card mb-4">
+      <div class="card mb-4">
+        <!-- Header -->
+        <div class="container-fluid d-flex align-items-center">
+          <h5 class="card-header flex-grow-1">Issues List</h5>
+        </div>
 
-            <!-- Header -->
-            <div class="container-fluid d-flex align-items-center">
-                <h5 class="card-header flex-grow-1">Issues List</h5>
+        <!-- Filter Form -->
+        <form method="get" class="card py-3 mb-4" id="issues-filter-form">
+          <div class="container-fluid d-flex align-items-center">
+            <div class="col-md-2 pe-md-1">
+              <label class="form-label">Type:</label>
+              {{ filter.form.type }}
             </div>
+            <div class="col-md-10 text-end">
+              <button type="submit" class="btn btn-primary">Filter</button>
+            </div>
+          </div>
+        </form>
 
-            <!-- Filter Form -->
-            <form method="get" class="card py-3 mb-4" id="issues-filter-form">
-                <div class="container-fluid d-flex align-items-center">
-                    <div class="col-md-2 pe-md-1">
-                        <label class="form-label">Type: </label>
-                        {{ filter.form.type}}
-                    </div>
-                    <div class="col-md-10 text-end">
-                        <button type="submit" class="btn btn-primary">Filter</button>
-                    </div>
-                </div>
-            </form>
-
-            <!-- Table -->
-            <div class="table-responsive text-nowrap">
-                <table class="table">
-                <thead>
-                    <tr>
-                    <th>Issue</th>
-                    <th>Type</th>
-                    <th>Message</th>
-                    <th>Stack Trace</th>
-                    <th>Created At</th>
-                    </tr>
-                </thead>
-                <tbody class="table-border-bottom-0">
-                    {% for issue in page_obj %}
-                    <tr >
-                    <td>{{ issue.id }}</td>
-                    <td>
-                        <span
-                            class="
+        <!-- Table -->
+        <div class="table-responsive text-nowrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Issue</th>
+                <th>Type</th>
+                <th>Message</th>
+                <th>Stack Trace</th>
+                <th>Created At</th>
+              </tr>
+            </thead>
+            <tbody class="table-border-bottom-0">
+              {% for issue in page_obj %}
+                <tr>
+                  <td>{{ issue.id }}</td>
+                  <td>
+                    <span class="
                                 badge
                                 {% if issue.type == 'ERROR' %}
+                        
+                        
+                        
                                     bg-label-danger
-                                {% elif issue.type == 'WARNING' %}
+
+
+
+                      {% elif issue.type == 'WARNING' %}
+                        
+                        
+                        
                                     bg-label-warning
-                                {% else %}
+
+
+
+                      {% else %}
+                        
+                        
+                        
                                     bg-label-primary
-                                {% endif %}
-                            "
-                        >
-                            {{ issue.type }}
-                        </span>
-                    </td>
-                    <td>{{ issue.message }}</td>
-                    <td>{{ issue.stack_trace }}</td>
-                    <td>{{ issue.created_at }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-                </table>
-            </div>
-            {% include "common/default/pagination.html" %}
+
+
+
+                      {% endif %}
+                            ">
+                      {{ issue.type }}
+                    </span>
+                  </td>
+                  <td>{{ issue.message }}</td>
+                  <td>{{ issue.stack_trace }}</td>
+                  <td>{{ issue.created_at }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </div>
+        {% include 'common/default/pagination.html' %}
+      </div>
     </div>
+  </div>
 
-</div>
-
-<script>
+  <script>
     // Get elements
     const logContainer = document.getElementById('log-container');
-    const cardBody = document.getElementById('both-scrollbars-example');
+    const cardBody = document.getElementById('log-body');
     const finishedAtElement = document.getElementById('finished-at');
     const statusElement = document.getElementById('status');
+    const currentPage = {{ log_page }};
 
     // Initialize WebSocket
     const socket = new WebSocket("{{ WEBSOCKET_URL }}/ws/task/{{ instance.id }}/");
@@ -409,65 +452,68 @@
     });
 
     // Handle incoming messages
-    socket.onmessage = function (event) {
-        const data = JSON.parse(event.data);
+    // Note: Only listen for log updates if we are on the first page
+    if (currentPage == 1){
+        socket.onmessage = function (event) {
+            const data = JSON.parse(event.data);
 
-        // Handle log line updates
-        if (data.type === 'log_line') {
-            const logEntry = document.createElement('div');
-            
-            // Regex to match the date part (timestamp) and the log level part (INFO, WARNING, ERROR)
-            const logPattern = /(\[[^\]]*\])\s*(\[(INFO|WARNING|ERROR)\])\s*(.*)/;
+            // Handle log line updates
+            if (data.type === 'log_line') {
+                const logEntry = document.createElement('div');
+                
+                // Regex to match the date part (timestamp) and the log level part (INFO, WARNING, ERROR)
+                const logPattern = /(\[[^\]]*\])\s*(\[(INFO|WARNING|ERROR)\])\s*(.*)/;
 
-            // Apply the regex to the log line
-            const match = data.line.match(logPattern);
+                // Apply the regex to the log line
+                const match = data.line.match(logPattern);
 
-            if (match) {
-                // Extract the timestamp, log level, and message
-                const timestamp = match[1];  // The date part
-                const logLevel = match[2];   // The log level part [INFO], [WARNING], [ERROR]
-                const message = match[4];    // The rest of the log message
+                if (match) {
+                    // Extract the timestamp, log level, and message
+                    const timestamp = match[1];  // The date part
+                    const logLevel = match[2];   // The log level part [INFO], [WARNING], [ERROR]
+                    const message = match[4];    // The rest of the log message
 
-                // Create the elements for the log entry
-                const timestampSpan = document.createElement('span');
-                timestampSpan.textContent = timestamp;  // Add the timestamp without changes
+                    // Create the elements for the log entry
+                    const timestampSpan = document.createElement('span');
+                    timestampSpan.textContent = timestamp;  // Add the timestamp without changes
 
-                const logLevelSpan = document.createElement('span');
-                logLevelSpan.textContent = ' ' + logLevel;  // Add the log level
+                    const logLevelSpan = document.createElement('span');
+                    logLevelSpan.textContent = ' ' + logLevel;  // Add the log level
 
-                // Style the log level based on its type
-                logLevelSpan.style.fontWeight = 'bold';
-                if (logLevel.includes('INFO')) {
-                    logLevelSpan.style.color = '#4A90E2';  // Soft blue
-                } else if (logLevel.includes('WARNING')) {
-                    logLevelSpan.style.color = '#FDD835';  // Soft yellow
-                } else if (logLevel.includes('ERROR')) {
-                    logLevelSpan.style.color = '#E57373';  // Soft red
+                    // Style the log level based on its type
+                    logLevelSpan.style.fontWeight = 'bold';
+                    if (logLevel.includes('INFO')) {
+                        logLevelSpan.style.color = '#4A90E2';  // Soft blue
+                    } else if (logLevel.includes('WARNING')) {
+                        logLevelSpan.style.color = '#F5A623';  // Soft yellow
+                    } else if (logLevel.includes('ERROR')) {
+                        logLevelSpan.style.color = '#E57373';  // Soft red
+                    }
+
+                    const messageSpan = document.createElement('span');
+                    messageSpan.textContent = ' ' + message;  // Add the message without changes
+
+                    // Append everything together in the correct order
+                    logEntry.appendChild(timestampSpan);
+                    logEntry.appendChild(logLevelSpan);
+                    logEntry.appendChild(messageSpan);
+
+                } else {
+                    // If the log line doesn't match the expected pattern, just show it as is
+                    logEntry.textContent = data.line;
                 }
 
-                const messageSpan = document.createElement('span');
-                messageSpan.textContent = ' ' + message;  // Add the message without changes
-
-                // Append everything together in the correct order
-                logEntry.appendChild(timestampSpan);
-                logEntry.appendChild(logLevelSpan);
-                logEntry.appendChild(messageSpan);
-
-            } else {
-                // If the log line doesn't match the expected pattern, just show it as is
-                logEntry.textContent = data.line;
+                // Append the log entry to the container
+                logContainer.appendChild(logEntry);
+                cardBody.scrollTop = cardBody.scrollHeight;
             }
 
-            // Append the log entry to the container
-            logContainer.appendChild(logEntry);
-            cardBody.scrollTop = cardBody.scrollHeight;
-        }
-
-        // Handle task updates
-        else if (data.type === 'task_update') {
-            // Refresh the task by reloading the page
-            location.reload();
-        }
-    };
+            // Handle task updates
+            else if (data.type === 'task_update') {
+                // Refresh the task by reloading the page
+                location.reload();
+            }
+        };
+    }
 </script>
 {% endblock %}

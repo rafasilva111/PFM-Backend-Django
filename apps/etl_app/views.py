@@ -74,6 +74,7 @@ from apps.etl_app.filters import JobFilter, TaskFilter, IssueFilter
 #
 
 from apps.etl_app.tasks import _launch_job
+from apps.etl_app.functions import tail_colored_log, count_lines
 
 
 ##
@@ -912,7 +913,7 @@ class TaskTableView(PermissionRequiredMixin, TemplateView):
         
         return context
 
-
+import math
 @method_decorator(login_required, name="dispatch")
 class TaskDetailView(PermissionRequiredMixin,TemplateView):
     """
@@ -978,17 +979,33 @@ class TaskDetailView(PermissionRequiredMixin,TemplateView):
         issues_page_obj = paginator.get_page(self.request.GET.get("page"))
 
         # Read the task's log file if it exists
+        # Read the task's log file with pagination
         log_path = instance.log_path
         if log_path and path.isfile(log_path):
-            with open(log_path, "r") as log_file:
-                log_content = log_file.read()
-                # Add color coding
-                # Add color coding only to the log level, not the date or the rest of the message
-                log_content = re.sub(r'(\[(INFO)\])', r'<span style="color: #4A90E2; font-weight: bold;">\1</span>', log_content)
-                log_content = re.sub(r'(\[(WARNING)\])', r'<span style="color: #FDD835; font-weight: bold;">\1</span>', log_content)
-                log_content = re.sub(r'(\[(ERROR)\])', r'<span style="color: #E57373; font-weight: bold;">\1</span>', log_content)
 
-                context["log"] = mark_safe(log_content)
+            # Count total lines (cached or per request)
+            total_lines = count_lines(log_path)
+
+            # Pagination variables for logs
+            log_page_size = 5000
+            current_page = int(self.request.GET.get("log_page", 1))
+
+            # Calculate offsets
+            offset_from_end = (current_page - 1) * log_page_size
+
+            # Extract only needed lines
+            log_content = tail_colored_log(
+                filepath=log_path,
+                offset=offset_from_end,
+                limit=log_page_size
+            )
+
+            # Add color coding
+            context["log"] = log_content #mark_safe(log_content)
+
+            # Add pagination info to context
+            context["log_page"] = current_page
+            context["log_total_pages"] = math.ceil(total_lines / log_page_size)
                 
         # Create context
         context.update(
@@ -1126,9 +1143,13 @@ class TaskEditView(PermissionRequiredMixin, TemplateView):
         # Retrieve Instances
         instance = Task.objects.get(id=kwargs["id"])
         
+        form = self.form_class(instance=instance)
+        
+        print(form.fields['properties'].initial)
+        
         # Create context
         context.update({
-            "form": self.form_class(instance=instance)
+            "form": form
         })
         
         return self.render_to_response(context)

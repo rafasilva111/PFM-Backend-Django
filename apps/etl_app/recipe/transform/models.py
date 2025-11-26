@@ -50,10 +50,10 @@ class Recipe(BaseModel):
     video_link = CharField(null=True)
 
     difficulty = CharField(null=True)
-    portion_lower = CharField(null=True)
-    portion_upper = CharField(null=True)
+    portion_lower = IntegerField(null=True)
+    portion_upper = IntegerField(null=True)
     portion_units = CharField(null=True)
-    time = CharField(null=True)
+    time = IntegerField (null=True)
     time_units = CharField(null=True)
     
     valid = BooleanField(default=True)
@@ -88,6 +88,7 @@ class IngredientQuantity(BaseModel):
 
     class Meta:
         db_table = 'ingredient_quantity'
+        
 class UsefulTool(BaseModel):
     text = CharField(null=False)
     recipe = ForeignKeyField(Recipe, backref='useful_tools',on_delete='CASCADE')

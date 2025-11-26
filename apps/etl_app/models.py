@@ -42,10 +42,32 @@ logger = logging.getLogger('django')
 
 ###
 #
+#   Exceptions
+#
+##
+
+
+class StoppingConditionTriggered(Exception):
+    """Raised to trigger a rollback when stopping condition is met."""
+    pass
+
+###
+#
 #   Base Models
 #
 ##
 
+def default_properties():
+    return {
+    "Threads":1,
+}
+
+class LoadType(models.TextChoices):
+        CREATED = 'Create', 'Create'
+        CHANGED = 'Change', 'Change'
+        UNCHANGED = 'Unchange', 'Unchange'
+        DELETED = 'Delete', 'Delete'
+        NONE = 'None', 'None'
 
 class BaseTask(BaseModel):
     """
@@ -240,14 +262,14 @@ class Job(BaseTask):
     """
     name = models.CharField(max_length=255, verbose_name="Job Name", unique=True)
     company = models.ForeignKey(Company, on_delete=models.CASCADE, related_name='jobs', verbose_name="Company")
-    log_path = models.CharField(max_length=255)
+    log_path = models.CharField(max_length=255, null=True, blank=True)
     
-    starting_condition_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='start_condition_type', null=True)
-    starting_condition_id = models.PositiveIntegerField(null=True)
+    starting_condition_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='start_condition_type', null=True,blank=True)
+    starting_condition_id = models.PositiveIntegerField(null=True, blank=True)
     starting_condition = GenericForeignKey('starting_condition_type', 'starting_condition_id')
     
-    stopping_condition_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='stop_condition_type', null=True)
-    stopping_condition_id = models.PositiveIntegerField(null=True)
+    stopping_condition_type = models.ForeignKey(ContentType, on_delete=models.CASCADE, related_name='stop_condition_type', null=True, blank=True)
+    stopping_condition_id = models.PositiveIntegerField(null=True, blank=True)
     stopping_condition = GenericForeignKey('stopping_condition_type', 'stopping_condition_id')
     
     parent_task = models.ForeignKey('Task', on_delete=models.SET_NULL, blank=True, null=True, related_name='jobs')
@@ -255,6 +277,8 @@ class Job(BaseTask):
     
     created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='jobs')
     enabled = models.BooleanField(default=True)
+    
+    properties = models.JSONField(default= default_properties, blank=True)
     
     @property
     def last_run(self):
@@ -460,6 +484,8 @@ class Task(BaseTask):
     
     debug_mode = models.BooleanField(default=False)
     step = models.IntegerField(default=0)
+    
+    properties = models.JSONField(blank=True, default= default_properties)
     
     # Statistics
 
@@ -746,7 +772,7 @@ class Task(BaseTask):
             task=self,
             message=message
         )
-        
+    
     def __die_gracefully(self):
         """
         Kills the task gracefully by revoking the Celery task and stopping threads.
@@ -758,7 +784,7 @@ class Task(BaseTask):
         Kills the task by revoking the Celery task
         """
         
-        if self.celery_task_id:
+        if self.celery_task_id and not self.debug_mode:
             result = AsyncResult(self.celery_task_id, app=app)
             result.revoke(terminate=True, signal='SIGTERM')
         else:

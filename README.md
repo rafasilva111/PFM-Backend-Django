@@ -143,7 +143,7 @@ sudo -u postgres psql
 ### 7. Create Database
 
 ```bash
-psql -U postgresql -h localhost
+psql -U postgres -h localhost
 ```
 
 ```sql

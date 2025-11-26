@@ -392,7 +392,7 @@ def normalize_time(logger, time: str):
         if match:
             # Convert the captured number to integer
             bound = int(match.group(1))  # Both bounds are the same in this case
-            return bound, _time_units  # Return both bounds as the same number
+            return bound, bound  # Return both bounds as the same number
 
     except Exception as e:
         logger.error(f"Error while processing: {time} (Time)")

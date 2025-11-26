@@ -33,7 +33,7 @@ from django.db import transaction
 
 ##
 #   Models
-from apps.etl_app.models import Task, Job, ContentType, TimeCondition, ThresholdCondition
+from apps.etl_app.models import Task, Job, default_properties, ContentType, TimeCondition, ThresholdCondition
 from apps.user_app.models import User, Company
 
 
@@ -185,8 +185,6 @@ class ThresholdConditionForm(forms.ModelForm):
 #   Tasks
 #
 ##
-
-
 class TaskForm(forms.ModelForm):
     company = forms.ModelChoiceField(
         label='Company',
@@ -207,12 +205,23 @@ class TaskForm(forms.ModelForm):
     parent_job_transform = forms.ModelChoiceField(label='Transform Jobs', queryset=Job.objects.filter(type=Job.TaskType.TRANSFORM).order_by('-created_at'),
                                                     required=False, widget=forms.Select(attrs={'class': 'form-select form-select-lg'}))
 
+    properties = forms.CharField(
+        label='Properties',
+        initial=json.dumps(default_properties(), indent=4),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control form-control-lg',
+            'rows': 5,
+        }),
+        help_text="Enter properties in JSON format"
+    )
+    
     class Meta:
         model = Task
         fields = [
             'type','company','process','debug_mode',
             'parent_task_extract', 'parent_task_transform',
             'parent_job_extract', 'parent_job_transform',
+            'properties'
         ]
         widgets = {
             'process': forms.Select(attrs={'class': 'form-select form-select-lg'}),
@@ -227,6 +236,10 @@ class TaskForm(forms.ModelForm):
 
         " Set the initial values for the parent task or job fields based on the instance type "
         if instance:
+            
+            # Indent the JSON properties for better readability
+            self.initial['properties'] = json.dumps(instance.properties, indent=4)
+
             if instance.parent_task:
                 if instance.type == Job.TaskType.TRANSFORM:
                     self.fields['parent_task_extract'].initial = instance.parent_task
@@ -241,7 +254,7 @@ class TaskForm(forms.ModelForm):
         
     def clean(self):
         cleaned_data = super().clean()
-        
+            
         # Prevent from saving a RUNNING task
         if self.instance.status in [Task.Status.RUNNING, Task.Status.PAUSED]:
             self.add_error(None, f'You cannot save a task with status {self.instance.status}.')
@@ -294,6 +307,8 @@ class TaskForm(forms.ModelForm):
                 elif self.cleaned_data['parent_job_transform']:
                     instance.parent_job = self.cleaned_data['parent_job_transform']
                 
+                # Set properties
+                instance.properties = json.loads(self.cleaned_data['properties'])
                 
                 instance.save()
                 if instance.status == Task.Status.WAITING:
@@ -304,6 +319,7 @@ class TaskForm(forms.ModelForm):
         except Exception as e:
             logger.error(f"An error occurred: {e}")
             raise
+
 ###
 #
 #   Jobs
@@ -351,6 +367,16 @@ class JobForm(forms.ModelForm):
     parent_job_transform = forms.ModelChoiceField(label='Transform Jobs', queryset=Job.objects.filter(type=Job.TaskType.TRANSFORM).order_by('-created_at'),
                                                     required=False, widget=forms.Select(attrs={'class': 'form-select form-select-lg'}))
 
+    properties = forms.CharField(
+        label='Properties',
+        initial=json.dumps(default_properties(), indent=4),
+        widget=forms.Textarea(attrs={
+            'class': 'form-control form-control-lg',
+            'rows': 5,
+        }),
+        help_text="Enter properties in JSON format"
+    )
+    
     class Meta:
         model = Job
         fields = [
@@ -358,6 +384,7 @@ class JobForm(forms.ModelForm):
             'parent_task_extract', 'parent_task_transform',
             'parent_job_extract', 'parent_job_transform',
             'starting_condition_type', 'stopping_condition_type',
+            'properties'
         ]
         widgets = {
             'process': forms.Select(attrs={'class': 'form-select form-select-lg'}),
@@ -371,6 +398,9 @@ class JobForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
 
         if instance:
+            # Indent the JSON properties for better readability
+            self.initial['properties'] = json.dumps(instance.properties, indent=4)
+            
             if instance.parent_task:
                 if instance.type == Job.TaskType.TRANSFORM:
                     self.fields['parent_task_extract'].initial = instance.parent_task
@@ -452,6 +482,9 @@ class JobForm(forms.ModelForm):
                         )
                     elif stopping_condition_form.prefix == 'stopping_condition_threshold_form':
                         job.stopping_condition = stopping_condition_form.save()
+                
+                # Set properties
+                job.properties = json.loads(self.cleaned_data['properties'])
                 
                 # Call the original save method
                 job.save()

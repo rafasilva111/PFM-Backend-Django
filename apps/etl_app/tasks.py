@@ -22,8 +22,8 @@ from apps.etl_app.recipe.transform.main import _transform_recipes
 from apps.etl_app.recipe.load.main import _load_recipes
 
 from apps.etl_app.ingredient.extract.main import _extract_ingredients
-#from apps.etl_app.ingridients.transform.main import _transform_ingridients
-#from apps.etl_app.ingredients.load.main import _load_ingridients
+from apps.etl_app.ingredient.transform.main import _transform_ingridients
+from apps.etl_app.ingredient.load.main import _load_ingredients
 
 # Set up main logger
 main_logger = logging.getLogger('django')
@@ -114,7 +114,8 @@ def _launch_job(job_id, force_start=False):
             parent_task=job.parent_task,
             parent_job=job.parent_job,
             company=job.company,
-            process=job.process
+            process=job.process,
+            properties=job.properties
         )
         
         " Assert if parent task is running and if it is add job to the awaiting queue "
@@ -185,12 +186,7 @@ def _launch_job(job_id, force_start=False):
             
             job_logger.info(f'')
             job_logger.info(f'Task {current_task.id} resumed.')
-    
-    
-
-    
-    
-        
+          
 @app.task
 def _stop_job(job_id):
     
@@ -251,17 +247,6 @@ def _launch_task(task_id, resume=True):
     task.status = Task.Status.RUNNING
     task.save()
 
-
-    # Determine task behavior based on task type
-    
-    logger.info("")
-    if resume:
-        logger.info(f'> Resuming {task.type} Task')   
-    else:
-        logger.info(f'> Starting {task.type} Task')
-    
-    logger.info("")
-    
     match task.type:
         case Task.TaskType.TEST:
             max_count = 10
@@ -291,8 +276,7 @@ def _launch_task(task_id, resume=True):
         case  Task.TaskType.TRANSFORM:
             match task.process:
                 case ProcessType.INGREDIENTS:
-                    logger.info('Yet to be done')
-                    pass
+                    return _transform_ingridients(logger, task, resume)
                 case ProcessType.RECIPES:
                     return _transform_recipes(logger, task, resume)
     
@@ -300,8 +284,7 @@ def _launch_task(task_id, resume=True):
     
             match task.process:
                 case ProcessType.INGREDIENTS:
-                    logger.info('Yet to be done')
-                    pass
+                    return _load_ingredients(logger, task, resume)
                 case ProcessType.RECIPES:
                     return _load_recipes(logger, task, resume)
                 

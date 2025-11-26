@@ -47,12 +47,12 @@ class Ingredient(BaseModel):
 
 
 class Image(BaseModel):
+    source_path = CharField(default="", unique=True)
     path = CharField(default="")
     ingredient = ForeignKeyField(Ingredient, backref='images', null=True, on_delete='CASCADE')
 
 class Tag(BaseModel):
     title = CharField(null=False, unique=True)
-    parent_tab = ForeignKeyField('self', backref='parent_tag', null=True, on_delete='CASCADE')
     recipe = ManyToManyField(Ingredient, backref='tags')
 
 

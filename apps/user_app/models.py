@@ -32,6 +32,8 @@ import uuid
 import logging
 logger = logging.getLogger(__name__)
 
+def random_avatar_image():
+    return f"avatar{random.randint(1, 10)}.png"
 
 ##
 #   Company
@@ -145,7 +147,7 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     name = models.CharField(max_length=40, null=False)
     username = models.CharField(max_length=255, null=False)
-    image = models.CharField(max_length=255, default=f"avatar{random.randint(1, 10)}.png", blank=True)
+    image = models.CharField(max_length=255, default=random_avatar_image, blank=True)
     email = models.EmailField(verbose_name="email address", max_length=255, unique=True)
 
     created_at = models.DateTimeField(auto_now_add=True)

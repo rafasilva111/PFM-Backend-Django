@@ -73,12 +73,13 @@ class Recipe(BaseModel):
     portion_lower = models.IntegerField(default=0, null=True)
     portion_upper = models.IntegerField(default=0, null=True)
     portion_units = models.CharField(max_length=255, null=True)
+    
     time = models.IntegerField(default=0, null=True)
+    time_units = models.CharField(max_length=10, null=True)
     
     views = models.IntegerField(default=0, null=False)
     created_by = models.ForeignKey(User, related_name='created_recipes', on_delete=models.CASCADE, null=True)
     nutrition_information = models.OneToOneField(NutritionInformation, related_name='recipe', null=True, on_delete=models.CASCADE)
-    
     
     source_rating = models.FloatField(null=True)
     source_link = models.CharField(max_length=255, null=True,unique=True)
@@ -300,6 +301,41 @@ class RecipeAuditLog(BaseModel):
     reviewed = models.BooleanField(default=False)
     accepted = models.BooleanField(default=False)
 
+    
+    class Type(models.TextChoices):
+        Create = 'Create', 'Create'
+        Update = 'Update', 'Update'
+        Delete = 'Delete', 'Delete'
+
+    type = models.CharField(
+        max_length=20,
+        choices=Type.choices
+    )
+    
+    class SubType(models.TextChoices):
+        Create = 'Create', 'Create'
+        Update = 'Update', 'Update'
+        Delete = 'Delete', 'Delete'
+        NONE = 'None', 'None'
+
+    sub_type = models.CharField(
+        max_length=20,
+        choices=SubType.choices,
+        default = SubType.NONE
+    )
+    
+    
+    class Meta:
+        permissions = [
+            ("can_view_audit_log", "Can view Audit Log's details"),
+            ("can_view_audit_logs", "Can view Audit Logs list"),
+            ("can_delete_audit_log", "Can delete Audit Log"),
+            ("can_accept_audit_log", "Can accept Audit Log"),
+            ("can_unaccept_audit_log", "Can unaccept Audit Log"),
+            ("can_review_audit_log", "Can review Audit Log"),
+            ("can_unreview_audit_log", "Can unreview Audit Log"),
+        ]
+    
     def save_status_history(self, changed_by, status):
         RecipeAuditLogStatusHistory.objects.create(
             audit_log=self,
@@ -341,39 +377,6 @@ class RecipeAuditLog(BaseModel):
         
         super().save(*args, **kwargs)
 
-    class Type(models.TextChoices):
-        Create = 'Create', 'Create'
-        Update = 'Update', 'Update'
-        Delete = 'Delete', 'Delete'
-
-    type = models.CharField(
-        max_length=20,
-        choices=Type.choices
-    )
-    
-    class SubType(models.TextChoices):
-        Create = 'Create', 'Create'
-        Update = 'Update', 'Update'
-        Delete = 'Delete', 'Delete'
-        NONE = 'None', 'None'
-
-    sub_type = models.CharField(
-        max_length=20,
-        choices=SubType.choices,
-        default = SubType.NONE
-    )
-    
-    
-    class Meta:
-        permissions = [
-            ("can_view_audit_log", "Can view Audit Log's details"),
-            ("can_view_audit_logs", "Can view Audit Logs list"),
-            ("can_delete_audit_log", "Can delete Audit Log"),
-            ("can_accept_audit_log", "Can accept Audit Log"),
-            ("can_unaccept_audit_log", "Can unaccept Audit Log"),
-            ("can_review_audit_log", "Can review Audit Log"),
-            ("can_unreview_audit_log", "Can unreview Audit Log"),
-        ]
     
     def accept(self, changed_by):
         self.accepted = True

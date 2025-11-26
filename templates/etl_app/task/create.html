@@ -122,6 +122,18 @@
             </div>
           </div>
 
+          <!-- Properties field -->
+          <div class="col-md-12 mt-2 mb-3">
+            {{ form.properties.label_tag }} {{ form.properties }}
+            {% if form.properties.errors %}
+            <div class="invalid-feedback d-block">
+              {% for error in form.properties.errors %}
+              {{ error }}
+              {% endfor %}
+            </div>
+            {% endif %}
+          </div>
+
           <!-- Debug Mode field -->
           <div class="col-md-12 mt-2 mb-3">
             {{ form.debug_mode.label_tag }} {{ form.debug_mode }}

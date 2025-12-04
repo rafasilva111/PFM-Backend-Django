@@ -201,26 +201,26 @@ def create_test_audit_log(recipe: Recipe, task: Task):
 #   ETL App
 #
 
-
+from django.db import transaction
 def create_test_task(type: Job.TaskType, process: ProcessType, company: Company, user: User, starting_condition: Condition = None, stopping_condition: Condition = None, parent_job: Job = None):
+    with transaction.atomic():
+        extract_job = Job.objects.create(
+            type=type,
+            process=process,
+            name=f'Test Extract Job {datetime.now().timestamp()}',
+            company=company,
+            created_by=user,
+            parent_job=parent_job,
+            starting_condition=starting_condition,
+            stopping_condition=stopping_condition
+        )
 
-    extract_job = Job.objects.create(
-        type=type,
-        process=process,
-        name=f'Test Extract Job {datetime.now().timestamp()}',
-        company=company,
-        created_by=user,
-        parent_job=parent_job,
-        starting_condition=starting_condition,
-        stopping_condition=stopping_condition
-    )
-
-    extract_task = Task.objects.create(
-        type=type,
-        process=process,
-        company=company,
-        owner_job=extract_job,
-        debug_mode=True
-    )
+        extract_task = Task.objects.create(
+            type=type,
+            process=process,
+            company=company,
+            owner_job=extract_job,
+            debug_mode=True
+        )
 
     return extract_job, extract_task

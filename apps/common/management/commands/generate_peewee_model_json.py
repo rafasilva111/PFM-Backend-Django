@@ -3,9 +3,9 @@ from apps.etl_app.models import Task
 from playhouse.shortcuts import model_to_dict
 import json
 from apps.etl_app.constants import TRANSFORM_CONTINENTE_RECIPES_DB
-from apps.etl_app.recipe.transform.models import database_proxy, Ingredient as Ingredient_T
+from apps.etl_app.etl.transform.recipe.models import database_proxy, Ingredient as Ingredient_T
 from apps.etl_app.functions import start_db
-from apps.etl_app.recipe.transform.continente.main import transform_models_
+from apps.etl_app.etl.transform.recipe.continente.main import transform_models_
 
 
 class Command(BaseCommand):

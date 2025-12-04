@@ -23,6 +23,17 @@ class Ingredient(BaseModel):
     # Size and Price
     old_size = models.CharField(max_length=255)
     size = models.CharField(max_length=255, null=True, blank=True)
+    
+    class SizeType(models.TextChoices):
+        PACKAGE = "P","Package"
+        BULK = "B","Bulk"
+        
+    size_type = models.CharField(
+        choices=SizeType.choices,
+        max_length=1,  # Adjust based on expected selections
+        default=None,
+        null=True,
+    )
 
     portions = models.FloatField(null=True, blank=True)
     portion_size = models.IntegerField(null=True, blank=True)
@@ -49,9 +60,6 @@ class Ingredient(BaseModel):
 
     # Legal Info
     legal_info = models.TextField(null=True, blank=True)
-
-    # Validation
-    is_valid = models.BooleanField(default=False)
     
     # Tags
     tags = models.ManyToManyField(

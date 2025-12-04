@@ -182,7 +182,8 @@ def start_db(task, models, path, database_proxy, reset=False, logger=None):
 
     # === STEP 2: CONSTRUCT DATABASE PATH & UPDATE TASK =========================
     task_sql_path = f"{path}/db_{task.id}.sql"
-    from apps.etl_app.models import Task
+    # Ensure the database directory exists
+    os.makedirs(path, exist_ok=True)
     task.sql_path = task_sql_path
     task.save()
 
@@ -210,7 +211,9 @@ def start_db(task, models, path, database_proxy, reset=False, logger=None):
     database.create_tables(models)
 
     # === STEP 7: RETURN UPDATED TASK & DATABASE ================================
-    logger.info("")
+    if logger:
+        logger.info("")
+        
     return task, database
 
 def start_sub_db(logger, task, models, database_proxy):
@@ -554,10 +557,11 @@ def check_if_task_stopped(task):
     # === STEP 2: CHECK STATUS ===================================================
     return task.status in [Task.Status.CANCELED, Task.Status.STOPPED, Task.Status.PAUSED]
 
-def check_task_stopping_condition(task, stopping_offset, instance):
+def check_task_stopping_condition(task, stopping_offset):
     # Check if the stopping condition offset is reached
     from apps.etl_app.models import Task, JobTriggerHistory
-    if stopping_offset and instance.id > stopping_offset:
+    task.refresh_from_db()
+    if stopping_offset and task.step > stopping_offset:
         task.owner_job.create_job_trigger_history(
             type=JobTriggerHistory.Type.STOPPING_CONDITION,
             action=JobTriggerHistory.Action.REST,

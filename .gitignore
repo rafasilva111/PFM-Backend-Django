@@ -179,10 +179,11 @@ cython_debug/
 .vscode/
 
 *.sql
+*.sql-*
 
-apps/etl_app/recipe/extract/continente/images/*.png
+apps/etl_app/etl/extract/recipe/*/images/*.png
 
-apps/etl_app/ingredient/extract/continente/images/*.png
+apps/etl_app/etl/extract/ingredient/*/images/*.png
 
 apps/common/secrets/*.json
 

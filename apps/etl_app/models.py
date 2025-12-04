@@ -59,8 +59,8 @@ class StoppingConditionTriggered(Exception):
 
 def default_properties():
     return {
-    "Threads":1,
-}
+        "Threads":1,
+    }
 
 class LoadType(models.TextChoices):
         CREATED = 'Create', 'Create'
@@ -593,7 +593,7 @@ class Task(BaseTask):
         
             
         if self.log_path:
-            return f"{settings.BASE_DIR}{self.log_path}"
+            return f"{settings.BASE_DIR}/{self.log_path}"
         else:
             return None
 
@@ -644,7 +644,16 @@ class Task(BaseTask):
             try:
                 os.remove(self.sql_path)
             except Exception:
-                logger.error(f"Error deleting SQL file: {self.sql_path}")
+             logger.error(f"Error deleting SQL file: {self.sql_path}")
+             
+            # Remove SQLite auxiliary files if they exist
+            for suffix in ["-shm", "-wal"]:
+                aux_file = f"{self.sql_path}{suffix}"
+                if os.path.exists(aux_file):
+                    try:
+                        os.remove(aux_file)
+                    except Exception:
+                        logger.error(f"Error deleting SQL auxiliary file: {aux_file}")
             
             
     def restart(self):

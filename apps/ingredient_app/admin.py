@@ -25,9 +25,8 @@ class IngredientAdmin(admin.ModelAdmin):
         "size",
         "bulk_price",
         "size_type",
-        "is_valid",
     )
-    list_filter = ("brand", "company", "size_type", "is_valid")
+    list_filter = ("brand", "company", "size_type")
     search_fields = ("title", "brand", "company", "description")
     inlines = [ImageInline]
 
@@ -39,7 +38,6 @@ class IngredientAdmin(admin.ModelAdmin):
                 "title",
                 "brand",
                 "description",
-                "link",
                 "company",
                 "category",
                 "source_link",
@@ -67,9 +65,6 @@ class IngredientAdmin(admin.ModelAdmin):
                 "nutrition_information",
                 "legal_info",
             )
-        }),
-        ("Validation", {
-            "fields": ("is_valid",)
         }),
         ("Tags", {
             "fields": ("tags",)

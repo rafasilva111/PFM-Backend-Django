@@ -17,13 +17,13 @@ import logging
 ## Functions
 from apps.etl_app.functions import configure_task_logging, configure_job_logging
 from apps.common.models import ProcessType
-from apps.etl_app.recipe.extract.main import _extract_recipes
-from apps.etl_app.recipe.transform.main import _transform_recipes
-from apps.etl_app.recipe.load.main import _load_recipes
+from apps.etl_app.etl.extract.recipe.main import _extract_recipes
+from apps.etl_app.etl.transform.recipe.main import _transform_recipes
+from apps.etl_app.etl.load.recipe.main import _load_recipes
 
-from apps.etl_app.ingredient.extract.main import _extract_ingredients
-from apps.etl_app.ingredient.transform.main import _transform_ingridients
-from apps.etl_app.ingredient.load.main import _load_ingredients
+from apps.etl_app.etl.extract.ingredient.main import _extract_ingredients
+from apps.etl_app.etl.transform.ingredient.main import _transform_ingridients
+from apps.etl_app.etl.load.ingredient.main import _load_ingredients
 
 # Set up main logger
 main_logger = logging.getLogger('django')

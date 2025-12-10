@@ -551,6 +551,8 @@ def extract_ingredients(logger, task, threads):
 
     return task, completed
 
+
+
 def extract_ingredients_links(logger, task):
     """
     Extract ingredient links from Continente's website using Selenium with Firefox (headless).
@@ -591,14 +593,16 @@ def extract_ingredients_links(logger, task):
     total_links_counter = 0
     completed = False
     current_category_counter = 0
-    
+
+    # === STEP 1: LOAD HOMEPAGE & EXTRACT CATEGORY LINKS =======================
+    # Use Selenium to extract all ingredients categories
+
     # Log the start of the extraction process
-    print_sub_header(logger,"Starting Ingredient Link Extraction (Selenium Mode)")
+    print_sub_header(logger, "Starting Ingredient Link Extraction (Selenium Mode)")
 
     # Create Selenium WebDriver instance (headless Firefox)
     driver = create_driver(debug_mode=False)
 
-    # === STEP 1: LOAD HOMEPAGE & EXTRACT CATEGORY LINKS =======================
     logger.info("Loading homepage and extracting category links...")
     try:
         driver.get(BASE_URL)
@@ -622,9 +626,9 @@ def extract_ingredients_links(logger, task):
 
     # === STEP 2: CLEAN CATEGORY DICTIONARY ====================================
     # Remove nested or unwanted categories
-    for key, value in list(categories.items()):
+    for category, value in list(categories.items()):
         if value.count("/") != 4:
-            categories.pop(key)
+            categories.pop(category)
 
     for to_remove in [
         "Destaques", "Loja de Marcas", "Lojas de Marcas", "Jardim, Bricolage e Auto",
@@ -644,34 +648,41 @@ def extract_ingredients_links(logger, task):
     # === STEP 3: DETERMINE STOPPING CONDITION & TASK RESUMPTION ================
     # Compute stopping offset if a threshold condition is defined
     from apps.etl_app.models import ThresholdCondition
-    OFFSET = None
+    offset = None
     if (
         task.owner_job
         and task.owner_job.stopping_condition
         and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
     ):
-        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
+        offset = task.step + task.owner_job.stopping_condition.threshold_value
 
     # If resuming a partial task, delete already-processed records beyond last step
     if task.step != 0:
         IngredientLink.delete().where(IngredientLink.id > task.step).execute()
         total_ingredients_links_already_done = task.step
 
+
+    # === STEP 4: PROCESS EACH CATEGORY ========================================
+    # Iterate through each category to extract ingredient links
+
+    # Log the start of category processing
     print_minor_header(logger, "Starting category-by-category ingredient extraction")
 
     last_key = next(reversed(categories))
+    for category, value in categories.items():
 
-    # === STEP 4: PROCESS EACH CATEGORY ========================================
-    for key, value in categories.items():
-    
+        # === Step 4.1: CHECK FOR STOP SIGNAL ==========================================
         if check_if_task_stopped(task):
             break
-        current_category_counter += 1
-        
-        logger.info("")
-        logger.info(f"→ Category: {key} ({current_category_counter}/{len(categories)})")
 
-        # --- Load category page ---
+        # Increment category counter
+        current_category_counter += 1
+
+        # Log current category being processed
+        logger.info("")
+        logger.info(f"→ Category: {category} ({current_category_counter}/{len(categories)})")
+
+        # === Step 4.2: LOAD CATEGORY PAGE ============================================
         try:
             driver.get(value)
             time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))
@@ -681,32 +692,32 @@ def extract_ingredients_links(logger, task):
 
         html = BeautifulSoup(driver.page_source, "html.parser")
 
-        # --- Extract total number of ingredients in this category ---
+        # === Step 4.3: EXTRACT MAX INSTANCES COUNT ================================
         try:
             max_ingredients_category = int(
                 html.find("div", class_="search-results-products-counter d-flex justify-content-center")
                 .text.split(" ")[2]
             )
             logger.info(f"Category contains {max_ingredients_category} ingredients.")
-        except Exception:
+        except Exception as e:
             task.increment_warnings(
                 logger=logger,
-                message=f"Could not extract max ingredient count for category '{key}'.",
+                message=f"Could not extract max ingredient count for category '{category}'.",
                 stack_trace=None
             )
             continue
 
-        # --- Extract data-url for pagination ---
+        # === Step 4.4: BUILD BASE DATA URL FOR PAGINATION ==========================
         data_div = html.find("div", class_="search-view-more-products-btn-wrapper infinite-scroll-placeholder")
         if not data_div or not data_div.get("data-url"):
-            logger.warning(f"No pagination data-url found for '{key}', skipping.")
-            continue
+            logger.warning(f"No pagination data-url found for '{category}', skipping.")
+            return False, False
 
         base_data_url = data_div["data-url"]
         base_data_url = base_data_url.split("&")
         base_data_url = f"{base_data_url[0]}&{base_data_url[1]}&sz={PAGE_LINKS_OFFSET}"
 
-        # --- Handle task resumption offsets ---
+        # === Step 4.5: RESUME FROM LAST PROCESSED LINK IF APPLICABLE ============
         if total_ingredients_links_already_done:
             if total_ingredients_links_already_done >= max_ingredients_category:
                 total_ingredients_links_already_done -= max_ingredients_category
@@ -717,18 +728,19 @@ def extract_ingredients_links(logger, task):
         else:
             start = 0
 
-        # --- Paginate through ingredient listings ---
+        # === Step 4.6: PAGINATE THROUGH CATEGORY TO EXTRACT LINKS ================
         pull_ingredients_retries = 0
         while start < max_ingredients_category:
             if check_if_task_stopped(task):
                 logger.warning("Stop signal detected. Exiting before new page.")
                 break
-            
+
             pulling_url = f"{base_data_url}&start={start}"
 
             try:
                 driver.get(pulling_url)
-                time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # simulate human read time
+                time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND,
+                                          TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # simulate human read time
             except TimeoutException:
                 pull_ingredients_retries += 1
                 if pull_ingredients_retries >= MAX_RETRIES:
@@ -747,7 +759,7 @@ def extract_ingredients_links(logger, task):
                     break
                 continue
 
-            # --- Insert links into DB ---
+            # === Step 4.7: INSERT LINKS INTO DATABASE ================================
             links_added = 0
             for ing_link in ingredients_link:
                 link_url = ing_link.find("a")["href"]
@@ -755,13 +767,13 @@ def extract_ingredients_links(logger, task):
                     link=link_url,
                     page=start // PAGE_LINKS_OFFSET,
                     base_search_link=value,
-                    category=key
+                    category=category
                 )
                 links_added += 1
                 total_links_counter += 1
 
-                # Stop if job threshold reached
-                if OFFSET and total_links_counter >= OFFSET:
+                # === Step 4.8: CHECK FOR STOPPING CONDITION ===========================
+                if offset and total_links_counter >= offset:
                     logger.info("")
                     logger.info(f"Stopping condition reached at {total_links_counter} links.")
                     logger.info("")
@@ -771,26 +783,33 @@ def extract_ingredients_links(logger, task):
             if stopping_condition_triggered:
                 break
 
+            # === Step 4.9: UPDATE PROGRESS & LOGGING ==============================
             start += links_added
             logger.info(f"Added {links_added} links; total {start} processed for category.")
-            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND, TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # short delay before next batch
+            time.sleep(random.uniform(TIME_BETWEEN_REQUESTS_LOW_BOUND,
+                                      TIME_BETWEEN_REQUESTS_HIGH_BOUND))  # short delay before next batch
 
-        if key == last_key:
+        # === Step 4.10: CHECK IF ALL LINKS PULLED ================================
+        if category == last_key:
             logger.info("")
             logger.info("All Recipe Links pulled ...")
             logger.info("")
             completed = True
-            
+
+        # Exit outer loop if stopping condition triggered
         if stopping_condition_triggered:
             break
 
     # === STEP 5: FINALIZE JOB ================================================
     task.links = IngredientLink.select().count()
     task.save()
-    
+
+    # === STEP 6: LOG FINAL STATISTICS ==========================================
     print_sub_header(logger, "Ingredient Link Extraction Completed")
 
+    # Quit the Selenium driver
     driver.quit()
+
     return task, completed
 
 def __extract_continente_ingredients(logger, task, resume):

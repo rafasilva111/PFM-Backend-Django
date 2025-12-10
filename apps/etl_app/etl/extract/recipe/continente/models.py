@@ -66,10 +66,16 @@ class Tag(BaseModel):
 
 
 class RecipeLink(BaseModel):
+    reference_id = CharField()
+    title = CharField()
     link = CharField()
-    page = CharField()
-    base_search_link = CharField()
-    image_link = CharField(null=True)
+    category = CharField()
+    author = CharField(null=True)
+    author_img_url = CharField(null=True)
+    time = CharField()
+    difficulty = CharField()
+    rating = FloatField(null=True)
+    image = CharField(null=True)
 
     class Meta:
         db_table = 'recipe_links'

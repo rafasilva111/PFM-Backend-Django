@@ -7,9 +7,11 @@ import unidecode
 import traceback
 import threading
 import concurrent.futures
+import time
 
 # Third-party imports
 from bs4 import BeautifulSoup
+from playwright.sync_api import sync_playwright,TimeoutError as PlaywrightTimeoutError
 
 # Custom app imports
 from apps.etl_app.functions import (
@@ -24,16 +26,19 @@ from apps.etl_app.etl.extract.recipe.continente.models import (
 from apps.etl_app.constants import (
     EXTRACT_CONTINENTE_RECIPES_DB, CONTINENTE_RECIPES_IMAGES_FOLDER
 )
+# ==============================================================================
 
 # === MODEL CONFIGURATION ======================================================
 # Through model for Recipe <-> Tag relationship
 recipeTagThrough = Recipe.tags.get_through_model()
+
 
 # List of models used in the extraction process
 extract_models_ = [
     Ingredient, Recipe, RecipeLink, Tag,
     NutritionInformation, Ingredient, UsefulTool, recipeTagThrough
 ]
+# ==============================================================================
 
 # === CONSTANTS ================================================================
 BASE_URL = "https://feed.continente.pt"
@@ -48,10 +53,24 @@ BASE_HEADERS = {
     "Cookie": "realUserVerifier=Verified;",
 }
 COMPANY_NAME = "continente"
-PAGE_LINKS_OFFSET = 24
 DEFAULT_SLEEP_TIME = 2
 MAX_THREADS = 2
+# ==============================================================================
 
+def get_properties(task_properties):
+    """
+    Extracts and returns relevant properties from the task properties dictionary.
+
+    Args:
+        task_properties (dict): Dictionary containing task properties.
+    """
+    threads = task_properties.get("Threads", MAX_THREADS)
+
+    return threads
+
+# === Extract / Recipe =========================================================
+# Functions to extract recipe data
+# ==============================================================================
 def extract_recipe_data(logger, task, recipe_link):
     """
     Extracts and saves detailed recipe data from a given Continente recipe link.
@@ -327,7 +346,7 @@ def extract_recipe_data(logger, task, recipe_link):
     # === FINALIZE =============================================================
     recipe_db.save()
 
-def extract_recipe(logger, task_id, ingredient_link, stopping_offset):
+def extract_recipe(logger, task_id, ingredient_link):
     """
     Process a single ingredient link to extract detailed ingredient data.
 
@@ -364,11 +383,8 @@ def extract_recipe(logger, task_id, ingredient_link, stopping_offset):
     from apps.etl_app.models import Task, JobTriggerHistory
     from apps.etl_app.worker_signals import stop_thread_event
 
-    logger.info("")
     # Retrieve the task instance
-    
     task = Task.objects.get(id=task_id)
-    
 
     # Early stop check before processing
     if check_if_task_stopped(task):
@@ -383,9 +399,7 @@ def extract_recipe(logger, task_id, ingredient_link, stopping_offset):
     
     return True
 
-
-
-def extract_recipes(logger,task,threads=MAX_THREADS):
+def extract_recipes(logger,task,properties):
     """
     Extracts recipe data from the Continente website and updates the task statistics.
     This function iterates through recipe links stored in the database, extracts data
@@ -401,6 +415,7 @@ def extract_recipes(logger,task,threads=MAX_THREADS):
     
     # === INITIALIZATION ========================================================
     # Initialize control variables
+    threads = get_properties(properties)
     total_processed = 0
     completed = False
     
@@ -487,15 +502,14 @@ def extract_recipes(logger,task,threads=MAX_THREADS):
                     completed = True
                 else:
                     logger.info("")
-                    logger.info(f"Stopping condition reached at {total_processed} processed recipes (threshold: {OFFSET}).")
-                    logger.info("")
+                    logger.info(f"Stopping condition reached at {total_processed} processed recipes.")
     else:
         # Single-threaded processing
         for link in recipe_links:
             if check_if_task_stopped(task):
                 logger.info("Stop signal detected — stopping processing.")
                 break
-            result = extract_recipe(logger, task.id, link, OFFSET)
+            result = extract_recipe(logger, task.id, link)
             if result:
                 total_processed += 1
                 task.step += 1
@@ -505,139 +519,347 @@ def extract_recipes(logger,task,threads=MAX_THREADS):
             completed = True
         else:
             logger.info("")
-            logger.info(f"Stopping condition reached at {total_processed} processed recipes (threshold: {OFFSET}).")
-            logger.info("")
+            logger.info(f"Stopping condition reached at {total_processed} processed recipes.")
                 
     # === STEP 4: LOG FINAL STATISTICS ==========================================
     logger.info("")
     print_sub_header(logger,"Parallel Recipe Extraction Completed")
 
     return task, completed
-    
 
-def extract_recipes_links(logger, task):
-    
-    # === INITIAL SETUP ========================================================
-    # Initialize control variables
+# === Extract / Recipe Link =========================================================
+# Functions to extract recipe links
+# ==============================================================================
+def scrape_recipe_links(logger, page, start, offset=None):
+    """
+    Scrape only new recipes based on data-recipe-id.
+    If any card is missing a value, skip it.
+    """
+
+    # Wait until cards are visible
+    page.wait_for_selector(
+        ".resultsCardsBlock .recipeCard, .resultsCardsBlock .yammiCard",
+        timeout=2000
+    )
+
+    cards = page.query_selector_all(
+        ".resultsCardsBlock .recipeCard, .resultsCardsBlock .yammiCard"
+    )
+
+    total_links_counter = 0
     stopping_condition_triggered = False
+
+    # Filter cards: only process recipe-id > start
+    cards = cards[start:]
+
+    for card in cards:
+
+        # === Step 4.8: CHECK STOPPING CONDITION ====================================
+        if offset and total_links_counter >= (offset- start):
+            logger.info("")
+            logger.info(f"Stopping condition reached at {total_links_counter} links.")
+            logger.info("")
+            stopping_condition_triggered = True
+            break
+
+        recipe_id = card.get_attribute("data-recipe-id")
+
+        try:
+            # Try .recipeCard selectors first, fallback to .yammiCard
+            def sel(primary, alt):
+                return card.query_selector(primary) or card.query_selector(alt)
+
+            title_el      = sel(".recipeCard__body__title", ".yammiCard__body__title")
+            link_el       = sel(".recipeCard__link", ".yammiCard__link")
+            category_el   = sel(".categoryTag", ".yammiCard__categoryTag")
+            author_el     = sel(".recipeCard__top__authorBlock p", ".yammiCard__top__authorBlock p")
+            author_img_el = sel(".recipeCard__top__authorBlock img", ".yammiCard__top__authorBlock img")
+            specs_el      = sel(".recipeCard__body__specs .specTime", ".yammiCard__body__specs .specTime")
+            rating_el     = sel(".specRating span", ".yammiCard__specRating span")
+            img_el        = sel(".recipeCard__top__image img", ".yammiCard__top__image img")
+
+            # Extract text/attributes
+            title        = title_el.inner_text().strip() if title_el else None
+            link         = "https://feed.continente.pt{}".format(link_el.get_attribute("href")) if link_el else None
+            category     = category_el.inner_text().strip() if category_el else None
+            author       = author_el.inner_text().strip() if author_el else None
+            author_img   = author_img_el.get_attribute("src") if author_img_el else None
+            specs_text   = specs_el.inner_text().split() if specs_el else []
+            time_cook    = specs_text[0] if len(specs_text) > 0 else None
+            difficulty   = specs_text[1] if len(specs_text) > 1 else None
+            rating       = rating_el.inner_text().strip() if rating_el else None
+            img_url      = img_el.get_attribute("src") if img_el else None
+
+
+            recipe = {
+                "reference_id": recipe_id,
+                "title": title,
+                "link": link,
+                "category": category,
+                "author": author,
+                "author_img_url": author_img,
+                "time": time_cook,
+                "difficulty": difficulty,
+                "rating": rating,
+                "image": img_url
+            }
+
+            # Incomplete recipe → skip
+            required_fields = {
+                "title": title,
+                "link": link,
+                "category": category,
+                "time_cook": time_cook,
+                "difficulty": difficulty,
+                "rating": rating,
+                "img_url": img_url,
+            }
+
+            missing_fields = [key for key, value in required_fields.items() if not value]
+
+            if missing_fields:
+                logger.warning(
+                    f"Incomplete data for recipe ID {recipe_id}, "
+                    f"missing: {missing_fields}, recipe: {recipe}"
+                )
+                continue
+
+            # Increment counter
+            total_links_counter += 1
+
+            # Create DB record
+            RecipeLink.create(
+                **recipe
+            )
+
+        except Exception as e:
+            logger.warning(f"Error extracting card data: {e}")
+            break
+
+    logger.info(f"Scraped {total_links_counter} new recipes.")
+    logger.info("")
+    return total_links_counter, stopping_condition_triggered
+
+def scrape_recipes_links(logger, task):
+    """
+    High-level workflow: loads homepage, extracts categories, iterates each
+    category, loads all recipes, and delegates card scraping.
+    """
+
+    # === INITIAL SETUP =============================================================
+    stopping_condition_triggered = False
+    total_ingredients_links_already_done = None
     total_links_counter = 0
     completed = False
-    
-    # Log the start of the extraction process
-    print_sub_header(logger, "Starting Recipe Link Extraction")
-    
-    # === STEP 1: DETERMINE STOPPING CONDITION & TASK RESUMPTION ================
+    current_category_counter = 0
+
+    # === STEP 1: LOAD HOMEPAGE AND EXTRACT CATEGORIES ==============================
+    print_sub_header(logger, "Starting Recipe Link Extraction (Playwright Mode)")
+    print_minor_header(logger, "Extracting Recipe Categories")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(headless=not task.debug_mode)
+        page = browser.new_page()
+        page.goto("https://feed.continente.pt/receitas", wait_until="networkidle")
+
+        # Handle cookies
+        try:
+            page.wait_for_selector("#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll", timeout=5000)
+            page.click("#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+        except Exception as e:
+            logger.info(f"Cookie banner not handled successfully. Error: {e}")
+
+        # Expand category list if needed
+        try:
+            see_more = page.query_selector('fieldset[data-filter-group="category"] .seeMoreCheckfields')
+            if see_more and see_more.is_visible():
+                see_more.click()
+                page.wait_for_timeout(500)
+        except Exception as e:
+            logger.info(f"Error expanding categories: {e}")
+
+        # Extract categories
+        category_elements = page.query_selector_all('fieldset[data-filter-group="category"] .checkField')
+        categories = []
+        for cat in category_elements:
+            label = cat.query_selector("label")
+            text = label.inner_text().strip() if label else cat.get_attribute("data-value")
+            if text not in categories:
+                categories.append(text)
+
+        page.context.close()
+
+    # Log extracted categories
+    logger.info(f"Found {len(categories)} categories:")
+    for category in categories:
+        logger.info(f"→ {category} ")
+    logger.info("")
+
+    print_minor_header(logger, "Extracting Recipe Categories Completed")
+    logger.info("")
+
+
+    # === STEP 2: STOPPING CONDITION & TASK RESUMPTION ===============================
     from apps.etl_app.models import ThresholdCondition
-    OFFSET = None
+    offset = None
+
     if (
         task.owner_job
         and task.owner_job.stopping_condition
         and isinstance(task.owner_job.stopping_condition, ThresholdCondition)
     ):
-        OFFSET = task.step + task.owner_job.stopping_condition.threshold_value
-        
-    # If resuming a partial task, delete already-processed records beyond last step
+        offset = task.step + task.owner_job.stopping_condition.threshold_value
+
+    # Resuming a previously started task
     if task.step != 0:
+        task.links = RecipeLink.select().count()
         RecipeLink.delete().where(RecipeLink.id > task.step).execute()
-    
-    # Clear records from partial pages if resuming 
-    page = task.step // PAGE_LINKS_OFFSET + 1
-    RecipeLink.delete().where(RecipeLink.page >= page).execute()
-        
-    # === STEP 2: PROCCESS LINKS ========================================
-    while True:
+        total_ingredients_links_already_done = task.step
 
-        logger.info(f"Added {page * PAGE_LINKS_OFFSET} recipe links from page {page}")
-        
-        data = {
-            "query": """
-            query genericRecipesBy($showOnlyVideo: String, $preparationType: String, $category: String, $ratingAverage: String, $preparationTime: String, $difficulty: String, $cost: String, $cookingType: String, $authorName: String, $specialNeeds: String, $geographicalOrigin: String, $sort: Int, $take: Int, $skip: Int,
-                      ) {
-                          genericRecipesBy(
-                            showOnlyVideo: $showOnlyVideo, preparationType: $preparationType, category: $category, ratingAverage: $ratingAverage, preparationTime: $preparationTime, difficulty: $difficulty, cost: $cost, cookingType: $cookingType, authorName: $authorName, specialNeeds: $specialNeeds, geographicalOrigin: $geographicalOrigin, sort: $sort, take: $take, skip: $skip,
+    # === STEP 3: PROCESS EACH CATEGORY =============================================
+    print_minor_header(logger, "Extracting Recipe Links For Each Category")
 
-                            ) {
-                                totalCount,
-                                recipes{
-                                  alias,
-                                  id,
-                                  authorOrChef {authorName, image},
-                                  category,
-                                  cookingType,
-                                  pageVertical,
-                                  geographicalOrigin,
-                                  contentName,
-                                  imageOrVideo,
-                                  image,
-                                  preparationTime,
-                                  introduction,
-                                  numberOfPortions,
-                                  difficulty,
-                                  pageUrl 
-                                }
-                              }
-                        }
-        """,
-            "variables": {
-                "take": PAGE_LINKS_OFFSET,
-                "skip": PAGE_LINKS_OFFSET * (page - 1),
-            }
-        }
+    last_category = categories[-1]
 
-        response = requests.post(BASE_GRAPHQL_URL, json=data, headers=BASE_HEADERS)
+    for category in categories:
+        errors = []
 
-        
-        try:
-            data_json = response.json()
-            recipes = data_json['data']['genericRecipesBy']['recipes']
-        except (json.JSONDecodeError, KeyError):
-            logger.error("Failed to parse GraphQL response")
+        # Step 4.1: STOP CHECK
+        if check_if_task_stopped(task):
             break
 
-        if not recipes:
-            logger.info("")
-            logger.info("All Recipe Links pulled ...")
-            logger.info("")
-            completed = True
-            break
+        current_category_counter += 1
 
-        for item in recipes:
-            # Check stopping condition
-            if OFFSET and total_links_counter >= OFFSET:
-                logger.info("")
-                logger.info(f"Stopping condition reached at {total_links_counter} links.")
-                logger.info("")
-                stopping_condition_triggered = True
-                break
+        logger.info("")
+        logger.info(f"→ Category: {category} ({current_category_counter}/{len(categories)})")
 
-            # Skip invalid links
-            if not item.get('pageUrl'):
-                task.increment_warnings(logger, f"Page URL not found for item: {item}", None)
+        # === Load category page ====================================================
+        with sync_playwright() as p:
+            browser = p.chromium.launch(headless=not task.debug_mode)
+            context = browser.new_context(viewport={"width": 1920, "height": 1080})
+            page = context.new_page()
+
+            page.goto("https://feed.continente.pt/receitas", wait_until="networkidle")
+
+            # Handle cookies
+            try:
+                page.wait_for_selector("#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll", timeout=5000)
+                page.click("#CybotCookiebotDialogBodyLevelButtonLevelOptinAllowAll")
+            except:
+                pass
+
+            # Expand categories
+            try:
+                see_more = page.query_selector('.collapsedFilter[data-filter-group="category"]')
+                if see_more and see_more.is_enabled():
+                    see_more.scroll_into_view_if_needed()
+                    see_more.click()
+                    page.wait_for_timeout(500)
+
+                see_more = page.query_selector('.seeMoreCheckfields')
+                if see_more and see_more.is_enabled():
+                    see_more.scroll_into_view_if_needed()
+                    see_more.click()
+                    page.wait_for_timeout(500)
+
+                category_filter = page.locator('.collapsedFilter.collapsedOpen[data-filter-group="category"]')
+                checkbox_labels = category_filter.locator(f'.checkField[data-value="{category}"] label')
+
+            except Exception as e:
+                errors.append((e,traceback))
                 continue
 
-            RecipeLink.create(
-                link=f"{BASE_URL}{item['pageUrl']}",
-                image_link=item['image'],
-                base_search_link=BASE_GRAPHQL_URL,
-                page=page,
-                category=item['category']
+            # Validate checkbox count
+            count = checkbox_labels.count()
+            if count == 0:
+                task.increment_errors(logger, f"No checkbox found for category {category}", None)
+                browser.close()
+                continue
+
+            if count > 1:
+                task.increment_errors(logger, f"Multiple checkboxes found for category {category}", None)
+                browser.close()
+                continue
+
+            # Select category
+            checkbox_labels.nth(0).click()
+            page.wait_for_timeout(3000)
+
+            # === Get instance count =================================================
+            number_text = page.locator('p.resultsTotalNumber span').text_content()
+            total_in_category = int(number_text.strip())
+            logger.info(f"Category contains {total_in_category} ingredients.")
+
+            # === Resume logic =======================================================
+            if total_ingredients_links_already_done:
+                if total_ingredients_links_already_done >= total_in_category:
+                    total_ingredients_links_already_done -= total_in_category
+                    logger.info("Category already extracted; skipping.")
+                    continue
+                start = total_ingredients_links_already_done
+            else:
+                start = 0
+
+            # === Load all recipes (click "Load More" loop) ==========================
+            while True:
+                try:
+                    time.sleep(1)
+                    cards = len(page.query_selector_all(
+                        ".resultsCardsBlock .recipeCard, .resultsCardsBlock .yammiCard"
+                    ))
+                    if offset and (cards + start) >= offset:
+                        logger.debug(f"Stopping condition reached at {cards} links, stopping load more.")
+                        break
+                    time.sleep(2)
+                    load_more = page.wait_for_selector(".cta-02--red.viewMore", timeout=2000, state="visible")
+                    load_more.scroll_into_view_if_needed()
+                    load_more.click()
+                    logger.debug(f"[{category}] Clicking 'Load More'...")
+                    page.wait_for_timeout(1000)
+                except PlaywrightTimeoutError:
+                    logger.info("No more 'Load More' button found; all recipes loaded.")
+                    break
+
+            # === Scrape =============================================================
+            task.links = RecipeLink.select().count()
+            total_links_counter, stopping_condition_triggered = scrape_recipe_links(
+                logger, page, start, offset
             )
-            total_links_counter += 1
 
-        if stopping_condition_triggered:
-            break
+            # Check if all categories completed
+            if category == last_category:
+                logger.info("")
+                logger.info("All Recipe Links pulled ...")
+                logger.info("")
+                completed = True
 
-        page += 1
+            # Check stopping condition
+            if stopping_condition_triggered:
+                break
 
-    # === STEP 3: FINALIZE JOB ================================================
+            # Close browser
+            browser.close()
+
+        # Log errors
+        for error in errors:
+            e, tb = error
+            task.increment_errors(logger, f"Error during category extraction: {e}", tb.format_exc())
+
+    # === STEP 5: FINALIZE JOB ================================================
+    print_minor_header(logger, "Extracting Recipe Links Completed")
+    logger.info("")
     task.links = RecipeLink.select().count()
-    task.save() 
-    
-    print_sub_header(logger, "Recipe Link Extraction Completed")
-    
-    return task, completed
-    
+    task.save()
 
+
+    # === STEP 6: LOG FINAL STATISTICS ==========================================
+    print_sub_header(logger, "Recipe Link Extraction Completed")
+
+    return task, completed
+
+# === Main / Recipe =========================================================
+# Orchestrates the full extraction pipeline
+# ==============================================================================
 def __extract_continente_recipes(logger, task, resume=False):
     """
     Main entry point for extracting recipe data from Continente.
@@ -687,10 +909,10 @@ def __extract_continente_recipes(logger, task, resume=False):
     logger.info("")
 
     # === STEP 1: LINK EXTRACTION ===============================================
-    task, l_completed = extract_recipes_links(logger, task)
+    task, l_completed = scrape_recipes_links(logger, task)
 
     # === STEP 2: RECIPE EXTRACTION =============================================
-    task, completed = extract_recipes(logger, task, threads)
+    task, completed = extract_recipes(logger, task, task.properties)
 
     # === STEP 3: SUMMARY & LOGGING =============================================
     logger.info("Extraction Summary:")

@@ -1,24 +1,23 @@
 # ---------------------------------------------
 #  Base Image
 # ---------------------------------------------
-FROM python:3.11-alpine
+FROM python:3.12-slim
 
 # ---------------------------------------------
 #  Install System Dependencies
 # ---------------------------------------------
-RUN apk update && apk add --no-cache \
-    postgresql-dev \
+RUN apt-get update && apt-get install -y \
     gcc \
+    build-essential \
+    libpq-dev \
     python3-dev \
-    musl-dev \
-    linux-headers \
-    libc-dev \
-    icu-data-full \
+    libicu-dev \
     firefox-esr \
-    geckodriver \
     dbus \
-    ttf-freefont \
-    mesa-dri-gallium
+    fonts-freefont-ttf \
+    mesa-va-drivers \
+    mesa-vulkan-drivers \
+    && rm -rf /var/lib/apt/lists/*
 
 
 # ---------------------------------------------

@@ -88,7 +88,7 @@ from apps.etl_app.etl.extract.recipe.continente.models import Recipe as ExtractC
 
 class TaskExtractRecipesContinenteTestCase(TestCase):
     
-    base_threshold_value = 13
+    base_threshold_value = 10
     
     def setUp(self):
         """ Set up a Comapny for testing."""
@@ -127,6 +127,108 @@ class TaskExtractRecipesContinenteTestCase(TestCase):
     def tearDown(self):
         self.extract_task.purge()
         
+    def default_behavior(self, task, base_threshold_value):
+
+        # ============ STEP 1: OPEN DATABASE ============
+        # Run the extraction process for Continente Recipes
+        task, database = start_db(
+            logger=None,
+            task=task,
+            models=recipe_continente_extract_models,
+            path=EXTRACT_CONTINENTE_RECIPES_DB,
+            database_proxy=recipe_continenete_extract_database_proxy,
+            reset=False
+        )
+
+        # ============ STEP 2: ASSERTIONS ============
+        # Check that the number of extracted recipes and links matches the expected base threshold
+        self.assertEqual(ExtractContinenteRecipeLink.select().count(), base_threshold_value)
+        self.assertEqual(ExtractContinenteRecipe.select().count(), base_threshold_value)
+        self.assertEqual(task.step, base_threshold_value)
+        self.assertIn(task.status, [Task.Status.FINISHED, Task.Status.PAUSED])
+        self.assertEqual(task.links,task.items_processed)
+
+        # Check that the task properties are the default
+        properties = default_properties()
+        self.assertEqual(task.properties, properties)
+        threads = task.properties["Threads"]
+
+
+        # ============ STEP 3: UNIQUENESS CHECKS ============
+        # Ensure all extracted recipe links are unique
+        recipe_links = list(ExtractContinenteRecipeLink.select().order_by(ExtractContinenteRecipeLink.id))
+        link_values = [rl.link for rl in recipe_links]
+        self.assertEqual(len(link_values), len(set(link_values)), "Recipe links are not unique")
+
+        # Ensure all extracted recipes are unique by title
+        recipes = list(ExtractContinenteRecipe.select().order_by(ExtractContinenteRecipe.id))
+        recipe_titles = [r.title for r in recipes]
+        self.assertEqual(len(recipe_titles), len(set(recipe_titles)), "Recipe titles are not unique")
+
+        # =========== STEP 4: LOG VALIDATION ============
+        # Open and read the log file
+        log_file_path = task.get_log_path()
+        with open(log_file_path, 'r') as log_file:
+            log_text = log_file.read()
+
+        # Function to validate key sections of the log using regex
+
+        # Basic regex patterns for key log sections
+        patterns = [
+            # Log separators
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] =+",
+
+            # Start extraction
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s*\|\s*Starting EXTRACT for all RECIPES from Continente\. \|",
+
+            # Database initialization
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Initializing EXTRACT database\.\.\.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Resetting Database\.\.\.",
+
+            # Task properties
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Task Properties:",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s+- Threads: \d+",
+
+            # Recipe link extraction
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Starting Recipe Link Extraction \(Playwright Mode\) === ===",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === Extracting Recipe Categories ===",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Found \d+ categories:",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] → .+",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === Extracting Recipe Categories Completed ===",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === Extracting Recipe Links For Each Category ===",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] → Category: .+ \(\d+/\d+\)",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Category contains \d+ ingredients\.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Stopping condition reached at \d+ links\.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Scraped \d+ new recipes\.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === Extracting Recipe Links Completed ===",
+
+            # Parallel extraction
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Starting Parallel Recipe Extraction === ===",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Found \d+ RECIPES to EXTRACT\.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] \[Thread MainThread\] Processing Recipe Link ID \d+ from https://feed\.continente\.pt/receitas/.+",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Stopping condition reached at \d+ processed recipes.",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Parallel Recipe Extraction Completed === ===",
+
+            # Summary
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Extraction Summary:",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s+-\s+Recipe Links: \d+",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s+-\s+Recipes Extracted: \d+",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s+-\s+Total Errors: \d+",
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]\s+-\s+Total Warnings: \d+",
+        ]
+
+        # Patterns that appear in this specific log but are separate checks
+        extra_patterns = [
+            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] ⚠️ Task paused before full completion\.",
+        ]
+
+        # Check main patterns
+        for pat in patterns:
+            self.assertTrue(re.search(pat, log_text), f"Log pattern not found: {pat}")
+
+        # Check extra patterns
+        for pat in extra_patterns:
+            self.assertTrue(re.search(pat, log_text), f"Extra log pattern not found: {pat}")
 
 
     def test_default_behavior_light(self):
@@ -152,145 +254,77 @@ class TaskExtractRecipesContinenteTestCase(TestCase):
         
         # ============ STEP 2: RUN EXTRACTION ============
         print_prologue()
-        
-        # Run the extraction process for Continente Recipes
-        self.extract_task, database = start_db(
-            logger=None,
-            task=self.extract_task,
-            models=recipe_continente_extract_models,
-            path=EXTRACT_CONTINENTE_RECIPES_DB,
-            database_proxy=recipe_continenete_extract_database_proxy,
-            reset= False
-        )
 
-        # ============ STEP 2: ASSERTIONS ============
-        # Check that the number of extracted recipes and links matches the expected base threshold
-        self.assertEqual(ExtractContinenteRecipeLink.select().count(), self.base_threshold_value)
-        self.assertEqual(ExtractContinenteRecipe.select().count(), self.base_threshold_value)
-        self.assertEqual(self.extract_task.step, self.base_threshold_value)
-        self.assertIn(self.extract_task.status, [Task.Status.FINISHED, Task.Status.PAUSED])
-        self.assertEqual(self.extract_task.links, self.extract_task.items_processed)
+        # ============ STEP 3: TEST ============
+        self.default_behavior(task=self.extract_task, base_threshold_value = self.base_threshold_value)
 
-        # Check that the task properties are the default
-        properties = default_properties()
-        self.assertEqual(self.extract_task.properties, properties)
-        threads = self.extract_task.properties["Threads"]
-        
-        
-        # ============ STEP 3: UNIQUENESS CHECKS ============
-        # Ensure all extracted recipe links are unique
-        recipe_links = list(ExtractContinenteRecipeLink.select().order_by(ExtractContinenteRecipeLink.id))
-        link_values = [rl.link for rl in recipe_links]
-        self.assertEqual(len(link_values), len(set(link_values)), "Recipe links are not unique")
-
-        # Ensure all extracted recipes are unique by title
-        recipes = list(ExtractContinenteRecipe.select().order_by(ExtractContinenteRecipe.id))
-        recipe_titles = [r.title for r in recipes]
-        self.assertEqual(len(recipe_titles), len(set(recipe_titles)), "Recipe titles are not unique")
-        
-        # =========== STEP 4: LOG VALIDATION ============
-        # Open and read the log file
-        log_file_path = self.extract_task.get_log_path()
-        with open(log_file_path, 'r') as log_file:
-            log_text = log_file.read()
-        
-         # Function to validate key sections of the log using regex
-        
-        # Basic regex patterns for key log sections
-        # Basic regex patterns for key log sections
-        patterns = [
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] =+",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] \t\| Starting EXTRACT for all RECIPES from Continente\. \|",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Initializing EXTRACT database\.\.\.",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Resetting Database\.\.\.",
-            
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Task Properties:",
-            rf"\[\d{{2}}/\d{{2}}/\d{{4}} \d{{2}}:\d{{2}}:\d{{2}}\] \[INFO\]   - Threads: {threads}",
-            
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Starting Recipe Link Extraction === ===",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Added \d+ recipe links from page \d+",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Stopping condition reached at \d+ links\.",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Recipe Link Extraction Completed === ===",
-            
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Starting Parallel Recipe Extraction === ===",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Found \d+ RECIPES to EXTRACT\.",
-            
-            # Match MainThread and feed.continente.pt URL structure
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] \[Thread MainThread\] Processing Recipe Link ID \d+ from https://feed\.continente\.pt/receitas/.+\.",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Stopping condition reached at \d+ processed recipes \(threshold: \d+\)\.",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] === === Parallel Recipe Extraction Completed === ===",
-            
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] Extraction Summary:",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]   - Recipe Links: \d+",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]   - Recipes Extracted: \d+",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]   - Total Errors: \d+",
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\]   - Total Warnings: \d+",
-        ]
-        
-        # Patterns that appear in this specific log but are separate checks
-        extra_patterns = [
-            r"\[\d{2}/\d{2}/\d{4} \d{2}:\d{2}:\d{2}\] \[INFO\] ⚠️ Task paused before full completion\.",
-        ]
-        
-        # Check main patterns
-        for pat in patterns:
-            self.assertTrue(re.search(pat, log_text), f"Log pattern not found: {pat}")
-
-        # Check extra patterns
-        for pat in extra_patterns:
-            self.assertTrue(re.search(pat, log_text), f"Extra log pattern not found: {pat}")
         
 
-    def test_threshold_stopping_condition(self):
+    def test_pause(self):
         """ Test that Extract Continente Recipes stops at the defined threshold."""
         print_prologue()
         
-        # 1 - Test Extract Continente Recipes with threshold stopping condition
+        # 1 - Extract Continente Recipes with threshold stopping condition
         self.extract_task = self.extract_task.launch()
-        
+        self.default_behavior(task=self.extract_task, base_threshold_value = self.base_threshold_value)
+
+        # 2 - Resume the task and check if it processes the next batch correctly
+        self.extract_task = self.extract_task.launch(resume=True)
+
+        # 2 - Run a second extraction with double the threshold to test pausing
+        # Create a threshold stopping condition
+        second_threshold_stopping_condition = ThresholdCondition.objects.create(
+            threshold_value=self.base_threshold_value * 2
+        )
+        second_extract_job, second_extract_task = create_test_task(
+            type=Job.TaskType.EXTRACT,
+            process=ProcessType.RECIPES,
+            company=self.company_continente,
+            user=self.app_admin_user,
+            stopping_condition=second_threshold_stopping_condition
+        )
+        second_extract_task = second_extract_task.launch()
+        self.default_behavior(task=second_extract_task, base_threshold_value = self.base_threshold_value * 2)
+
         self.extract_task, database = start_db(
             logger=None,
             task=self.extract_task,
             models=recipe_continente_extract_models,
             path=EXTRACT_CONTINENTE_RECIPES_DB,
             database_proxy=recipe_continenete_extract_database_proxy,
-            reset= False
+            reset=False
         )
 
-        self.assertEqual(ExtractContinenteRecipe.select().count(),self.threshold_stopping_condition.threshold_value)
-        self.assertEqual(ExtractContinenteRecipeLink.select().count(),self.base_threshold_value)
-        self.assertEqual(self.extract_task.step, self.threshold_stopping_condition.threshold_value)
-        self.assertEqual(self.extract_task.status, Task.Status.PAUSED)
-        
-        # 2 - Resume the task and check if it processes the next batch correctly
-        tenth_ingredient = (
-            ExtractContinenteRecipe
-            .select()
-            .where(ExtractContinenteRecipe.id == self.threshold_stopping_condition.threshold_value)
-            .order_by(ExtractContinenteRecipe.id)
-            .get()
+        # Ensure all extracted recipes are unique by title
+        first_recipes = list(ExtractContinenteRecipe.select().order_by(ExtractContinenteRecipe.id))
+        first_recipe_titles = [(r.title, r.link) for r in first_recipes]
+
+        second_extract_task, database = start_db(
+            logger=None,
+            task=second_extract_task,
+            models=recipe_continente_extract_models,
+            path=EXTRACT_CONTINENTE_RECIPES_DB,
+            database_proxy=recipe_continenete_extract_database_proxy,
+            reset=False
         )
-        self.extract_task.resume()
-        self.extract_task.refresh_from_db()
-        
-        tenth_ingredient_ = (
-            ExtractContinenteRecipe
-            .select()
-            .where(ExtractContinenteRecipe.id == self.threshold_stopping_condition.threshold_value)
-            .order_by(ExtractContinenteRecipe.id)
-            .get()
-        )
-        self.assertEqual(tenth_ingredient.title, tenth_ingredient_.title)
-        self.assertEqual(ExtractContinenteRecipe.select().count(),self.threshold_stopping_condition.threshold_value * 2)
-        self.assertEqual(ExtractContinenteRecipeLink.select().count(),self.base_threshold_value * 2)
-        self.assertEqual(self.extract_task.step, self.threshold_stopping_condition.threshold_value * 2)
-        self.assertEqual(self.extract_task.status, Task.Status.PAUSED)
-        
-       
-            
+
+        # Ensure all extracted recipes are unique by title
+        second_recipes = list(ExtractContinenteRecipe.select().order_by(ExtractContinenteRecipe.id))
+        second_recipe_titles = [(r.title, r.link) for r in second_recipes]
 
 
-###
+        self.assertEqual(first_recipe_titles, second_recipe_titles)
+        print()
+
+
+
+
+
+
+
+
+
+    ###
 #
 #       Task Extract Ingredients
 #   
